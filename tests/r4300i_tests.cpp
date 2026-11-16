@@ -87,7 +87,7 @@ int main()
 
     // An unsupported instruction raises Reserved Instruction and selects BEV vector.
     memory.words.clear();
-    memory.words[base] = 0xFFFFFFFFU;
+    memory.words[base] = 0x70000000U; // Reserved SPECIAL2 opcode
     cpu.reset();
     passed &= check(cpu.step(memory, error), "reserved instruction is handled as exception");
     passed &= check(cpu.pc() == R4300i::BootstrapExceptionVector,
