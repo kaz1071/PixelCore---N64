@@ -21,6 +21,8 @@ qt_add_executable(pixelcore-n64
     core/rom/rom_file.h
     core/pif/pif.cpp
     core/pif/pif.h
+    core/rsp/rsp.cpp
+    core/rsp/rsp.h
     core/cpu/r4300i.cpp
     core/cpu/r4300i.h
     core/memory/n64_memory_bus.cpp
@@ -121,4 +123,26 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME n64-rom-normalization-tests COMMAND rom-file-tests)
+
+    add_executable(rsp-tests
+        tests/rsp_tests.cpp
+        core/rsp/rsp.cpp
+        core/rsp/rsp.h
+        core/memory/n64_memory_bus.cpp
+        core/memory/n64_memory_bus.h
+        core/pif/pif.cpp
+        core/pif/pif.h
+        core/cpu/r4300i.cpp
+        core/cpu/r4300i.h
+    )
+
+    target_include_directories(rsp-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_options(rsp-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    )
+
+    add_test(NAME n64-rsp-scalar-tests COMMAND rsp-tests)
 endif()
