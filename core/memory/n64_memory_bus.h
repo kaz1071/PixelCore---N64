@@ -19,6 +19,14 @@ public:
     static constexpr std::uint64_t SpDmemBase = 0x04000000ULL;
     static constexpr std::uint64_t SpImemBase = 0x04001000ULL;
     static constexpr std::size_t SpMemorySize = 4 * 1024;
+    static constexpr std::uint64_t SpRegisterBase = 0x04040000ULL;
+    static constexpr std::uint64_t SpMemoryAddress = SpRegisterBase;
+    static constexpr std::uint64_t SpDramAddress = SpRegisterBase + 0x04;
+    static constexpr std::uint64_t SpReadLength = SpRegisterBase + 0x08;
+    static constexpr std::uint64_t SpWriteLength = SpRegisterBase + 0x0C;
+    static constexpr std::uint64_t SpStatus = SpRegisterBase + 0x10;
+    static constexpr std::uint64_t SpDmaBusy = SpRegisterBase + 0x18;
+    static constexpr std::uint64_t SpSemaphore = SpRegisterBase + 0x1C;
     static constexpr std::uint64_t PiRegisterBase = 0x04600000ULL;
     static constexpr std::uint64_t PiDramAddress = PiRegisterBase;
     static constexpr std::uint64_t PiCartAddress = PiRegisterBase + 0x04;
@@ -63,6 +71,8 @@ private:
     bool transferPifToRdram();
     bool transferCartridgeToRdram(std::uint32_t lengthMinusOne);
     bool transferRdramToSaveRam(std::uint32_t lengthMinusOne);
+    bool transferRdramToSp(std::uint32_t lengthControl);
+    bool transferSpToRdram(std::uint32_t lengthControl);
     bool readImage(const std::vector<std::uint8_t> &image,
                    std::uint64_t offset, std::uint32_t &value) const;
 
@@ -83,4 +93,10 @@ private:
     std::uint32_t piReadLength_ = 0;
     std::uint32_t piWriteLength_ = 0;
     std::uint32_t piStatus_ = 0;
+    std::uint32_t spMemAddress_ = 0;
+    std::uint32_t spDramAddress_ = 0;
+    std::uint32_t spReadLength_ = 0;
+    std::uint32_t spWriteLength_ = 0;
+    std::uint32_t spStatus_ = 1;
+    std::uint32_t spSemaphore_ = 0;
 };
