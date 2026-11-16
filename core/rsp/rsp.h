@@ -31,6 +31,8 @@ private:
     std::array<std::uint32_t, 32> registers_{};
     std::uint32_t pc_ = 0;
     std::uint32_t nextPc_ = 4;
+    std::uint32_t hi_ = 0;
+    std::uint32_t lo_ = 0;
     bool delaySlotPending_ = false;
     bool currentInstructionInDelaySlot_ = false;
     bool halted_ = false;
