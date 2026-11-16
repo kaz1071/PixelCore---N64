@@ -156,8 +156,8 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         return true;
     case 0x04: if (a == b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4); return true; // BEQ
     case 0x05: if (a != b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4); return true; // BNE
-    case 0x08: registers_[rt] = a + offset; return true; // ADDI (overflow trap not yet modeled)
-    case 0x09: registers_[rt] = a + offset; return true; // ADDIU
+    case 0x08: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDI (overflow trap not yet modeled)
+    case 0x09: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDIU
     case 0x0A: registers_[rt] = static_cast<std::int64_t>(a) < offset; return true; // SLTI
     case 0x0B: registers_[rt] = a < static_cast<std::uint64_t>(offset); return true; // SLTIU
     case 0x0C: registers_[rt] = a & immediate; return true; // ANDI
