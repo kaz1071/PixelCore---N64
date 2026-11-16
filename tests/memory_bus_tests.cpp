@@ -27,7 +27,7 @@ int main()
                     "unaligned word write is rejected");
 
     std::uint8_t byte = 0;
-    passed &= check(bus.read8(0xA0000101, byte) && byte == 0x56,
+    passed &= check(bus.read8(0xA0000102, byte) && byte == 0x56,
                     "inherited byte read uses big-endian byte order");
     passed &= check(bus.write8(0x80000102, 0xAB), "byte write to RDRAM");
     passed &= check(bus.read32(0x100, word) && word == 0x1234AB78,
