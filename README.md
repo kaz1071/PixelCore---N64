@@ -31,16 +31,16 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Initial LL/SC load-linked and store-conditional support
 - [x] Initial 8 MiB RDRAM, read-only cartridge/boot ROM, and 64-byte PIF RAM mappings
 - [x] Connect the R4300i CPU to the memory bus through an initial N64 system core\n- [x] Connect desktop ROM loading and normalized cartridge images to the system core
-- [x] Initial PIF Joybus controller identify/read command processing
+- [x] Initial PIF Joybus controller identify/reset/read command processing
 - [x] Initial SI 64-byte DMA transfers between RDRAM and PIF RAM
 - [x] Initial MI routing and R4300i handling for SI completion interrupts\n- [ ] Memory-mapped hardware (MI, VI, AI, PI, SI, RI)
 - [ ] TLB and complete virtual-memory behavior
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
 - [ ] Audio processing
-- [ ] Controller input
+- [x] Initial keyboard-to-PIF controller input mapping (game execution not active yet)
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus also models the PIF's 64-byte RAM window and an early Joybus controller path supporting controller identification, reset, and button/stick reads. The initial SI DMA engine now transfers the 64-byte command block between RDRAM and PIF RAM and invokes Joybus processing. Transfers are currently synchronous, but completion raises the SI interrupt through MI and the CPU can accept the external IP2 interrupt when enabled. Full asynchronous timing and other RCP interrupt sources remain unimplemented. Desktop input is not connected, and accessory protocols, CIC behavior, and authentic IPL boot remain unimplemented. The desktop ROM loader now normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. The memory bus does not yet implement memory-mapped devices. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, full interrupt coverage, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus also models the PIF's 64-byte RAM window and an early Joybus controller path supporting controller identification, reset, and button/stick reads. The initial SI DMA engine now transfers the 64-byte command block between RDRAM and PIF RAM and invokes Joybus processing. Transfers are currently synchronous, but completion raises the SI interrupt through MI and the CPU can accept the external IP2 interrupt when enabled. Full asynchronous timing and other RCP interrupt sources remain unimplemented. Keyboard input is now mapped to controller 0's PIF state, but game execution/rendering is not active yet. Accessory protocols, full controller-pak behavior, CIC handling, and authentic IPL boot remain unimplemented. The desktop ROM loader now normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. Only initial SI and MI register paths are implemented; the remaining memory-mapped devices are not yet modeled. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
