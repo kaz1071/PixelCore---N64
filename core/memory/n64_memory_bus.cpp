@@ -4,7 +4,8 @@
 
 N64MemoryBus::N64MemoryBus()
     : rdram_(RdramSize, 0), pifRam_(PifRamSize, 0),
-      spDmem_(SpMemorySize, 0), spImem_(SpMemorySize, 0)
+      spDmem_(SpMemorySize, 0), spImem_(SpMemorySize, 0),
+      saveRam_(SaveRamSize, 0)
 {
 }
 
@@ -51,6 +52,12 @@ bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
         return true;
     }
 
+    if (physical >= SaveRamBase && physical - SaveRamBase < SaveRamSize)
+    {
+        value = saveRam_[static_cast<std::size_t>(physical - SaveRamBase)];
+        return true;
+    }
+
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize)
     {
         value = pifRam_[static_cast<std::size_t>(physical - PifRamBase)];
@@ -91,6 +98,10 @@ bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
         spImem_[static_cast<std::size_t>(physical - SpImemBase)] = value;
         return true;
     }
+    if (physical >= SaveRamBase && physical - SaveRamBase < SaveRamSize) {
+        saveRam_[static_cast<std::size_t>(physical - SaveRamBase)] = value;
+        return true;
+    }
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize) {
         const std::size_t offset = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[offset] = value;
@@ -118,8 +129,17 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical >= SpImemBase && physical - SpImemBase <= SpMemorySize - 4)
         return readImage(spImem_, physical - SpImemBase, value);
 
+    if (physical >= SaveRamBase && physical - SaveRamBase <= SaveRamSize - 4)
+        return readImage(saveRam_, physical - SaveRamBase, value);
+
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
         return readImage(pifRam_, physical - PifRamBase, value);
+
+    if (physical == PiDramAddress) { value = piDramAddress_; return true; }
+    if (physical == PiCartAddress) { value = piCartAddress_; return true; }
+    if (physical == PiReadLength) { value = piReadLength_; return true; }
+    if (physical == PiWriteLength) { value = piWriteLength_; return true; }
+    if (physical == PiStatus) { value = piStatus_; return true; }
 
     if (physical == SiDramAddress) { value = siDramAddress_; return true; }
     if (physical == SiPifAddressRead || physical == SiPifAddressWrite) { value = PifRamBase; return true; }
@@ -147,6 +167,31 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return false;
 
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical == PiDramAddress) {
+        piDramAddress_ = value & 0x00FFFFFFU;
+        return true;
+    }
+    if (physical == PiCartAddress) {
+        piCartAddress_ = value;
+        return true;
+    }
+    if (physical == PiReadLength) {
+        piReadLength_ = value & 0x00FFFFFFU;
+        return transferRdramToSaveRam(piReadLength_);
+    }
+    if (physical == PiWriteLength) {
+        piWriteLength_ = value & 0x00FFFFFFU;
+        return transferCartridgeToRdram(piWriteLength_);
+    }
+    if (physical == PiStatus) {
+        if (value & 0x01U)
+            piStatus_ &= ~0x04U;
+        if (value & 0x02U) {
+            piStatus_ &= ~0x08U;
+            miInterrupts_ &= ~0x10U;
+        }
+        return true;
+    }
     if (physical == SiDramAddress) {
         siDramAddress_ = value & 0x00FFFFFFU;
         return true;
@@ -229,6 +274,11 @@ void N64MemoryBus::clearPifRam()
     siStatus_ = 0;
     miInterrupts_ = 0;
     miInterruptMask_ = 0;
+    piDramAddress_ = 0;
+    piCartAddress_ = 0;
+    piReadLength_ = 0;
+    piWriteLength_ = 0;
+    piStatus_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
@@ -268,6 +318,54 @@ bool N64MemoryBus::transferPifToRdram()
     std::copy(pifRam_.begin(), pifRam_.end(), rdram_.begin() + siDramAddress_);
     siStatus_ = 0x1000;
     miInterrupts_ |= 0x02U;
+    return true;
+}
+
+bool N64MemoryBus::transferCartridgeToRdram(std::uint32_t lengthMinusOne)
+{
+    const std::uint64_t length = static_cast<std::uint64_t>(lengthMinusOne) + 1;
+    if (piDramAddress_ > rdram_.size() ||
+        length > rdram_.size() - piDramAddress_ ||
+        piCartAddress_ < CartridgeBase ||
+        piCartAddress_ - CartridgeBase > cartridge_.size() ||
+        length > cartridge_.size() - static_cast<std::size_t>(piCartAddress_ - CartridgeBase))
+    {
+        piStatus_ = 0x04;
+        return false;
+    }
+
+    piStatus_ = 0x01;
+    std::copy_n(cartridge_.begin() + (piCartAddress_ - CartridgeBase),
+                static_cast<std::size_t>(length),
+                rdram_.begin() + piDramAddress_);
+    piDramAddress_ += static_cast<std::uint32_t>(length);
+    piCartAddress_ += static_cast<std::uint32_t>(length);
+    piStatus_ = 0x08;
+    miInterrupts_ |= 0x10U;
+    return true;
+}
+
+bool N64MemoryBus::transferRdramToSaveRam(std::uint32_t lengthMinusOne)
+{
+    const std::uint64_t length = static_cast<std::uint64_t>(lengthMinusOne) + 1;
+    if (piDramAddress_ > rdram_.size() ||
+        length > rdram_.size() - piDramAddress_ ||
+        piCartAddress_ < SaveRamBase ||
+        piCartAddress_ - SaveRamBase > saveRam_.size() ||
+        length > saveRam_.size() - static_cast<std::size_t>(piCartAddress_ - SaveRamBase))
+    {
+        piStatus_ = 0x04;
+        return false;
+    }
+
+    piStatus_ = 0x01;
+    std::copy_n(rdram_.begin() + piDramAddress_,
+                static_cast<std::size_t>(length),
+                saveRam_.begin() + (piCartAddress_ - SaveRamBase));
+    piDramAddress_ += static_cast<std::uint32_t>(length);
+    piCartAddress_ += static_cast<std::uint32_t>(length);
+    piStatus_ = 0x08;
+    miInterrupts_ |= 0x10U;
     return true;
 }
 
