@@ -63,6 +63,64 @@ int main()
                     "KSEG1 maps to RSP instruction memory");
     passed &= check(!bus.write32(N64MemoryBus::SpImemBase + N64MemoryBus::SpMemorySize, 0),
                     "RSP data memory rejects out-of-range writes");
+
+    // SP DMA moves data between RDRAM and the selected DMEM/IMEM bank.
+    bus.write32(0xA00, 0x11223344);
+    bus.write32(0xA04, 0x55667788);
+    passed &= check(bus.write32(N64MemoryBus::SpMemoryAddress, 0x0000),
+                    "select SP DMEM for DMA");
+    passed &= check(bus.write32(N64MemoryBus::SpDramAddress, 0xA00),
+                    "set SP DMA source in RDRAM");
+    passed &= check(bus.write32(N64MemoryBus::SpReadLength, 7),
+                    "SP read-length starts an 8-byte RDRAM-to-DMEM DMA");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase, word) && word == 0x11223344,
+                    "SP DMA copies first word into DMEM");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase + 4, word) && word == 0x55667788,
+                    "SP DMA copies second word into DMEM");
+
+    passed &= check(bus.write32(N64MemoryBus::SpMemoryAddress, 0x1000),
+                    "select SP IMEM for DMA");
+    passed &= check(bus.write32(N64MemoryBus::SpDramAddress, 0xA00),
+                    "set SP IMEM DMA source");
+    passed &= check(bus.write32(N64MemoryBus::SpReadLength, 7),
+                    "SP read-length starts RDRAM-to-IMEM DMA");
+    passed &= check(bus.read32(N64MemoryBus::SpImemBase, word) && word == 0x11223344,
+                    "SP DMA copies data into IMEM");
+
+    passed &= check(bus.write32(N64MemoryBus::SpMemoryAddress, 0),
+                    "select DMEM for reverse DMA");
+    passed &= check(bus.write32(N64MemoryBus::SpDramAddress, 0xB00),
+                    "set SP DMA destination in RDRAM");
+    passed &= check(bus.write32(N64MemoryBus::SpWriteLength, 7),
+                    "SP write-length starts an 8-byte DMEM-to-RDRAM DMA");
+    passed &= check(bus.read32(0xB00, word) && word == 0x11223344,
+                    "SP DMA copies DMEM back into RDRAM");
+    passed &= check(bus.read32(0xB04, word) && word == 0x55667788,
+                    "SP DMA copies the full DMEM block back into RDRAM");
+
+    bus.write32(0xC00, 0xAAAABBBB);
+    bus.write32(0xC08, 0xEEEEFFFF);
+    bus.write32(N64MemoryBus::SpMemoryAddress, 0x0020);
+    bus.write32(N64MemoryBus::SpDramAddress, 0xC00);
+    passed &= check(bus.write32(N64MemoryBus::SpReadLength, 0x00401003),
+                    "SP DMA supports two blocks with a four-byte DRAM skip");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase + 0x20, word) && word == 0xAAAABBBB,
+                    "first SP DMA block reaches DMEM");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase + 0x24, word) && word == 0xEEEEFFFF,
+                    "second SP DMA block honours DRAM skip");
+
+    bus.write32(N64MemoryBus::SpDramAddress, N64MemoryBus::RdramSize - 4);
+    passed &= check(!bus.write32(N64MemoryBus::SpReadLength, 7),
+                    "SP DMA rejects transfers beyond RDRAM bounds");
+    passed &= check(bus.read32(N64MemoryBus::SpDmaBusy, word) && word == 0,
+                    "SP DMA busy register is clear after synchronous transfers");
+    passed &= check(bus.read32(N64MemoryBus::SpSemaphore, word) && word == 0,
+                    "SP semaphore read returns its previous value");
+    passed &= check(bus.read32(N64MemoryBus::SpSemaphore, word) && word == 1,
+                    "SP semaphore becomes locked after read");
+    passed &= check(bus.write32(N64MemoryBus::SpSemaphore, 0) &&
+                    bus.read32(N64MemoryBus::SpSemaphore, word) && word == 0,
+                    "writing SP semaphore releases the lock");
     passed &= check(!bus.write32(0x80000001, 0xFFFFFFFF),
                     "unaligned word write is rejected");
 
