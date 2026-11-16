@@ -74,6 +74,31 @@ int main()
     passed &= check(rsp.reg(9) == 0x12340000,
                     "RSP scalar loads and stores access DMEM");
 
+    rsp.reset();
+    // Signed multiply: 6 * 7 -> LO, then move LO into a GPR.
+    memory.write32(N64MemoryBus::SpImemBase, iType(0x09, 0, 8, 6));
+    memory.write32(N64MemoryBus::SpImemBase + 4, iType(0x09, 0, 9, 7));
+    memory.write32(N64MemoryBus::SpImemBase + 8, rType(8, 9, 0, 0, 0x18));
+    memory.write32(N64MemoryBus::SpImemBase + 12, rType(0, 0, 10, 0, 0x12));
+    passed &= check(rsp.step(memory, error) && rsp.step(memory, error) &&
+                    rsp.step(memory, error) && rsp.step(memory, error),
+                    "RSP executes multiply and move-from-LO sequence");
+    passed &= check(rsp.reg(10) == 42,
+                    "RSP MULT and MFLO produce the expected product");
+
+    rsp.reset();
+    // BLTZ takes the branch, but its delay-slot instruction still executes.
+    memory.write32(N64MemoryBus::SpImemBase, iType(0x09, 0, 8, 0xFFFF));
+    memory.write32(N64MemoryBus::SpImemBase + 4, iType(0x01, 8, 0, 2));
+    memory.write32(N64MemoryBus::SpImemBase + 8, iType(0x09, 0, 9, 1));
+    memory.write32(N64MemoryBus::SpImemBase + 12, iType(0x09, 0, 10, 2));
+    memory.write32(N64MemoryBus::SpImemBase + 16, iType(0x09, 0, 11, 3));
+    passed &= check(rsp.step(memory, error) && rsp.step(memory, error) &&
+                    rsp.step(memory, error) && rsp.step(memory, error),
+                    "RSP executes REGIMM branch and delay slot");
+    passed &= check(rsp.reg(9) == 1 && rsp.reg(10) == 0 && rsp.reg(11) == 3,
+                    "RSP BLTZ selects the target after executing its delay slot");
+
     if (!passed) return 1;
     std::cout << "All RSP scalar CPU tests passed.\n";
     return 0;
