@@ -90,6 +90,48 @@ int main()
     passed &= check(!bus.read32(N64MemoryBus::CartridgeBase + 8, word),
                     "out-of-range cartridge read is rejected");
 
+    // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
+    passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
+                    "set PI destination RDRAM address");
+    passed &= check(bus.write32(N64MemoryBus::PiCartAddress,
+                                static_cast<std::uint32_t>(N64MemoryBus::CartridgeBase)),
+                    "set PI source cartridge address");
+    passed &= check(bus.write32(N64MemoryBus::PiWriteLength, 7),
+                    "PI write-length register starts an 8-byte cartridge DMA");
+    passed &= check(bus.read32(0x800, word) && word == 0x80371240,
+                    "PI DMA copies first cartridge word into RDRAM");
+    passed &= check(bus.read32(0x804, word) && word == 0xAABBCCDD,
+                    "PI DMA copies second cartridge word into RDRAM");
+    passed &= check(bus.read32(N64MemoryBus::PiStatus, word) && word == 0x08,
+                    "PI status reports DMA completion interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0x10,
+                    "PI DMA raises the MI PI interrupt bit");
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x200),
+                    "enable PI interrupt in MI mask");
+    passed &= check(bus.interruptPending(),
+                    "enabled PI interrupt reaches the CPU interrupt line");
+    passed &= check(bus.write32(N64MemoryBus::PiStatus, 0x02),
+                    "PI status acknowledges completion interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0,
+                    "PI acknowledgement clears the MI PI interrupt");
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x100),
+                    "disable PI interrupt in MI mask");
+
+    passed &= check(bus.write32(0x900, 0xDEADBEEF), "prepare RDRAM data for save RAM");
+    passed &= check(bus.write32(0x904, 0x12345678), "prepare second save RAM word");
+    passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x900), "set PI save DMA source");
+    passed &= check(bus.write32(N64MemoryBus::PiCartAddress,
+                                static_cast<std::uint32_t>(N64MemoryBus::SaveRamBase)),
+                    "set PI save RAM destination");
+    passed &= check(bus.write32(N64MemoryBus::PiReadLength, 7),
+                    "PI read-length register starts RDRAM-to-save-RAM DMA");
+    passed &= check(bus.read32(N64MemoryBus::SaveRamBase, word) && word == 0xDEADBEEF,
+                    "PI DMA stores first word in cartridge save RAM");
+    passed &= check(bus.read32(N64MemoryBus::SaveRamBase + 4, word) && word == 0x12345678,
+                    "PI DMA stores second word in cartridge save RAM");
+    passed &= check(bus.write32(N64MemoryBus::PiStatus, 0x02),
+                    "acknowledge save RAM PI DMA interrupt");
+
     const std::vector<std::uint8_t> boot = {0x12, 0x34, 0x56, 0x78};
     bus.loadBootRom(boot);
     passed &= check(bus.read32(N64MemoryBus::BootRomBase, word) &&
