@@ -29,6 +29,49 @@ bool N64MemoryBus::readImage(const std::vector<std::uint8_t> &image,
     return true;
 }
 
+bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
+{
+    const std::uint64_t physical = toPhysicalAddress(address);
+
+    if (physical < RdramSize)
+    {
+        value = rdram_[static_cast<std::size_t>(physical)];
+        return true;
+    }
+
+    if (physical >= CartridgeBase)
+    {
+        const std::uint64_t offset = physical - CartridgeBase;
+        if (offset < cartridge_.size())
+        {
+            value = cartridge_[static_cast<std::size_t>(offset)];
+            return true;
+        }
+    }
+
+    if (physical >= BootRomBase)
+    {
+        const std::uint64_t offset = physical - BootRomBase;
+        if (offset < bootRom_.size())
+        {
+            value = bootRom_[static_cast<std::size_t>(offset)];
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
+{
+    const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical >= RdramSize)
+        return false;
+
+    rdram_[static_cast<std::size_t>(physical)] = value;
+    return true;
+}
+
 bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
 {
     if (address & 3)
