@@ -16,6 +16,8 @@ void Rsp::reset()
 {
     registers_.fill(0);
     pc_ = 0;
+    hi_ = 0;
+    lo_ = 0;
     nextPc_ = 4;
     delaySlotPending_ = false;
     currentInstructionInDelaySlot_ = false;
@@ -129,6 +131,40 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         case 0x08: branch(true, a); break; // JR
         case 0x09: write(rd, nextPc_); branch(true, a); break;
         case 0x0D: halted_ = true; broke_ = true; return true; // BREAK
+        case 0x10: write(rd, hi_); break; // MFHI
+        case 0x11: hi_ = a; break; // MTHI
+        case 0x12: write(rd, lo_); break; // MFLO
+        case 0x13: lo_ = a; break; // MTLO
+        case 0x18: { // MULT
+            const std::int64_t product =
+                static_cast<std::int64_t>(signed32(a)) * signed32(b);
+            hi_ = static_cast<std::uint32_t>(static_cast<std::uint64_t>(product) >> 32);
+            lo_ = static_cast<std::uint32_t>(product);
+            break;
+        }
+        case 0x19: { // MULTU
+            const std::uint64_t product = static_cast<std::uint64_t>(a) * b;
+            hi_ = static_cast<std::uint32_t>(product >> 32);
+            lo_ = static_cast<std::uint32_t>(product);
+            break;
+        }
+        case 0x1A: // DIV
+            if (b != 0) {
+                if (a == 0x80000000U && b == 0xFFFFFFFFU) {
+                    lo_ = 0x80000000U;
+                    hi_ = 0;
+                } else {
+                    lo_ = static_cast<std::uint32_t>(signed32(a) / signed32(b));
+                    hi_ = static_cast<std::uint32_t>(signed32(a) % signed32(b));
+                }
+            }
+            break;
+        case 0x1B: // DIVU
+            if (b != 0) {
+                lo_ = a / b;
+                hi_ = a % b;
+            }
+            break;
         case 0x21: write(rd, a + b); break; // ADDU
         case 0x23: write(rd, a - b); break; // SUBU
         case 0x24: write(rd, a & b); break;
@@ -139,6 +175,18 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         case 0x2B: write(rd, a < b); break;
         default:
             error = "Unsupported RSP SPECIAL function " + std::to_string(fn);
+            return false;
+        }
+        break;
+    case 0x01: // REGIMM
+        if (rt == 0 || rt == 1 || rt == 16 || rt == 17) {
+            const bool take = (rt == 0 || rt == 16)
+                ? signed32(a) < 0 : signed32(a) >= 0;
+            if (take && (rt == 16 || rt == 17))
+                write(31, nextPc_);
+            branch(take, pc_ + (static_cast<std::uint32_t>(simm) << 2));
+        } else {
+            error = "Unsupported RSP REGIMM operation " + std::to_string(rt);
             return false;
         }
         break;
