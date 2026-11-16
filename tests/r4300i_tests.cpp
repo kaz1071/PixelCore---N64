@@ -240,6 +240,56 @@ int main()
     passed &= check(memory.words[0x300] == 0x11111111U,
                     "failed SC after intervening store leaves target unchanged");
 
+    // Signed conditional branches and branch-and-link instructions.
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 0xFFFF); // r1 = -1
+    memory.words[base + 4] = iType(0x01, 1, 0x00, 2); // BLTZ r1,+2
+    memory.words[base + 8] = iType(0x09, 0, 2, 7); // delay slot
+    memory.words[base + 12] = iType(0x09, 0, 3, 99); // skipped
+    memory.words[base + 16] = iType(0x09, 0, 4, 11); // target
+    cpu.reset();
+    passed &= check(cpu.step(memory, error), "prepare negative branch operand");
+    passed &= check(cpu.step(memory, error), "BLTZ executes");
+    passed &= check(cpu.step(memory, error), "BLTZ delay slot executes");
+    passed &= check(cpu.reg(2) == 7 && cpu.pc() == base + 16,
+                    "BLTZ takes branch and preserves its delay slot");
+    passed &= check(cpu.step(memory, error), "BLTZ target executes");
+    passed &= check(cpu.reg(3) == 0 && cpu.reg(4) == 11,
+                    "BLTZ skips fall-through instruction");
+
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 5); // r1 = +5
+    memory.words[base + 4] = iType(0x01, 1, 0x11, 2); // BGEZAL r1,+2
+    memory.words[base + 8] = iType(0x09, 0, 2, 13); // delay slot
+    memory.words[base + 16] = iType(0x09, 0, 3, 17); // target
+    cpu.reset();
+    passed &= check(cpu.step(memory, error), "prepare nonnegative branch operand");
+    passed &= check(cpu.step(memory, error), "BGEZAL executes");
+    passed &= check(cpu.reg(31) == base + 12, "BGEZAL writes return address");
+    passed &= check(cpu.step(memory, error), "BGEZAL delay slot executes");
+    passed &= check(cpu.pc() == base + 16 && cpu.reg(2) == 13,
+                    "BGEZAL branches after its delay slot");
+    passed &= check(cpu.step(memory, error), "BGEZAL target executes");
+    passed &= check(cpu.reg(3) == 17, "BGEZAL reaches branch target");
+
+    // BLEZ and BGTZ compare signed register values.
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 0); // r1 = 0
+    memory.words[base + 4] = iType(0x06, 1, 0, 2); // BLEZ r1,+2
+    memory.words[base + 8] = iType(0x09, 0, 2, 19); // delay slot
+    memory.words[base + 16] = iType(0x07, 1, 0, 2); // BGTZ r1,+2 (not taken)
+    memory.words[base + 20] = iType(0x09, 0, 3, 23); // delay slot
+    cpu.reset();
+    passed &= check(cpu.step(memory, error), "prepare zero branch operand");
+    passed &= check(cpu.step(memory, error), "BLEZ executes");
+    passed &= check(cpu.step(memory, error), "BLEZ delay slot executes");
+    passed &= check(cpu.pc() == base + 16 && cpu.reg(2) == 19,
+                    "BLEZ takes branch when register is zero");
+    passed &= check(cpu.step(memory, error), "BGTZ executes");
+    passed &= check(cpu.step(memory, error), "not-taken BGTZ still executes delay slot");
+    passed &= check(cpu.pc() == base + 24 && cpu.reg(3) == 23,
+                    "BGTZ does not branch when register is zero");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
