@@ -99,6 +99,7 @@ int main()
 
     // Big-endian byte/halfword and 64-bit load/store operations.
     memory.words.clear();
+    memory.words[0x100] = 0;
     memory.words[base] = iType(0x09, 0, 1, 0x100); // base address
     memory.words[base + 4] = iType(0x09, 0, 2, 0x80); // sign bit for LB
     memory.words[base + 8] = iType(0x28, 1, 2, 1); // SB at 0x101
@@ -117,16 +118,12 @@ int main()
     passed &= check(cpu.reg(7) == 0xFFFFFFFFFFFFFEDCULL, "LH sign extends halfword");
 
     memory.words.clear();
-    memory.words[base] = iType(0x09, 0, 1, 0x200);
-    memory.words[base + 4] = iType(0x09, 0, 2, 0x1234);
-    memory.words[base + 8] = (0x19U << 26) | (0U << 21) | (2U << 16) | 0x5678U; // DADDIU low value
-    memory.words[base + 12] = iType(0x3F, 1, 2, 0); // SD
-    memory.words[base + 16] = iType(0x37, 1, 3, 0); // LD
+    memory.words[base] = iType(0x09, 0, 1, 0x200); // base address
+    memory.words[base + 4] = iType(0x3F, 1, 2, 0); // SD
+    memory.words[base + 8] = iType(0x37, 1, 3, 0); // LD
     cpu.reset();
     cpu.setReg(2, 0x123456789ABCDEF0ULL);
     passed &= check(cpu.step(memory, error), "prepare doubleword address");
-    passed &= check(cpu.step(memory, error), "prepare instruction executes");
-    passed &= check(cpu.step(memory, error), "second value instruction executes");
     passed &= check(cpu.step(memory, error), "SD executes");
     passed &= check(cpu.step(memory, error), "LD executes");
     passed &= check(cpu.reg(3) == 0x123456789ABCDEF0ULL, "LD retrieves stored 64-bit value");
