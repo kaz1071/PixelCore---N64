@@ -16,6 +16,11 @@ public:
     static constexpr std::uint64_t CartridgeBase = 0x10000000ULL;
     static constexpr std::uint64_t BootRomBase = 0x1FC00000ULL;
     static constexpr std::uint64_t PifRamBase = 0x1FC007C0ULL;
+    static constexpr std::uint64_t SiRegisterBase = 0x04800000ULL;
+    static constexpr std::uint64_t SiDramAddress = SiRegisterBase;
+    static constexpr std::uint64_t SiPifAddressRead = SiRegisterBase + 0x04;
+    static constexpr std::uint64_t SiPifAddressWrite = SiRegisterBase + 0x10;
+    static constexpr std::uint64_t SiStatus = SiRegisterBase + 0x18;
     static constexpr std::size_t PifRamSize = 64;
 
     N64MemoryBus();
@@ -38,6 +43,8 @@ public:
 private:
     static std::uint64_t toPhysicalAddress(std::uint64_t address);
     void processPifControl();
+    bool transferRdramToPif();
+    bool transferPifToRdram();
     bool readImage(const std::vector<std::uint8_t> &image,
                    std::uint64_t offset, std::uint32_t &value) const;
 
@@ -46,4 +53,6 @@ private:
     std::vector<std::uint8_t> bootRom_;
     std::vector<std::uint8_t> pifRam_;
     Pif pif_;
+    std::uint32_t siDramAddress_ = 0;
+    std::uint32_t siStatus_ = 0;
 };
