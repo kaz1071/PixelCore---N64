@@ -3,6 +3,8 @@
 #include <QByteArray>
 #include <QFile>
 
+#include <algorithm>
+
 bool N64Rom::load(const QString &path, QString &error)
 {
     QFile file(path);
@@ -16,14 +18,14 @@ bool N64Rom::load(const QString &path, QString &error)
         return false;
     }
 
-    const QByteArray header = file.read(0x40);
-    if (header.size() != 0x40) {
-        error = "Could not read the complete Nintendo 64 ROM header.";
+    const QByteArray raw = file.readAll();
+    if (raw.size() < 0x40) {
+        error = "Could not read the complete Nintendo 64 ROM image.";
         return false;
     }
 
-    const auto byte = [&header](qsizetype index) {
-        return static_cast<unsigned char>(header.at(index));
+    const auto byte = [&raw](qsizetype index) {
+        return static_cast<unsigned char>(raw.at(index));
     };
 
     const unsigned int magic =
@@ -38,9 +40,17 @@ bool N64Rom::load(const QString &path, QString &error)
         break;
     case 0x37804012:
         byteOrder_ = N64ByteOrder::ByteSwapped;
+        if ((raw.size() % 2) != 0) {
+            error = "The byte-swapped ROM has an incomplete 16-bit byte pair.";
+            return false;
+        }
         break;
     case 0x40123780:
         byteOrder_ = N64ByteOrder::LittleEndian;
+        if ((raw.size() % 4) != 0) {
+            error = "The little-endian ROM size is not a multiple of four bytes.";
+            return false;
+        }
         break;
     default:
         error = QString("Unrecognized ROM header magic: 0x%1")
@@ -49,26 +59,27 @@ bool N64Rom::load(const QString &path, QString &error)
         return false;
     }
 
-    QByteArray rawTitle = header.mid(0x20, 20);
+    image_.resize(static_cast<std::size_t>(raw.size()));
+    for (qsizetype i = 0; i < raw.size(); ++i)
+        image_[static_cast<std::size_t>(i)] = byte(i);
+
     if (byteOrder_ == N64ByteOrder::ByteSwapped) {
-        for (qsizetype i = 0; i + 1 < rawTitle.size(); i += 2) {
-            const char first = rawTitle.at(i);
-            rawTitle[i] = rawTitle.at(i + 1);
-            rawTitle[i + 1] = first;
-        }
+        for (std::size_t i = 0; i < image_.size(); i += 2)
+            std::swap(image_[i], image_[i + 1]);
     } else if (byteOrder_ == N64ByteOrder::LittleEndian) {
-        for (qsizetype i = 0; i + 3 < rawTitle.size(); i += 4) {
-            const char first = rawTitle.at(i);
-            const char second = rawTitle.at(i + 1);
-            rawTitle[i] = rawTitle.at(i + 3);
-            rawTitle[i + 1] = rawTitle.at(i + 2);
-            rawTitle[i + 2] = second;
-            rawTitle[i + 3] = first;
-        }
+        for (std::size_t i = 0; i < image_.size(); i += 4)
+            std::reverse(image_.begin() + static_cast<std::ptrdiff_t>(i),
+                         image_.begin() + static_cast<std::ptrdiff_t>(i + 4));
     }
 
+    QByteArray rawTitle;
+    rawTitle.resize(20);
+    for (qsizetype i = 0; i < 20; ++i)
+        rawTitle[i] = static_cast<char>(image_[0x20 + static_cast<std::size_t>(i)]);
+
     title_ = QString::fromLatin1(rawTitle).trimmed();
-    fileSize_ = file.size();
+    fileSize_ = raw.size();
+    error.clear();
     return true;
 }
 
@@ -94,4 +105,9 @@ QString N64Rom::byteOrderName() const
 qint64 N64Rom::fileSize() const
 {
     return fileSize_;
+}
+
+const std::vector<std::uint8_t> &N64Rom::image() const
+{
+    return image_;
 }
