@@ -363,7 +363,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
         const unsigned int shift = (3 - byteOffset) * 8;
         const std::uint32_t preserveMask = byteOffset == 3
-            ? 0U : (0xFFFFFFFFU << ((4 - byteOffset) * 8));
+            ? 0U : (0xFFFFFFFFU << ((byteOffset + 1) * 8));
         const std::uint32_t merged = (memoryWord >> shift) |
                                      (low32(b) & preserveMask);
         registers_[rt] = signExtend32(merged);
