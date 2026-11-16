@@ -29,6 +29,35 @@ void R4300i::reset()
     nextPc_ = ResetAddress + 4;
     hi_ = 0;
     lo_ = 0;
+    cp0Registers_.fill(0);
+    cp0Registers_[PRId] = 0x00000B00; // R4300-family processor ID placeholder.
+    cp0Registers_[Status] = 0x00400004; // BEV set; ERL set after reset.
+    cp0Registers_[Random] = 31;
+    nextInstructionIsDelaySlot_ = false;
+    currentInstructionInDelaySlot_ = false;
+}
+
+void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
+                            bool hasBadAddress)
+{
+    std::uint64_t &status = cp0Registers_[Status];
+    std::uint64_t &cause = cp0Registers_[Cause];
+    if ((status & 0x2) == 0) {
+        cp0Registers_[EPC] = currentInstructionInDelaySlot_ ? faultAddress - 4 : faultAddress;
+        if (currentInstructionInDelaySlot_)
+            cause |= (1ULL << 31);
+        else
+            cause &= ~(1ULL << 31);
+    }
+    cause = (cause & ~0x7CULL) | (static_cast<std::uint64_t>(exceptionCode & 0x1F) << 2);
+    if (hasBadAddress)
+        cp0Registers_[BadVAddr] = faultAddress;
+    status |= 0x2; // EXL
+    const std::uint64_t vector = (status & (1ULL << 22))
+        ? BootstrapExceptionVector : GeneralExceptionVector;
+    pc_ = vector;
+    nextPc_ = vector + 4;
+    nextInstructionIsDelaySlot_ = false;
 }
 
 bool R4300i::step(N64Memory &memory, std::string &error)
@@ -37,18 +66,23 @@ bool R4300i::step(N64Memory &memory, std::string &error)
     const std::uint64_t instructionAddress = pc_;
 
     if (!memory.read32(instructionAddress, instruction)) {
-        std::ostringstream message;
-        message << "Instruction fetch failed at 0x" << std::hex << instructionAddress;
-        error = message.str();
-        return false;
+        currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
+        raiseException(4, instructionAddress, true); // Address Error on instruction fetch.
+        error.clear();
+        return true;
     }
 
     // Advance before execution so a taken branch still executes its delay slot.
+    currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
+    nextInstructionIsDelaySlot_ = false;
     pc_ = nextPc_;
     nextPc_ += 4;
+    ++cp0Registers_[Count];
 
-    if (!execute(instruction, instructionAddress, memory, error))
+    if (!execute(instruction, instructionAddress, memory, error)) {
+        error.clear();
         return false;
+    }
 
     registers_[0] = 0;
     return true;
@@ -79,8 +113,8 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         case 0x06: registers_[rd] = signExtend32(low32(b) >> (a & 0x1F)); break; // SRLV
         case 0x07: registers_[rd] = signExtend32(static_cast<std::uint32_t>(
                        static_cast<std::int32_t>(low32(b)) >> (a & 0x1F))); break; // SRAV
-        case 0x08: nextPc_ = a; break; // JR
-        case 0x09: registers_[rd == 0 ? 31 : rd] = instructionAddress + 8; nextPc_ = a; break; // JALR
+        case 0x08: nextPc_ = a; nextInstructionIsDelaySlot_ = true; break; // JR
+        case 0x09: registers_[rd == 0 ? 31 : rd] = instructionAddress + 8; nextPc_ = a; nextInstructionIsDelaySlot_ = true; break; // JALR
         case 0x10: registers_[rd] = hi_; break; // MFHI
         case 0x11: hi_ = a; break; // MTHI
         case 0x12: registers_[rd] = lo_; break; // MFLO
@@ -153,9 +187,16 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         if (opcode == 0x03) registers_[31] = instructionAddress + 8;
         nextPc_ = ((instructionAddress + 4) & 0xFFFFFFFFF0000000ULL) |
                   (static_cast<std::uint64_t>(instruction & 0x03FFFFFF) << 2);
+        nextInstructionIsDelaySlot_ = true;
         return true;
-    case 0x04: if (a == b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4); return true; // BEQ
-    case 0x05: if (a != b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4); return true; // BNE
+    case 0x04: // BEQ
+        if (a == b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
+        nextInstructionIsDelaySlot_ = true;
+        return true;
+    case 0x05: // BNE
+        if (a != b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
+        nextInstructionIsDelaySlot_ = true;
+        return true;
     case 0x08: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDI (overflow trap not yet modeled)
     case 0x09: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDIU
     case 0x0A: registers_[rt] = static_cast<std::int64_t>(a) < offset; return true; // SLTI
@@ -166,24 +207,47 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     case 0x0F: registers_[rt] = signExtend32(static_cast<std::uint32_t>(immediate) << 16); return true; // LUI
     case 0x18: registers_[rt] = a + offset; return true; // DADDI (overflow trap not yet modeled)
     case 0x19: registers_[rt] = a + offset; return true; // DADDIU
-    case 0x1C: // SPECIAL2 is not part of the base R4300i ISA; report it clearly.
+    case 0x10: // COP0
+        if (rs == 0x00) { // MFC0
+            registers_[rt] = signExtend32(static_cast<std::uint32_t>(cp0Registers_[rd]));
+            return true;
+        }
+        if (rs == 0x04) { // MTC0
+            cp0Registers_[rd] = signExtend32(low32(b));
+            return true;
+        }
+        if (rs == 0x10 && function == 0x18) { // ERET
+            std::uint64_t &status = cp0Registers_[Status];
+            if (status & 0x4) { // ERL
+                status &= ~0x4ULL;
+                pc_ = cp0Registers_[ErrorEPC];
+            } else {
+                status &= ~0x2ULL; // EXL
+                pc_ = cp0Registers_[EPC];
+            }
+            nextPc_ = pc_ + 4;
+            nextInstructionIsDelaySlot_ = false;
+            return true;
+        }
+        raiseException(11, instructionAddress); // Coprocessor Unusable / unsupported COP0 operation.
+        return true;
+    case 0x1C: // SPECIAL2 is not part of the base R4300i ISA.
         break;
     case 0x23: { // LW
         const std::uint64_t address = a + offset;
         std::uint32_t value = 0;
         if ((address & 3) != 0 || !memory.read32(address, value)) {
-            error = "LW memory access failed or was unaligned";
-            return false;
+            raiseException(4, address, true); // Address Error on load.
+            return true;
         }
         registers_[rt] = signExtend32(value);
         return true;
     }
     case 0x2B: { // SW
         const std::uint64_t address = a + offset;
-        if ((address & 3) != 0 ||
-            !memory.write32(address, low32(b))) {
-            error = "SW memory access failed or was unaligned";
-            return false;
+        if ((address & 3) != 0 || !memory.write32(address, low32(b))) {
+            raiseException(5, address, true); // Address Error on store.
+            return true;
         }
         return true;
     }
@@ -193,8 +257,8 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     std::ostringstream message;
     message << "Unsupported R4300i opcode 0x" << std::hex << opcode
             << " at 0x" << instructionAddress;
-    error = message.str();
-    return false;
+    raiseException(10, instructionAddress); // Reserved Instruction.
+    return true;
 }
 
 std::uint64_t R4300i::reg(unsigned int index) const
@@ -210,3 +274,13 @@ void R4300i::setReg(unsigned int index, std::uint64_t value)
 std::uint64_t R4300i::pc() const { return pc_; }
 std::uint64_t R4300i::hi() const { return hi_; }
 std::uint64_t R4300i::lo() const { return lo_; }
+
+std::uint64_t R4300i::cp0(unsigned int index) const
+{
+    return index < cp0Registers_.size() ? cp0Registers_[index] : 0;
+}
+
+void R4300i::setCp0(unsigned int index, std::uint64_t value)
+{
+    if (index < cp0Registers_.size()) cp0Registers_[index] = value;
+}
