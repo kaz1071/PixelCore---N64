@@ -2,7 +2,6 @@
 
 #include "core/cpu/r4300i.h"
 
-#include <sstream>
 
 namespace
 {
@@ -20,7 +19,6 @@ void Rsp::reset()
     lo_ = 0;
     nextPc_ = 4;
     delaySlotPending_ = false;
-    currentInstructionInDelaySlot_ = false;
     halted_ = false;
     broke_ = false;
 }
@@ -49,6 +47,7 @@ bool Rsp::step(N64Memory &memory, std::string &error)
     if (halted_)
         return false;
 
+    error.clear();
     std::uint32_t instruction = 0;
     if (!memory.read32(InstructionMemoryBase + (pc_ & 0xFFCU), instruction))
     {
@@ -57,7 +56,6 @@ bool Rsp::step(N64Memory &memory, std::string &error)
         return false;
     }
 
-    currentInstructionInDelaySlot_ = delaySlotPending_;
     delaySlotPending_ = false;
     pc_ = nextPc_ & 0xFFCU;
     nextPc_ = (pc_ + 4) & 0xFFCU;
@@ -199,9 +197,9 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         break;
     }
     case 0x04: branch(a == b, pc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
-    case 0x05: branch(a != b, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
-    case 0x06: branch(signed32(a) <= 0, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
-    case 0x07: branch(signed32(a) > 0, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
+    case 0x05: branch(a != b, pc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
+    case 0x06: branch(signed32(a) <= 0, pc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
+    case 0x07: branch(signed32(a) > 0, pc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
     case 0x08: write(rt, a + static_cast<std::uint32_t>(simm)); break; // ADDI (wrap)
     case 0x09: write(rt, a + static_cast<std::uint32_t>(simm)); break;
     case 0x0A: write(rt, signed32(a) < simm); break;
