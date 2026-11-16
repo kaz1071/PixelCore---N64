@@ -31,7 +31,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [ ] Controller input
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, COP0, TLB behavior, precise cycle timing, and many load/store and coprocessor instructions are not implemented yet. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many load/store and coprocessor instructions are not implemented yet. COP0 and exceptions are currently an early, simplified implementation and need dedicated tests. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
