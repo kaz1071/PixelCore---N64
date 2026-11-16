@@ -19,6 +19,14 @@ public:
     static constexpr std::uint64_t SpDmemBase = 0x04000000ULL;
     static constexpr std::uint64_t SpImemBase = 0x04001000ULL;
     static constexpr std::size_t SpMemorySize = 4 * 1024;
+    static constexpr std::uint64_t PiRegisterBase = 0x04600000ULL;
+    static constexpr std::uint64_t PiDramAddress = PiRegisterBase;
+    static constexpr std::uint64_t PiCartAddress = PiRegisterBase + 0x04;
+    static constexpr std::uint64_t PiReadLength = PiRegisterBase + 0x08;
+    static constexpr std::uint64_t PiWriteLength = PiRegisterBase + 0x0C;
+    static constexpr std::uint64_t PiStatus = PiRegisterBase + 0x10;
+    static constexpr std::uint64_t SaveRamBase = 0x08000000ULL;
+    static constexpr std::size_t SaveRamSize = 128 * 1024;
     static constexpr std::uint64_t SiRegisterBase = 0x04800000ULL;
     static constexpr std::uint64_t SiDramAddress = SiRegisterBase;
     static constexpr std::uint64_t SiPifAddressRead = SiRegisterBase + 0x04;
@@ -53,6 +61,8 @@ private:
     void processPifControl();
     bool transferRdramToPif();
     bool transferPifToRdram();
+    bool transferCartridgeToRdram(std::uint32_t lengthMinusOne);
+    bool transferRdramToSaveRam(std::uint32_t lengthMinusOne);
     bool readImage(const std::vector<std::uint8_t> &image,
                    std::uint64_t offset, std::uint32_t &value) const;
 
@@ -62,9 +72,15 @@ private:
     std::vector<std::uint8_t> pifRam_;
     std::vector<std::uint8_t> spDmem_;
     std::vector<std::uint8_t> spImem_;
+    std::vector<std::uint8_t> saveRam_;
     Pif pif_;
     std::uint32_t siDramAddress_ = 0;
     std::uint32_t siStatus_ = 0;
     std::uint32_t miInterrupts_ = 0;
     std::uint32_t miInterruptMask_ = 0;
+    std::uint32_t piDramAddress_ = 0;
+    std::uint32_t piCartAddress_ = 0;
+    std::uint32_t piReadLength_ = 0;
+    std::uint32_t piWriteLength_ = 0;
+    std::uint32_t piStatus_ = 0;
 };
