@@ -44,6 +44,9 @@ int main()
                     "system reset restores CPU boot address");
     passed &= check(system.cpu().reg(8) == 0,
                     "system reset clears CPU general registers");
+    std::uint32_t pifWord = 1;
+    passed &= check(system.memory().read32(N64MemoryBus::PifRamBase, pifWord) &&
+                    pifWord == 0, "system reset clears PIF RAM");
 
     if (!passed) return 1;
     std::cout << "All N64 system integration tests passed.\n";
