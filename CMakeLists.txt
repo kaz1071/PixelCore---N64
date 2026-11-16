@@ -97,4 +97,22 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME n64-system-integration-tests COMMAND n64-system-tests)
+
+    add_executable(rom-file-tests
+        tests/rom_file_tests.cpp
+        core/rom/rom_file.cpp
+        core/rom/rom_file.h
+    )
+
+    target_include_directories(rom-file-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_link_libraries(rom-file-tests PRIVATE Qt6::Core)
+
+    target_compile_options(rom-file-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    )
+
+    add_test(NAME n64-rom-normalization-tests COMMAND rom-file-tests)
 endif()
