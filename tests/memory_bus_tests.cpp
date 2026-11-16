@@ -106,6 +106,23 @@ int main()
                     "controller read returns signed Y axis");
 
     bus.clearPifRam();
+    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
+    bus.write8(N64MemoryBus::PifRamBase + 1, 3);
+    bus.write8(N64MemoryBus::PifRamBase + 2, 0xFF);
+    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x05,
+                    "controller reset returns the standard gamepad identifier");
+    bus.clearPifRam();
+    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
+    bus.write8(N64MemoryBus::PifRamBase + 1, 4);
+    bus.write8(N64MemoryBus::PifRamBase + 2, 0x01);
+    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0,
+                    "controller reset centers the X stick axis");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 6, byte) && byte == 0,
+                    "controller reset centers the Y stick axis");
+
+    bus.clearPifRam();
     bus.pif().setControllerConnected(0, false);
     bus.write8(N64MemoryBus::PifRamBase + 0, 1);
     bus.write8(N64MemoryBus::PifRamBase + 1, 3);
