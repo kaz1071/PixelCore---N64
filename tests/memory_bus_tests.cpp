@@ -171,8 +171,22 @@ int main()
                     "SI DMA copies PIF response back to RDRAM");
     passed &= check(bus.read8(0x203, byte) && byte == 0x05,
                     "SI read DMA returns controller response to RDRAM");
-    passed &= check(bus.read32(N64MemoryBus::SiStatus, word) && word == 0,
-                    "SI status is idle after synchronous DMA completion");
+    passed &= check(bus.read32(N64MemoryBus::SiStatus, word) && word == 0x1000,
+                    "SI status reports DMA completion interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0x02,
+                    "SI DMA raises the MI SI interrupt bit");
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x08),
+                    "MI mask register enables the SI interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterruptMask, word) && word == 0x02,
+                    "MI mask register reports the enabled SI interrupt");
+    passed &= check(bus.interruptPending(),
+                    "enabled SI interrupt reaches the CPU interrupt line");
+    passed &= check(bus.write32(N64MemoryBus::SiStatus, 0),
+                    "writing SI status clears the SI interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0,
+                    "clearing SI status lowers the MI SI interrupt");
+    passed &= check(!bus.interruptPending(),
+                    "cleared SI interrupt no longer reaches the CPU");
 
     bus.write32(N64MemoryBus::SiDramAddress, 0x201);
     passed &= check(!bus.write32(N64MemoryBus::SiPifAddressWrite,
