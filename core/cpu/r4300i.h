@@ -62,4 +62,6 @@ private:
     std::uint64_t lo_ = 0;
     bool nextInstructionIsDelaySlot_ = false;
     bool currentInstructionInDelaySlot_ = false;
+    bool llBit_ = false;
+    std::uint64_t llAddress_ = 0;
 };
