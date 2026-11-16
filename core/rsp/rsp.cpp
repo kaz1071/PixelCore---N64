@@ -125,7 +125,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         case 0x06: write(rd, b >> (a & 31)); break;
         case 0x07: write(rd, static_cast<std::uint32_t>(signed32(b) >> (a & 31))); break;
         case 0x08: branch(true, a); break; // JR
-        case 0x09: write(rd == 0 ? 31 : rd, nextPc_); branch(true, a); break;
+        case 0x09: write(rd, nextPc_); branch(true, a); break;
         case 0x0D: halted_ = true; return true; // BREAK
         case 0x21: write(rd, a + b); break; // ADDU
         case 0x23: write(rd, a - b); break; // SUBU
@@ -148,7 +148,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         branch(true, target);
         break;
     }
-    case 0x04: branch(a == b, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
+    case 0x04: branch(a == b, pc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
     case 0x05: branch(a != b, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
     case 0x06: branch(signed32(a) <= 0, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
     case 0x07: branch(signed32(a) > 0, nextPc_ + (static_cast<std::uint32_t>(simm) << 2)); break;
