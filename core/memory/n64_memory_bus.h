@@ -1,0 +1,38 @@
+#pragma once
+
+#include "core/cpu/r4300i.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+// Early physical-memory implementation for the N64.
+// RDRAM is 8 MiB; cartridge and boot ROM images are read-only.
+class N64MemoryBus final : public N64Memory
+{
+public:
+    static constexpr std::size_t RdramSize = 8 * 1024 * 1024;
+    static constexpr std::uint64_t CartridgeBase = 0x10000000ULL;
+    static constexpr std::uint64_t BootRomBase = 0x1FC00000ULL;
+
+    N64MemoryBus();
+
+    bool read32(std::uint64_t address, std::uint32_t &value) override;
+    bool write32(std::uint64_t address, std::uint32_t value) override;
+
+    void loadCartridge(const std::vector<std::uint8_t> &image);
+    void loadBootRom(const std::vector<std::uint8_t> &image);
+    void clearRdram();
+
+    std::size_t cartridgeSize() const;
+    std::size_t bootRomSize() const;
+
+private:
+    static std::uint64_t toPhysicalAddress(std::uint64_t address);
+    bool readImage(const std::vector<std::uint8_t> &image,
+                   std::uint64_t offset, std::uint32_t &value) const;
+
+    std::vector<std::uint8_t> rdram_;
+    std::vector<std::uint8_t> cartridge_;
+    std::vector<std::uint8_t> bootRom_;
+};
