@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/n64_system.h"
+
 #include <QMainWindow>
 #include <QString>
 #include <QtGlobal>
@@ -23,4 +25,5 @@ private:
     QString loadedRomTitle_;
     QString loadedRomFormat_;
     qint64 loadedRomSize_ = 0;
+    N64System system_;
 };
