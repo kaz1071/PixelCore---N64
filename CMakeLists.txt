@@ -19,6 +19,8 @@ qt_add_executable(pixelcore-n64
     app/main_window.h
     core/rom/rom_file.cpp
     core/rom/rom_file.h
+    core/cpu/r4300i.cpp
+    core/cpu/r4300i.h
 )
 
 target_include_directories(pixelcore-n64 PRIVATE
