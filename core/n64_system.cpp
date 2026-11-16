@@ -20,7 +20,17 @@ bool N64System::step(std::string &error)
 
 bool N64System::stepRsp(std::string &error)
 {
-    return rsp_.step(memory_, error);
+    if (memory_.spHalted()) {
+        error = "RSP is halted";
+        return false;
+    }
+
+    const bool result = rsp_.step(memory_, error);
+    if (rsp_.halted()) {
+        memory_.setSpHalted(true);
+        memory_.setSpBroke(rsp_.broke());
+    }
+    return result;
 }
 
 void N64System::loadCartridge(const std::vector<std::uint8_t> &image)
