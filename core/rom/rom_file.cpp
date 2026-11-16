@@ -72,10 +72,14 @@ bool N64Rom::load(const QString &path, QString &error)
                          image_.begin() + static_cast<std::ptrdiff_t>(i + 4));
     }
 
-    QByteArray rawTitle;
-    rawTitle.resize(20);
-    for (qsizetype i = 0; i < 20; ++i)
-        rawTitle[i] = static_cast<char>(image_[0x20 + static_cast<std::size_t>(i)]);
+    QByteArray rawTitle(
+        reinterpret_cast<const char *>(image_.data() + 0x20), 20);
+
+    // The fixed-width ROM title field is commonly NUL-padded. QString::trimmed()
+    // removes whitespace, but not embedded/trailing NUL bytes.
+    const qsizetype terminator = rawTitle.indexOf('\0');
+    if (terminator >= 0)
+        rawTitle.truncate(terminator);
 
     title_ = QString::fromLatin1(rawTitle).trimmed();
     fileSize_ = raw.size();
