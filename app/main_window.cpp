@@ -6,6 +6,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QKeySequence>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
@@ -21,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("PixelCore - N64");
     resize(1000, 650);
     setMinimumSize(720, 480);
+    setFocusPolicy(Qt::StrongFocus);
 
     auto *fileMenu = menuBar()->addMenu("&File");
     auto *openAction = fileMenu->addAction("&Open ROM...");
@@ -52,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     auto *viewport = new QWidget(central);
     viewport->setObjectName("gameViewport");
     viewport->setMinimumHeight(260);
+    viewport->setFocusPolicy(Qt::StrongFocus);
     viewport->setStyleSheet(
         "#gameViewport { background: #080d17; border: 1px solid #263650; border-radius: 12px; }"
     );
@@ -82,10 +85,20 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addWidget(subtitle);
     layout->addSpacing(12);
     layout->addWidget(viewport, 1);
+
+    auto *inputInfo = new QLabel(
+        "Keyboard controller: WASD = analog stick  |  Arrows = D-pad  |  J/K/U = A/B/Z  |  Enter = Start",
+        central
+    );
+    inputInfo->setAlignment(Qt::AlignCenter);
+    inputInfo->setWordWrap(true);
+    inputInfo->setStyleSheet("color: #8197b5; font-size: 12px;");
+    layout->addWidget(inputInfo);
     layout->addWidget(openButton, 0, Qt::AlignHCenter);
     layout->addStretch();
 
     setCentralWidget(central);
+    viewport->setFocus();
     statusLabel_ = new QLabel("Ready — no ROM loaded", this);
     statusBar()->addWidget(statusLabel_, 1);
 
@@ -97,6 +110,98 @@ MainWindow::MainWindow(QWidget *parent)
         "QMenu::item:selected { background: #2678c9; }"
         "QStatusBar { background: #17243a; color: #aebed4; }"
     );
+}
+
+namespace
+{
+std::uint16_t controllerButtonForKey(int key)
+{
+    switch (key)
+    {
+    case Qt::Key_J: return 0x8000; // A
+    case Qt::Key_K: return 0x4000; // B
+    case Qt::Key_U: return 0x2000; // Z
+    case Qt::Key_Return:
+    case Qt::Key_Enter: return 0x1000; // Start
+    case Qt::Key_Up: return 0x0800;
+    case Qt::Key_Down: return 0x0400;
+    case Qt::Key_Left: return 0x0200;
+    case Qt::Key_Right: return 0x0100;
+    case Qt::Key_Q: return 0x0020; // L
+    case Qt::Key_E: return 0x0010; // R
+    case Qt::Key_T: return 0x0008; // C-up
+    case Qt::Key_G: return 0x0004; // C-down
+    case Qt::Key_F: return 0x0002; // C-left
+    case Qt::Key_H: return 0x0001; // C-right
+    default: return 0;
+    }
+}
+
+bool isAnalogStickKey(int key)
+{
+    return key == Qt::Key_W || key == Qt::Key_A ||
+           key == Qt::Key_S || key == Qt::Key_D;
+}
+}
+
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat())
+    {
+        event->accept();
+        return;
+    }
+
+    const int key = event->key();
+    if (controllerButtonForKey(key) == 0 && !isAnalogStickKey(key))
+    {
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+
+    pressedKeys_.insert(key);
+    updateControllerInput();
+    event->accept();
+}
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->isAutoRepeat())
+    {
+        event->accept();
+        return;
+    }
+
+    const int key = event->key();
+    if (controllerButtonForKey(key) == 0 && !isAnalogStickKey(key))
+    {
+        QMainWindow::keyReleaseEvent(event);
+        return;
+    }
+
+    pressedKeys_.remove(key);
+    updateControllerInput();
+    event->accept();
+}
+
+void MainWindow::updateControllerInput()
+{
+    std::uint16_t buttons = 0;
+    for (int key : pressedKeys_)
+        buttons |= controllerButtonForKey(key);
+
+    const int horizontal = (pressedKeys_.contains(Qt::Key_D) ? 1 : 0) -
+                           (pressedKeys_.contains(Qt::Key_A) ? 1 : 0);
+    const int vertical = (pressedKeys_.contains(Qt::Key_W) ? 1 : 0) -
+                         (pressedKeys_.contains(Qt::Key_S) ? 1 : 0);
+
+    system_.memory().pif().setControllerConnected(0, true);
+    system_.memory().pif().setControllerState(
+        0, buttons, static_cast<std::int8_t>(horizontal * 80),
+        static_cast<std::int8_t>(vertical * 80)
+    );
+
+    statusLabel_->setText("Keyboard controller connected — WASD / arrows / J K U / Enter");
 }
 
 void MainWindow::openRom()
