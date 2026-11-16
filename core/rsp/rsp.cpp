@@ -78,7 +78,6 @@ bool Rsp::step(N64Memory &memory, std::string &error)
     if (!result)
         halted_ = true;
 
-    currentInstructionInDelaySlot_ = false;
     return result;
 }
 
