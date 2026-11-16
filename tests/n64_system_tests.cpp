@@ -39,6 +39,9 @@ int main()
     passed &= check(system.cpu().cp0(R4300i::Count) == 2,
                     "CP0 Count advances for executed instructions");
 
+    passed &= check(system.memory().write32(N64MemoryBus::PifRamBase, 0xDEADBEEF),
+                    "system test can write PIF RAM before reset");
+
     system.reset();
     passed &= check(system.cpu().pc() == R4300i::ResetAddress,
                     "system reset restores CPU boot address");
