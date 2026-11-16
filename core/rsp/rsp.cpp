@@ -20,6 +20,7 @@ void Rsp::reset()
     delaySlotPending_ = false;
     currentInstructionInDelaySlot_ = false;
     halted_ = false;
+    broke_ = false;
 }
 
 std::uint32_t Rsp::pc() const { return pc_; }
@@ -33,6 +34,7 @@ void Rsp::setReg(unsigned int index, std::uint32_t value)
         registers_[index] = value;
 }
 bool Rsp::halted() const { return halted_; }
+bool Rsp::broke() const { return broke_; }
 
 std::uint32_t Rsp::signExtend16(std::uint32_t value)
 {
@@ -126,7 +128,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         case 0x07: write(rd, static_cast<std::uint32_t>(signed32(b) >> (a & 31))); break;
         case 0x08: branch(true, a); break; // JR
         case 0x09: write(rd, nextPc_); branch(true, a); break;
-        case 0x0D: halted_ = true; return true; // BREAK
+        case 0x0D: halted_ = true; broke_ = true; return true; // BREAK
         case 0x21: write(rd, a + b); break; // ADDU
         case 0x23: write(rd, a - b); break; // SUBU
         case 0x24: write(rd, a & b); break;
