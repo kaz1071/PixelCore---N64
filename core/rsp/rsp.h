@@ -37,6 +37,9 @@ private:
 
     std::array<std::uint32_t, 32> registers_{};
     std::array<std::array<std::uint16_t, 8>, 32> vectorRegisters_{};
+    std::uint16_t vectorCarry_ = 0;
+    std::uint16_t vectorCompare_ = 0;
+    std::uint8_t vectorClip_ = 0;
     std::uint32_t pc_ = 0;
     std::uint32_t nextPc_ = 4;
     std::uint32_t hi_ = 0;
