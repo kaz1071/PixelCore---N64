@@ -19,6 +19,7 @@ public:
     virtual bool write8(std::uint64_t address, std::uint8_t value);
     virtual bool write16(std::uint64_t address, std::uint16_t value);
     virtual bool write64(std::uint64_t address, std::uint64_t value);
+    virtual bool interruptPending() const;
 };
 
 class R4300i
