@@ -10,6 +10,33 @@ static bool check(bool condition, const char *message)
     return condition;
 }
 
+static bool runJoybusCommand(N64MemoryBus &bus, std::uint8_t command,
+                               std::uint8_t receiveLength, std::uint32_t dramAddress)
+{
+    std::uint8_t packet[64] = {};
+    packet[0] = 1;
+    packet[1] = receiveLength;
+    packet[2] = command;
+    packet[63] = 0x01;
+
+    for (std::size_t i = 0; i < 64; i += 4)
+    {
+        const std::uint32_t word =
+            (static_cast<std::uint32_t>(packet[i]) << 24) |
+            (static_cast<std::uint32_t>(packet[i + 1]) << 16) |
+            (static_cast<std::uint32_t>(packet[i + 2]) << 8) |
+            static_cast<std::uint32_t>(packet[i + 3]);
+        if (!bus.write32(dramAddress + static_cast<std::uint32_t>(i), word))
+            return false;
+    }
+
+    return bus.write32(N64MemoryBus::SiDramAddress, dramAddress) &&
+           bus.write32(N64MemoryBus::SiPifAddressWrite,
+                       static_cast<std::uint32_t>(N64MemoryBus::PifRamBase)) &&
+           bus.write32(N64MemoryBus::SiPifAddressRead,
+                       static_cast<std::uint32_t>(N64MemoryBus::PifRamBase));
+}
+
 int main()
 {
     bool passed = true;
@@ -74,61 +101,46 @@ int main()
     passed &= check(!bus.write32(N64MemoryBus::PifRamBase + 64, 0),
                     "writes beyond PIF RAM are rejected");
 
-    // Execute a controller-identification Joybus packet through the PIF control byte.
+    // Joybus commands are executed by SI DMA, not by direct CPU writes to PIF RAM.
     bus.pif().setControllerConnected(0, true);
-    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 0, 1), "write Joybus send length");
-    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 1, 3), "write Joybus receive length");
-    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 2, 0x00), "write controller identify command");
-    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 63, 0x01),
-                    "PIF control byte starts Joybus processing");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x05,
+    passed &= check(runJoybusCommand(bus, 0x00, 3, 0x300),
+                    "SI DMA executes controller-identification command");
+    passed &= check(bus.read8(0x303, byte) && byte == 0x05,
                     "controller identify returns gamepad type");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 4, byte) && byte == 0x00,
-                    "controller identify reports no accessory");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0x02,
+    passed &= check(bus.read8(0x304, byte) && byte == 0x00,
+                    "controller identify returns the standard device ID");
+    passed &= check(bus.read8(0x305, byte) && byte == 0x02,
                     "controller identify reports no Controller Pak");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 63, byte) && byte == 0,
-                    "PIF clears the Joybus execute bit after processing");
+    passed &= check(bus.read8(0x33F, byte) && byte == 0,
+                    "PIF clears the Joybus execute bit after SI processing");
 
-    bus.clearPifRam();
     bus.pif().setControllerState(0, 0x8001, -12, 34);
-    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
-    bus.write8(N64MemoryBus::PifRamBase + 1, 4);
-    bus.write8(N64MemoryBus::PifRamBase + 2, 0x01);
-    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x80,
+    passed &= check(runJoybusCommand(bus, 0x01, 4, 0x400),
+                    "SI DMA executes controller input-read command");
+    passed &= check(bus.read8(0x403, byte) && byte == 0x80,
                     "controller read returns button high byte");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 4, byte) && byte == 0x01,
+    passed &= check(bus.read8(0x404, byte) && byte == 0x01,
                     "controller read returns button low byte");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0xF4,
+    passed &= check(bus.read8(0x405, byte) && byte == 0xF4,
                     "controller read returns signed X axis");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 6, byte) && byte == 0x22,
+    passed &= check(bus.read8(0x406, byte) && byte == 0x22,
                     "controller read returns signed Y axis");
 
-    bus.clearPifRam();
-    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
-    bus.write8(N64MemoryBus::PifRamBase + 1, 3);
-    bus.write8(N64MemoryBus::PifRamBase + 2, 0xFF);
-    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x05,
+    passed &= check(runJoybusCommand(bus, 0xFF, 3, 0x500),
+                    "SI DMA executes controller reset command");
+    passed &= check(bus.read8(0x503, byte) && byte == 0x05,
                     "controller reset returns the standard gamepad identifier");
-    bus.clearPifRam();
-    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
-    bus.write8(N64MemoryBus::PifRamBase + 1, 4);
-    bus.write8(N64MemoryBus::PifRamBase + 2, 0x01);
-    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0,
+    passed &= check(runJoybusCommand(bus, 0x01, 4, 0x600),
+                    "controller can be polled after reset");
+    passed &= check(bus.read8(0x605, byte) && byte == 0,
                     "controller reset centers the X stick axis");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 6, byte) && byte == 0,
+    passed &= check(bus.read8(0x606, byte) && byte == 0,
                     "controller reset centers the Y stick axis");
 
-    bus.clearPifRam();
     bus.pif().setControllerConnected(0, false);
-    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
-    bus.write8(N64MemoryBus::PifRamBase + 1, 3);
-    bus.write8(N64MemoryBus::PifRamBase + 2, 0x00);
-    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 1, byte) && (byte & 0x80),
+    passed &= check(runJoybusCommand(bus, 0x00, 3, 0x700),
+                    "SI DMA handles an absent controller");
+    passed &= check(bus.read8(0x701, byte) && (byte & 0x80),
                     "disconnected controller sets the no-device response flag");
 
     // SI DMA transfers the 64-byte command block between RDRAM and PIF RAM.
