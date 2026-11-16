@@ -52,4 +52,5 @@ private:
     std::uint64_t hi_ = 0;
     std::uint64_t lo_ = 0;
     bool nextInstructionIsDelaySlot_ = false;
+    bool currentInstructionInDelaySlot_ = false;
 };
