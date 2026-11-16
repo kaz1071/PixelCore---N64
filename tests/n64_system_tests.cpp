@@ -39,6 +39,13 @@ int main()
     passed &= check(system.cpu().cp0(R4300i::Count) == 2,
                     "CP0 Count advances for executed instructions");
 
+    // The system exposes a separately stepped scalar RSP sharing SP IMEM/DMEM.
+    passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002A),
+                    "write RSP test instruction through system memory bus");
+    passed &= check(system.stepRsp(error), "system steps its RSP processor");
+    passed &= check(system.rsp().reg(8) == 42 && system.rsp().pc() == 4,
+                    "system RSP executes from shared instruction memory");
+
     passed &= check(system.memory().write32(N64MemoryBus::PifRamBase, 0xDEADBEEF),
                     "system test can write PIF RAM before reset");
 
@@ -47,6 +54,8 @@ int main()
                     "system reset restores CPU boot address");
     passed &= check(system.cpu().reg(8) == 0,
                     "system reset clears CPU general registers");
+    passed &= check(system.rsp().pc() == 0 && system.rsp().reg(8) == 0,
+                    "system reset clears the RSP processor state");
     std::uint32_t pifWord = 1;
     passed &= check(system.memory().read32(N64MemoryBus::PifRamBase, pifWord) &&
                     pifWord == 0, "system reset clears PIF RAM");
