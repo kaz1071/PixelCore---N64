@@ -39,6 +39,12 @@ bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
         return true;
     }
 
+    if (physical >= PifRamBase && physical - PifRamBase < PifRamSize)
+    {
+        value = pifRam_[static_cast<std::size_t>(physical - PifRamBase)];
+        return true;
+    }
+
     if (physical >= CartridgeBase)
     {
         const std::uint64_t offset = physical - CartridgeBase;
