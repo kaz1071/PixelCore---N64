@@ -61,6 +61,19 @@ int main()
     passed &= check(!bus.write32(N64MemoryBus::BootRomBase, 0),
                     "boot ROM is read-only");
 
+    // PIF RAM occupies the final 64 bytes of the PIF address window.
+    passed &= check(bus.write32(N64MemoryBus::PifRamBase, 0xA1B2C3D4),
+                    "PIF RAM accepts word writes");
+    passed &= check(bus.read32(N64MemoryBus::PifRamBase, word) &&
+                    word == 0xA1B2C3D4, "PIF RAM preserves big-endian word order");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 2, byte) && byte == 0xC3,
+                    "PIF RAM supports byte reads");
+    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 2, 0x55) &&
+                    bus.read32(N64MemoryBus::PifRamBase, word) &&
+                    word == 0xA1B255D4, "PIF byte writes preserve adjacent bytes");
+    passed &= check(!bus.write32(N64MemoryBus::PifRamBase + 64, 0),
+                    "writes beyond PIF RAM are rejected");
+
     bus.clearRdram();
     passed &= check(bus.read32(0x100, word) && word == 0,
                     "clearing RDRAM resets its contents");
