@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <cstddef>
+#include <vector>
 
 class Pif
 {
@@ -17,7 +19,7 @@ public:
     void setControllerConnected(std::size_t port, bool connected);
     void setControllerState(std::size_t port, std::uint16_t buttons,
                            std::int8_t stickX, std::int8_t stickY);
-    void processJoybus(std::array<std::uint8_t, 64> &ram) const;
+    void processJoybus(std::vector<std::uint8_t> &ram) const;
 
 private:
     std::array<ControllerState, 4> controllers_{};
