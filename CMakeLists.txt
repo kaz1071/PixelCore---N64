@@ -88,6 +88,8 @@ if(BUILD_TESTING)
         core/n64_system.h
         core/memory/n64_memory_bus.cpp
         core/memory/n64_memory_bus.h
+        core/pif/pif.cpp
+        core/pif/pif.h
         core/cpu/r4300i.cpp
         core/cpu/r4300i.h
     )
