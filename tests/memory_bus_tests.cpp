@@ -61,7 +61,7 @@ int main()
                     "write to RSP instruction memory");
     passed &= check(bus.read32(0xA4001000, word) && word == 0xAABBCCDD,
                     "KSEG1 maps to RSP instruction memory");
-    passed &= check(!bus.write32(N64MemoryBus::SpDmemBase + N64MemoryBus::SpMemorySize, 0),
+    passed &= check(!bus.write32(N64MemoryBus::SpImemBase + N64MemoryBus::SpMemorySize, 0),
                     "RSP data memory rejects out-of-range writes");
     passed &= check(!bus.write32(0x80000001, 0xFFFFFFFF),
                     "unaligned word write is rejected");
