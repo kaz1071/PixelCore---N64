@@ -49,11 +49,23 @@ int main()
     passed &= check(system.stepRsp(error), "system steps its RSP processor");
     passed &= check(system.rsp().reg(8) == 42 && system.rsp().pc() == 4,
                     "system RSP executes from shared instruction memory");
+    std::uint32_t spPc = 0;
+    passed &= check(system.memory().read32(N64MemoryBus::SpProgramCounter, spPc) &&
+                    spPc == 4, "SP PC register tracks RSP execution");
     passed &= check(system.stepRsp(error), "system steps RSP BREAK");
     std::uint32_t spStatus = 0;
     passed &= check(system.memory().read32(N64MemoryBus::SpStatus, spStatus) &&
                     (spStatus & 0x03U) == 0x03U,
                     "RSP BREAK sets SP HALT and BROKE status bits");
+
+    passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002B),
+                    "replace RSP start instruction before restart");
+    passed &= check(system.memory().write32(N64MemoryBus::SpProgramCounter, 0),
+                    "set SP PC register for RSP restart");
+    passed &= check(system.memory().write32(N64MemoryBus::SpStatus, 0x05),
+                    "clear SP HALT and BROKE to restart RSP");
+    passed &= check(system.stepRsp(error) && system.rsp().reg(8) == 43,
+                    "RSP resumes at the programmed SP PC after BREAK");
 
     passed &= check(system.memory().write32(N64MemoryBus::PifRamBase, 0xDEADBEEF),
                     "system test can write PIF RAM before reset");
