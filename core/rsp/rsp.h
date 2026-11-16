@@ -20,6 +20,7 @@ public:
     std::uint32_t pc() const;
     std::uint32_t reg(unsigned int index) const;
     void setReg(unsigned int index, std::uint32_t value);
+    void setPc(std::uint32_t address);
     bool halted() const;
     bool broke() const;
 
