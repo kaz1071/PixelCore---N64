@@ -7,7 +7,7 @@
 
 static bool check(bool condition, const char *message)
 {
-    if (!condition) std::cerr << "FAIL: " << message << '\\n';
+    if (!condition) std::cerr << "FAIL: " << message << '\n';
     return condition;
 }
 
@@ -46,6 +46,6 @@ int main()
                     "system reset clears CPU general registers");
 
     if (!passed) return 1;
-    std::cout << "All N64 system integration tests passed.\\n";
+    std::cout << "All N64 system integration tests passed.\n";
     return 0;
 }
