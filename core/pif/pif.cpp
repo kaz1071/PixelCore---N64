@@ -67,10 +67,10 @@ void Pif::processJoybus(std::vector<std::uint8_t> &ram) const
         }
         else if (command == 0x00 && rxLength >= 3)
         {
-            // Standard N64 controller identification: gamepad, no accessory.
+            // Standard N64 controller identification: gamepad, no Controller Pak.
             ram[responseOffset] = 0x05;
             ram[responseOffset + 1] = 0x00;
-            ram[responseOffset + 2] = 0x01;
+            ram[responseOffset + 2] = 0x02;
         }
         else if (command == 0x01 && rxLength >= 4)
         {
