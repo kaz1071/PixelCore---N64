@@ -17,6 +17,8 @@ public:
 
     N64MemoryBus();
 
+    bool read8(std::uint64_t address, std::uint8_t &value) override;
+    bool write8(std::uint64_t address, std::uint8_t value) override;
     bool read32(std::uint64_t address, std::uint32_t &value) override;
     bool write32(std::uint64_t address, std::uint32_t value) override;
 
