@@ -25,7 +25,11 @@ bool N64System::stepRsp(std::string &error)
         return false;
     }
 
+    if (rsp_.pc() != memory_.spProgramCounter())
+        rsp_.setPc(memory_.spProgramCounter());
+
     const bool result = rsp_.step(memory_, error);
+    memory_.setSpProgramCounter(rsp_.pc());
     if (rsp_.halted()) {
         memory_.setSpHalted(true);
         memory_.setSpBroke(rsp_.broke());
