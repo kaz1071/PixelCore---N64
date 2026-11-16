@@ -27,6 +27,7 @@ public:
     static constexpr std::uint64_t SpStatus = SpRegisterBase + 0x10;
     static constexpr std::uint64_t SpDmaBusy = SpRegisterBase + 0x18;
     static constexpr std::uint64_t SpSemaphore = SpRegisterBase + 0x1C;
+    static constexpr std::uint64_t SpProgramCounter = 0x04080000ULL;
     static constexpr std::uint64_t PiRegisterBase = 0x04600000ULL;
     static constexpr std::uint64_t PiDramAddress = PiRegisterBase;
     static constexpr std::uint64_t PiCartAddress = PiRegisterBase + 0x04;
@@ -54,6 +55,8 @@ public:
     bool write32(std::uint64_t address, std::uint32_t value) override;
     bool interruptPending() const override;
     bool spHalted() const;
+    std::uint32_t spProgramCounter() const;
+    void setSpProgramCounter(std::uint32_t address);
     void setSpHalted(bool halted);
     void setSpBroke(bool broke);
 
@@ -102,4 +105,5 @@ private:
     std::uint32_t spWriteLength_ = 0;
     std::uint32_t spStatus_ = 1;
     std::uint32_t spSemaphore_ = 0;
+    std::uint32_t spProgramCounter_ = 0;
 };
