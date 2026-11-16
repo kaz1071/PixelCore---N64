@@ -55,17 +55,14 @@ bool Rsp::step(N64Memory &memory, std::string &error)
 
     currentInstructionInDelaySlot_ = delaySlotPending_;
     delaySlotPending_ = false;
+    pc_ = nextPc_ & 0xFFCU;
+    nextPc_ = (pc_ + 4) & 0xFFCU;
+
     const bool result = execute(instruction, memory, error);
     registers_[0] = 0;
-
     if (!result)
         halted_ = true;
 
-    if (result)
-    {
-        pc_ = nextPc_ & 0xFFCU;
-        nextPc_ = (pc_ + 4) & 0xFFCU;
-    }
     currentInstructionInDelaySlot_ = false;
     return result;
 }
@@ -128,7 +125,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
         case 0x06: write(rd, b >> (a & 31)); break;
         case 0x07: write(rd, static_cast<std::uint32_t>(signed32(b) >> (a & 31))); break;
         case 0x08: branch(true, a); break; // JR
-        case 0x09: write(rd == 0 ? 31 : rd, nextPc_ + 4); branch(true, a); break;
+        case 0x09: write(rd == 0 ? 31 : rd, nextPc_); branch(true, a); break;
         case 0x0D: halted_ = true; return true; // BREAK
         case 0x21: write(rd, a + b); break; // ADDU
         case 0x23: write(rd, a - b); break; // SUBU
@@ -147,7 +144,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
     case 0x03: // JAL
     {
         const std::uint32_t target = (instruction & 0x03FFFFFFU) << 2;
-        if (op == 0x03) write(31, nextPc_ + 4);
+        if (op == 0x03) write(31, nextPc_);
         branch(true, target);
         break;
     }
@@ -163,7 +160,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
     case 0x0D: write(rt, a | imm); break;
     case 0x0E: write(rt, a ^ imm); break;
     case 0x0F: write(rt, imm << 16); break;
-    case 0x20: { std::uint8_t v=0; if(!load8(effective,v)) return memoryFailure(); write(rt, signExtend16(v)); break; }
+    case 0x20: { std::uint8_t v=0; if(!load8(effective,v)) return memoryFailure(); write(rt, static_cast<std::uint32_t>(static_cast<std::int32_t>(static_cast<std::int8_t>(v)))); break; }
     case 0x24: { std::uint8_t v=0; if(!load8(effective,v)) return memoryFailure(); write(rt, v); break; }
     case 0x21: { std::uint16_t v=0; if(!load16(effective,v)) return memoryFailure(); write(rt, signExtend16(v)); break; }
     case 0x25: { std::uint16_t v=0; if(!load16(effective,v)) return memoryFailure(); write(rt, v); break; }
