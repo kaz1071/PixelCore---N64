@@ -16,6 +16,17 @@ class R4300i
 {
 public:
     static constexpr std::uint64_t ResetAddress = 0xBFC00000ULL;
+    static constexpr std::uint64_t GeneralExceptionVector = 0x80000180ULL;
+    static constexpr std::uint64_t BootstrapExceptionVector = 0xBFC00380ULL;
+
+    // CP0 register numbers used by the R4300i.
+    enum Cp0Register : unsigned int {
+        Index = 0, Random = 1, EntryLo0 = 2, EntryLo1 = 3,
+        Context = 4, PageMask = 5, Wired = 6, BadVAddr = 8,
+        Count = 9, EntryHi = 10, Compare = 11, Status = 12,
+        Cause = 13, EPC = 14, PRId = 15, Config = 16,
+        LLAddr = 17, XContext = 20, ErrorEPC = 30
+    };
 
     void reset();
     bool step(N64Memory &memory, std::string &error);
@@ -25,14 +36,20 @@ public:
     std::uint64_t pc() const;
     std::uint64_t hi() const;
     std::uint64_t lo() const;
+    std::uint64_t cp0(unsigned int index) const;
+    void setCp0(unsigned int index, std::uint64_t value);
 
 private:
     bool execute(std::uint32_t instruction, std::uint64_t instructionAddress,
                  N64Memory &memory, std::string &error);
+    void raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
+                        bool hasBadAddress = false);
 
     std::array<std::uint64_t, 32> registers_{};
+    std::array<std::uint64_t, 32> cp0Registers_{};
     std::uint64_t pc_ = ResetAddress;
     std::uint64_t nextPc_ = ResetAddress + 4;
     std::uint64_t hi_ = 0;
     std::uint64_t lo_ = 0;
+    bool nextInstructionIsDelaySlot_ = false;
 };
