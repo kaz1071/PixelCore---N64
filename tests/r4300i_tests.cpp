@@ -96,6 +96,50 @@ int main()
     passed &= check(((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 10,
                     "exception records Reserved Instruction code");
 
+
+    // Big-endian byte/halfword and 64-bit load/store operations.
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 0x100); // base address
+    memory.words[base + 4] = iType(0x09, 0, 2, 0x80); // sign bit for LB
+    memory.words[base + 8] = iType(0x28, 1, 2, 1); // SB at 0x101
+    memory.words[base + 12] = iType(0x24, 1, 3, 1); // LBU
+    memory.words[base + 16] = iType(0x20, 1, 4, 1); // LB
+    memory.words[base + 20] = iType(0x09, 0, 5, 0xFEDC); // value for SH
+    memory.words[base + 24] = iType(0x29, 1, 5, 2); // SH at 0x102
+    memory.words[base + 28] = iType(0x25, 1, 6, 2); // LHU
+    memory.words[base + 32] = iType(0x21, 1, 7, 2); // LH
+    cpu.reset();
+    for (int i = 0; i < 9; ++i)
+        passed &= check(cpu.step(memory, error), "byte/halfword instruction executes");
+    passed &= check(cpu.reg(3) == 0x80, "LBU zero extends byte");
+    passed &= check(cpu.reg(4) == 0xFFFFFFFFFFFFFF80ULL, "LB sign extends byte");
+    passed &= check(cpu.reg(6) == 0xFEDC, "LHU zero extends halfword");
+    passed &= check(cpu.reg(7) == 0xFFFFFFFFFFFFFEDCULL, "LH sign extends halfword");
+
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 0x200);
+    memory.words[base + 4] = iType(0x09, 0, 2, 0x1234);
+    memory.words[base + 8] = (0x19U << 26) | (0U << 21) | (2U << 16) | 0x5678U; // DADDIU low value
+    memory.words[base + 12] = iType(0x3F, 1, 2, 0); // SD
+    memory.words[base + 16] = iType(0x37, 1, 3, 0); // LD
+    cpu.reset();
+    cpu.setReg(2, 0x123456789ABCDEF0ULL);
+    passed &= check(cpu.step(memory, error), "prepare doubleword address");
+    passed &= check(cpu.step(memory, error), "prepare instruction executes");
+    passed &= check(cpu.step(memory, error), "second value instruction executes");
+    passed &= check(cpu.step(memory, error), "SD executes");
+    passed &= check(cpu.step(memory, error), "LD executes");
+    passed &= check(cpu.reg(3) == 0x123456789ABCDEF0ULL, "LD retrieves stored 64-bit value");
+
+    // Misaligned LH raises Address Error Load (AdEL).
+    memory.words.clear();
+    memory.words[base] = iType(0x21, 0, 1, 1);
+    cpu.reset();
+    passed &= check(cpu.step(memory, error), "misaligned LH is handled");
+    passed &= check(((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 4,
+                    "misaligned LH raises AdEL");
+    passed &= check(cpu.cp0(R4300i::BadVAddr) == 1, "AdEL records BadVAddr");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
