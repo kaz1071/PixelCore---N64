@@ -74,6 +74,45 @@ int main()
     passed &= check(!bus.write32(N64MemoryBus::PifRamBase + 64, 0),
                     "writes beyond PIF RAM are rejected");
 
+    // Execute a controller-identification Joybus packet through the PIF control byte.
+    bus.pif().setControllerConnected(0, true);
+    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 0, 1), "write Joybus send length");
+    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 1, 3), "write Joybus receive length");
+    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 2, 0x00), "write controller identify command");
+    passed &= check(bus.write8(N64MemoryBus::PifRamBase + 63, 0x01),
+                    "PIF control byte starts Joybus processing");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x05,
+                    "controller identify returns gamepad type");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 4, byte) && byte == 0x00,
+                    "controller identify reports no accessory");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0x01,
+                    "controller identify returns standard status");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 63, byte) && byte == 0,
+                    "PIF clears the Joybus execute bit after processing");
+
+    bus.clearPifRam();
+    bus.pif().setControllerState(0, 0x8001, -12, 34);
+    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
+    bus.write8(N64MemoryBus::PifRamBase + 1, 4);
+    bus.write8(N64MemoryBus::PifRamBase + 2, 0x01);
+    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x80,
+                    "controller read returns button high byte");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 4, byte) && byte == 0x01,
+                    "controller read returns button low byte");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0xF4,
+                    "controller read returns signed X axis");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 6, byte) && byte == 0x22,
+                    "controller read returns signed Y axis");
+
+    bus.clearPifRam();
+    bus.write8(N64MemoryBus::PifRamBase + 0, 1);
+    bus.write8(N64MemoryBus::PifRamBase + 1, 3);
+    bus.write8(N64MemoryBus::PifRamBase + 2, 0x00);
+    bus.write8(N64MemoryBus::PifRamBase + 63, 0x01);
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 1, byte) && (byte & 0x80),
+                    "disconnected controller sets the no-device response flag");
+
     bus.clearRdram();
     passed &= check(bus.read32(0x100, word) && word == 0,
                     "clearing RDRAM resets its contents");
