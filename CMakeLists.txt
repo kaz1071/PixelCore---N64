@@ -88,6 +88,8 @@ if(BUILD_TESTING)
         tests/n64_system_tests.cpp
         core/n64_system.cpp
         core/n64_system.h
+        core/rsp/rsp.cpp
+        core/rsp/rsp.h
         core/memory/n64_memory_bus.cpp
         core/memory/n64_memory_bus.h
         core/pif/pif.cpp
