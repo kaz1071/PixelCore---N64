@@ -135,6 +135,7 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
         return readImage(pifRam_, physical - PifRamBase, value);
 
+    if (physical == SpProgramCounter) { value = spProgramCounter_; return true; }
     if (physical == SpMemoryAddress) { value = spMemAddress_; return true; }
     if (physical == SpDramAddress) { value = spDramAddress_; return true; }
     if (physical == SpReadLength) { value = spReadLength_; return true; }
@@ -175,6 +176,10 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return false;
 
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical == SpProgramCounter) {
+        spProgramCounter_ = value & 0xFFCU;
+        return true;
+    }
     if (physical == SpMemoryAddress) {
         spMemAddress_ = value & 0x1FFFU;
         return true;
@@ -327,6 +332,7 @@ void N64MemoryBus::clearPifRam()
     spWriteLength_ = 0;
     spStatus_ = 1;
     spSemaphore_ = 0;
+    spProgramCounter_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
@@ -471,6 +477,16 @@ bool N64MemoryBus::transferRdramToSaveRam(std::uint32_t lengthMinusOne)
     piStatus_ = 0x08;
     miInterrupts_ |= 0x10U;
     return true;
+}
+
+std::uint32_t N64MemoryBus::spProgramCounter() const
+{
+    return spProgramCounter_;
+}
+
+void N64MemoryBus::setSpProgramCounter(std::uint32_t address)
+{
+    spProgramCounter_ = address & 0xFFCU;
 }
 
 bool N64MemoryBus::spHalted() const
