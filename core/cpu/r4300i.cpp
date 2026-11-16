@@ -87,11 +87,14 @@ void R4300i::reset()
     cp0Registers_[Random] = 31;
     nextInstructionIsDelaySlot_ = false;
     currentInstructionInDelaySlot_ = false;
+    llBit_ = false;
+    llAddress_ = 0;
 }
 
 void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
                             bool hasBadAddress)
 {
+    llBit_ = false; // Exceptions cancel an outstanding load-linked reservation.
     std::uint64_t &status = cp0Registers_[Status];
     std::uint64_t &cause = cp0Registers_[Cause];
     if ((status & 0x2) == 0) {
@@ -285,6 +288,19 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         return true;
     case 0x1C: // SPECIAL2 is not part of the base R4300i ISA.
         break;
+    case 0x30: { // LL (Load Linked, 32-bit)
+        const std::uint64_t address = a + offset;
+        std::uint32_t value = 0;
+        if ((address & 3) || !memory.read32(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = signExtend32(value);
+        llAddress_ = address;
+        llBit_ = true;
+        cp0Registers_[LLAddr] = address & ~0xFULL;
+        return true;
+    }
     case 0x20: { // LB
         const std::uint64_t address = a + offset;
         std::uint8_t value = 0;
@@ -391,6 +407,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x28: { // SB
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         if (!memory.write8(address, static_cast<std::uint8_t>(b))) {
             raiseException(5, address, true);
             return true;
@@ -399,6 +416,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x29: { // SH
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         if ((address & 1) || !memory.write16(address, static_cast<std::uint16_t>(b))) {
             raiseException(5, address, true);
             return true;
@@ -407,6 +425,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x2A: { // SWL (big-endian)
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         const std::uint64_t aligned = address & ~3ULL;
         std::uint32_t memoryWord = 0;
         if (!memory.read32(aligned, memoryWord)) {
@@ -424,6 +443,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x2E: { // SWR (big-endian)
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         const std::uint64_t aligned = address & ~3ULL;
         std::uint32_t memoryWord = 0;
         if (!memory.read32(aligned, memoryWord)) {
@@ -441,14 +461,36 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x2B: { // SW
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         if ((address & 3) || !memory.write32(address, low32(b))) {
             raiseException(5, address, true);
             return true;
         }
         return true;
     }
+    case 0x38: { // SC (Store Conditional, 32-bit)
+        const std::uint64_t address = a + offset;
+        if (address & 3) {
+            llBit_ = false;
+            raiseException(5, address, true);
+            return true;
+        }
+        const bool reservationMatches = llBit_ && llAddress_ == address;
+        llBit_ = false;
+        if (!reservationMatches) {
+            registers_[rt] = 0;
+            return true;
+        }
+        if (!memory.write32(address, low32(b))) {
+            raiseException(5, address, true);
+            return true;
+        }
+        registers_[rt] = 1;
+        return true;
+    }
     case 0x3F: { // SD
         const std::uint64_t address = a + offset;
+        llBit_ = false;
         if ((address & 7) || !memory.write64(address, b)) {
             raiseException(5, address, true);
             return true;
