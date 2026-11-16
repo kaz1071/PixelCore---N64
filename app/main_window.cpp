@@ -125,6 +125,9 @@ void MainWindow::openRom()
     loadedRomFormat_ = rom.byteOrderName();
     loadedRomSize_ = rom.fileSize();
 
+    system_.loadCartridge(rom.image());
+    system_.reset();
+
     updateRomDisplay();
 }
 
@@ -135,7 +138,7 @@ void MainWindow::updateRomDisplay()
 
     romInfoLabel_->setText(
         QString("ROM recognized!\n\n%1\n%2\n%3\n%4 MiB\n\n"
-                "The ROM is loaded for inspection. Game emulation is not implemented yet.")
+                "Normalized ROM data is mapped into the emulator core. Game startup and graphics are not implemented yet.")
             .arg(fileInfo.fileName())
             .arg(loadedRomTitle_.isEmpty() ? "Title: (not set in ROM header)" :
                                            "Title: " + loadedRomTitle_)
