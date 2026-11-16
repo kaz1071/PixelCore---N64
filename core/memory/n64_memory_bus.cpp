@@ -98,6 +98,10 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
         return readImage(pifRam_, physical - PifRamBase, value);
 
+    if (physical == SiDramAddress) { value = siDramAddress_; return true; }
+    if (physical == SiPifAddressRead || physical == SiPifAddressWrite) { value = PifRamBase; return true; }
+    if (physical == SiStatus) { value = siStatus_; return true; }
+
     if (physical >= CartridgeBase &&
         physical - CartridgeBase <= cartridge_.size() &&
         cartridge_.size() - static_cast<std::size_t>(physical - CartridgeBase) >= 4)
@@ -117,6 +121,20 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return false;
 
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical == SiDramAddress) {
+        siDramAddress_ = value & 0x00FFFFFFU;
+        return true;
+    }
+    if (physical == SiPifAddressRead)
+        return transferPifToRdram();
+    if (physical == SiPifAddressWrite)
+        return transferRdramToPif();
+    if (physical == SiStatus) {
+        // Writing bit 0 resets the SI DMA/IO state; interrupts are not wired yet.
+        if (value & 0x01U)
+            siStatus_ = 0;
+        return true;
+    }
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4) {
         const std::size_t index = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[index] = static_cast<std::uint8_t>(value >> 24);
@@ -156,11 +174,46 @@ void N64MemoryBus::clearRdram()
 void N64MemoryBus::clearPifRam()
 {
     std::fill(pifRam_.begin(), pifRam_.end(), 0);
+    siDramAddress_ = 0;
+    siStatus_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
 {
     pif_.processJoybus(pifRam_);
+}
+
+bool N64MemoryBus::transferRdramToPif()
+{
+    if ((siDramAddress_ & 7U) != 0 ||
+        siDramAddress_ > rdram_.size() ||
+        rdram_.size() - siDramAddress_ < PifRamSize)
+    {
+        siStatus_ = 0x08;
+        return false;
+    }
+
+    siStatus_ = 0x01;
+    std::copy_n(rdram_.begin() + siDramAddress_, PifRamSize, pifRam_.begin());
+    processPifControl();
+    siStatus_ = 0;
+    return true;
+}
+
+bool N64MemoryBus::transferPifToRdram()
+{
+    if ((siDramAddress_ & 7U) != 0 ||
+        siDramAddress_ > rdram_.size() ||
+        rdram_.size() - siDramAddress_ < PifRamSize)
+    {
+        siStatus_ = 0x08;
+        return false;
+    }
+
+    siStatus_ = 0x01;
+    std::copy(pifRam_.begin(), pifRam_.end(), rdram_.begin() + siDramAddress_);
+    siStatus_ = 0;
+    return true;
 }
 
 Pif &N64MemoryBus::pif() { return pif_; }
