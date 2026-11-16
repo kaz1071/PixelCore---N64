@@ -12,32 +12,68 @@
 
 ## About
 
-**PixelCore - N64** is a project to build a Nintendo 64 emulator for Linux with a friendly desktop application interface.
+**PixelCore - N64** is an open-source project to build a Nintendo 64 emulator for Linux with a friendly desktop application interface.
 
 It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 
 ## Project status
 
-<em>Early development — emulator core and desktop interface are not implemented yet.</em>
+**Early development.** The desktop shell and initial ROM-header recognition are in place. Actual Nintendo 64 game emulation has not been implemented yet.
 
-The initial goals are:
-
-- [ ] Nintendo 64 ROM loading
-- [ ] Accurate CPU, graphics, audio, and memory emulation
-- [ ] Desktop interface for Linux
-- [ ] Configurable controls and controller support
+- [x] Initial Qt desktop application
+- [x] ROM file picker
+- [x] Recognize common N64 ROM byte orders (.z64, .v64, and .n64)
+- [ ] Normalize ROM byte order for the emulation core
+- [ ] MIPS R4300 CPU
+- [ ] RDRAM and memory bus
+- [ ] Reality Co-Processor (RCP), including RSP and RDP
+- [ ] Audio processing
+- [ ] Controller input
 - [ ] Save states
-- [ ] Build and installation instructions
 
-Features will be checked off as they are implemented and tested.
+Features are checked off as they are implemented and tested.
 
-## Building
+## Dependencies
 
-Build instructions will be added once the project structure and dependencies are in place.
+- C++20 compiler
+- CMake 3.20 or newer
+- Qt 6 Widgets
 
-## ROMs and game files
+On Ubuntu or Debian-based Linux distributions:
 
-PixelCore - N64 will not include commercial game ROMs. Use game files that you are legally entitled to use.
+```bash
+sudo apt update
+sudo apt install build-essential cmake qt6-base-dev
+```
+
+## Build
+
+From the repository root:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j"$(nproc)"
+```
+
+Run the application:
+
+```bash
+./build/pixelcore-n64
+```
+
+## ROM files
+
+The application currently recognizes the standard N64 ROM byte-order signatures:
+
+| Format | Byte order |
+| --- | --- |
+| .z64 | Big-endian |
+| .v64 | Byte-swapped |
+| .n64 | Little-endian |
+
+At this stage, ROM selection only inspects the header. It does not execute game code or render gameplay.
+
+PixelCore - N64 does not include commercial game ROMs. Use game files that you are legally entitled to use.
 
 ## Contributing
 
@@ -45,4 +81,4 @@ The project is in its early stages. Bug reports, ideas, and contributions are we
 
 ## License
 
-The license has not been selected yet.
+The project license has not been selected yet.
