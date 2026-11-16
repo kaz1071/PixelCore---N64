@@ -135,6 +135,14 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
         return readImage(pifRam_, physical - PifRamBase, value);
 
+    if (physical == SpMemoryAddress) { value = spMemAddress_; return true; }
+    if (physical == SpDramAddress) { value = spDramAddress_; return true; }
+    if (physical == SpReadLength) { value = spReadLength_; return true; }
+    if (physical == SpWriteLength) { value = spWriteLength_; return true; }
+    if (physical == SpStatus) { value = spStatus_; return true; }
+    if (physical == SpDmaBusy) { value = 0; return true; }
+    if (physical == SpSemaphore) { value = spSemaphore_; spSemaphore_ = 1; return true; }
+
     if (physical == PiDramAddress) { value = piDramAddress_; return true; }
     if (physical == PiCartAddress) { value = piCartAddress_; return true; }
     if (physical == PiReadLength) { value = piReadLength_; return true; }
@@ -167,6 +175,32 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return false;
 
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical == SpMemoryAddress) {
+        spMemAddress_ = value & 0x1FFFU;
+        return true;
+    }
+    if (physical == SpDramAddress) {
+        spDramAddress_ = value & 0x00FFFFFFU;
+        return true;
+    }
+    if (physical == SpReadLength) {
+        spReadLength_ = value;
+        return transferRdramToSp(value);
+    }
+    if (physical == SpWriteLength) {
+        spWriteLength_ = value;
+        return transferSpToRdram(value);
+    }
+    if (physical == SpStatus) {
+        if (value & 0x00000001U) spStatus_ &= ~0x01U;
+        if (value & 0x00000002U) spStatus_ |= 0x01U;
+        if (value & 0x00000004U) spStatus_ &= ~0x02U;
+        return true;
+    }
+    if (physical == SpSemaphore) {
+        spSemaphore_ = 0;
+        return true;
+    }
     if (physical == PiDramAddress) {
         piDramAddress_ = value & 0x00FFFFFFU;
         return true;
@@ -287,6 +321,12 @@ void N64MemoryBus::clearPifRam()
     piReadLength_ = 0;
     piWriteLength_ = 0;
     piStatus_ = 0;
+    spMemAddress_ = 0;
+    spDramAddress_ = 0;
+    spReadLength_ = 0;
+    spWriteLength_ = 0;
+    spStatus_ = 1;
+    spSemaphore_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
@@ -326,6 +366,62 @@ bool N64MemoryBus::transferPifToRdram()
     std::copy(pifRam_.begin(), pifRam_.end(), rdram_.begin() + siDramAddress_);
     siStatus_ = 0x1000;
     miInterrupts_ |= 0x02U;
+    return true;
+}
+
+bool N64MemoryBus::transferRdramToSp(std::uint32_t lengthControl)
+{
+    const std::uint32_t length = (lengthControl & 0x0FFFU) + 1;
+    const std::uint32_t count = ((lengthControl >> 12) & 0xFFU) + 1;
+    const std::uint32_t skip = (lengthControl >> 20) & 0x0FFFU;
+    std::uint64_t dram = spDramAddress_;
+    std::uint32_t spAddress = spMemAddress_;
+
+    for (std::uint32_t block = 0; block < count; ++block)
+    {
+        if (dram > rdram_.size() || length > rdram_.size() - dram)
+            return false;
+
+        std::vector<std::uint8_t> &spMemory =
+            (spAddress & 0x1000U) ? spImem_ : spDmem_;
+        const std::size_t spOffset = spAddress & 0x0FFFU;
+        for (std::uint32_t i = 0; i < length; ++i)
+            spMemory[(spOffset + i) & 0x0FFFU] = rdram_[static_cast<std::size_t>(dram + i)];
+
+        dram += length + skip;
+        spAddress = (spAddress & 0x1000U) | ((spAddress + length) & 0x0FFFU);
+    }
+
+    spDramAddress_ = static_cast<std::uint32_t>(dram & 0x00FFFFFFU);
+    spMemAddress_ = spAddress;
+    return true;
+}
+
+bool N64MemoryBus::transferSpToRdram(std::uint32_t lengthControl)
+{
+    const std::uint32_t length = (lengthControl & 0x0FFFU) + 1;
+    const std::uint32_t count = ((lengthControl >> 12) & 0xFFU) + 1;
+    const std::uint32_t skip = (lengthControl >> 20) & 0x0FFFU;
+    std::uint64_t dram = spDramAddress_;
+    std::uint32_t spAddress = spMemAddress_;
+
+    for (std::uint32_t block = 0; block < count; ++block)
+    {
+        if (dram > rdram_.size() || length > rdram_.size() - dram)
+            return false;
+
+        const std::vector<std::uint8_t> &spMemory =
+            (spAddress & 0x1000U) ? spImem_ : spDmem_;
+        const std::size_t spOffset = spAddress & 0x0FFFU;
+        for (std::uint32_t i = 0; i < length; ++i)
+            rdram_[static_cast<std::size_t>(dram + i)] = spMemory[(spOffset + i) & 0x0FFFU];
+
+        dram += length + skip;
+        spAddress = (spAddress & 0x1000U) | ((spAddress + length) & 0x0FFFU);
+    }
+
+    spDramAddress_ = static_cast<std::uint32_t>(dram & 0x00FFFFFFU);
+    spMemAddress_ = spAddress;
     return true;
 }
 
