@@ -74,8 +74,6 @@ bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize) {
         const std::size_t offset = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[offset] = value;
-        if (offset == PifRamSize - 1)
-            processPifControl();
         return true;
     }
     if (physical >= RdramSize)
@@ -141,8 +139,6 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         pifRam_[index + 1] = static_cast<std::uint8_t>(value >> 16);
         pifRam_[index + 2] = static_cast<std::uint8_t>(value >> 8);
         pifRam_[index + 3] = static_cast<std::uint8_t>(value);
-        if (index <= PifRamSize - 1 && index + 3 >= PifRamSize - 1)
-            processPifControl();
         return true;
     }
     if (physical >= RdramSize)
