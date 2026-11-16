@@ -28,6 +28,13 @@ std::uint32_t Rsp::reg(unsigned int index) const
 {
     return index < registers_.size() ? registers_[index] : 0;
 }
+void Rsp::setPc(std::uint32_t address)
+{
+    pc_ = address & 0xFFCU;
+    nextPc_ = (pc_ + 4) & 0xFFCU;
+    delaySlotPending_ = false;
+}
+
 void Rsp::setReg(unsigned int index, std::uint32_t value)
 {
     if (index > 0 && index < registers_.size())
