@@ -1,0 +1,88 @@
+#include "core/memory/n64_memory_bus.h"
+
+#include <algorithm>
+
+N64MemoryBus::N64MemoryBus()
+    : rdram_(RdramSize, 0)
+{
+}
+
+std::uint64_t N64MemoryBus::toPhysicalAddress(std::uint64_t address)
+{
+    // KSEG0 and KSEG1 are direct-mapped aliases of the low 512 MiB.
+    if (address >= 0x80000000ULL && address <= 0xBFFFFFFFULL)
+        return address & 0x1FFFFFFFULL;
+    return address;
+}
+
+bool N64MemoryBus::readImage(const std::vector<std::uint8_t> &image,
+                             std::uint64_t offset, std::uint32_t &value) const
+{
+    if (offset > image.size() || image.size() - static_cast<std::size_t>(offset) < 4)
+        return false;
+
+    const std::size_t index = static_cast<std::size_t>(offset);
+    value = (static_cast<std::uint32_t>(image[index]) << 24) |
+            (static_cast<std::uint32_t>(image[index + 1]) << 16) |
+            (static_cast<std::uint32_t>(image[index + 2]) << 8) |
+             static_cast<std::uint32_t>(image[index + 3]);
+    return true;
+}
+
+bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
+{
+    if (address & 3)
+        return false;
+
+    const std::uint64_t physical = toPhysicalAddress(address);
+
+    if (physical < RdramSize)
+        return readImage(rdram_, physical, value);
+
+    if (physical >= CartridgeBase &&
+        physical - CartridgeBase <= cartridge_.size() &&
+        cartridge_.size() - static_cast<std::size_t>(physical - CartridgeBase) >= 4)
+        return readImage(cartridge_, physical - CartridgeBase, value);
+
+    if (physical >= BootRomBase &&
+        physical - BootRomBase <= bootRom_.size() &&
+        bootRom_.size() - static_cast<std::size_t>(physical - BootRomBase) >= 4)
+        return readImage(bootRom_, physical - BootRomBase, value);
+
+    return false;
+}
+
+bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
+{
+    if (address & 3)
+        return false;
+
+    const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical >= RdramSize)
+        return false;
+
+    const std::size_t index = static_cast<std::size_t>(physical);
+    rdram_[index] = static_cast<std::uint8_t>(value >> 24);
+    rdram_[index + 1] = static_cast<std::uint8_t>(value >> 16);
+    rdram_[index + 2] = static_cast<std::uint8_t>(value >> 8);
+    rdram_[index + 3] = static_cast<std::uint8_t>(value);
+    return true;
+}
+
+void N64MemoryBus::loadCartridge(const std::vector<std::uint8_t> &image)
+{
+    cartridge_ = image;
+}
+
+void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
+{
+    bootRom_ = image;
+}
+
+void N64MemoryBus::clearRdram()
+{
+    std::fill(rdram_.begin(), rdram_.end(), 0);
+}
+
+std::size_t N64MemoryBus::cartridgeSize() const { return cartridge_.size(); }
+std::size_t N64MemoryBus::bootRomSize() const { return bootRom_.size(); }
