@@ -231,6 +231,14 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         spImem_[index + 3] = static_cast<std::uint8_t>(value);
         return true;
     }
+    if (physical >= SaveRamBase && physical - SaveRamBase <= SaveRamSize - 4) {
+        const std::size_t index = static_cast<std::size_t>(physical - SaveRamBase);
+        saveRam_[index] = static_cast<std::uint8_t>(value >> 24);
+        saveRam_[index + 1] = static_cast<std::uint8_t>(value >> 16);
+        saveRam_[index + 2] = static_cast<std::uint8_t>(value >> 8);
+        saveRam_[index + 3] = static_cast<std::uint8_t>(value);
+        return true;
+    }
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4) {
         const std::size_t index = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[index] = static_cast<std::uint8_t>(value >> 24);
