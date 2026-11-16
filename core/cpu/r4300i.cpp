@@ -2,7 +2,59 @@
 
 #include <cstdint>
 #include <limits>
-#include <sstream>
+
+
+bool N64Memory::read8(std::uint64_t address, std::uint8_t &value)
+{
+    std::uint32_t word = 0;
+    if (!read32(address & ~3ULL, word)) return false;
+    const unsigned int shift = static_cast<unsigned int>((3 - (address & 3)) * 8);
+    value = static_cast<std::uint8_t>(word >> shift);
+    return true;
+}
+
+bool N64Memory::read16(std::uint64_t address, std::uint16_t &value)
+{
+    if (address & 1) return false;
+    std::uint8_t high = 0, low = 0;
+    if (!read8(address, high) || !read8(address + 1, low)) return false;
+    value = static_cast<std::uint16_t>((high << 8) | low);
+    return true;
+}
+
+bool N64Memory::read64(std::uint64_t address, std::uint64_t &value)
+{
+    if (address & 7) return false;
+    std::uint32_t high = 0, low = 0;
+    if (!read32(address, high) || !read32(address + 4, low)) return false;
+    value = (static_cast<std::uint64_t>(high) << 32) | low;
+    return true;
+}
+
+bool N64Memory::write8(std::uint64_t address, std::uint8_t value)
+{
+    const std::uint64_t aligned = address & ~3ULL;
+    std::uint32_t word = 0;
+    if (!read32(aligned, word)) return false;
+    const unsigned int shift = static_cast<unsigned int>((3 - (address & 3)) * 8);
+    const std::uint32_t mask = 0xFFU << shift;
+    word = (word & ~mask) | (static_cast<std::uint32_t>(value) << shift);
+    return write32(aligned, word);
+}
+
+bool N64Memory::write16(std::uint64_t address, std::uint16_t value)
+{
+    if (address & 1) return false;
+    return write8(address, static_cast<std::uint8_t>(value >> 8)) &&
+           write8(address + 1, static_cast<std::uint8_t>(value));
+}
+
+bool N64Memory::write64(std::uint64_t address, std::uint64_t value)
+{
+    if (address & 7) return false;
+    return write32(address, static_cast<std::uint32_t>(value >> 32)) &&
+           write32(address + 4, static_cast<std::uint32_t>(value));
+}
 
 namespace {
 std::int64_t signExtend16(std::uint16_t value)
@@ -233,20 +285,104 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         return true;
     case 0x1C: // SPECIAL2 is not part of the base R4300i ISA.
         break;
+    case 0x20: { // LB
+        const std::uint64_t address = a + offset;
+        std::uint8_t value = 0;
+        if (!memory.read8(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = static_cast<std::int64_t>(static_cast<std::int8_t>(value));
+        return true;
+    }
+    case 0x21: { // LH
+        const std::uint64_t address = a + offset;
+        std::uint16_t value = 0;
+        if ((address & 1) || !memory.read16(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = static_cast<std::int64_t>(static_cast<std::int16_t>(value));
+        return true;
+    }
     case 0x23: { // LW
         const std::uint64_t address = a + offset;
         std::uint32_t value = 0;
-        if ((address & 3) != 0 || !memory.read32(address, value)) {
-            raiseException(4, address, true); // Address Error on load.
+        if ((address & 3) || !memory.read32(address, value)) {
+            raiseException(4, address, true);
             return true;
         }
         registers_[rt] = signExtend32(value);
         return true;
     }
+    case 0x24: { // LBU
+        const std::uint64_t address = a + offset;
+        std::uint8_t value = 0;
+        if (!memory.read8(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = value;
+        return true;
+    }
+    case 0x25: { // LHU
+        const std::uint64_t address = a + offset;
+        std::uint16_t value = 0;
+        if ((address & 1) || !memory.read16(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = value;
+        return true;
+    }
+    case 0x27: { // LWU
+        const std::uint64_t address = a + offset;
+        std::uint32_t value = 0;
+        if ((address & 3) || !memory.read32(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = value;
+        return true;
+    }
+    case 0x37: { // LD
+        const std::uint64_t address = a + offset;
+        std::uint64_t value = 0;
+        if ((address & 7) || !memory.read64(address, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = value;
+        return true;
+    }
+    case 0x28: { // SB
+        const std::uint64_t address = a + offset;
+        if (!memory.write8(address, static_cast<std::uint8_t>(b))) {
+            raiseException(5, address, true);
+            return true;
+        }
+        return true;
+    }
+    case 0x29: { // SH
+        const std::uint64_t address = a + offset;
+        if ((address & 1) || !memory.write16(address, static_cast<std::uint16_t>(b))) {
+            raiseException(5, address, true);
+            return true;
+        }
+        return true;
+    }
     case 0x2B: { // SW
         const std::uint64_t address = a + offset;
-        if ((address & 3) != 0 || !memory.write32(address, low32(b))) {
-            raiseException(5, address, true); // Address Error on store.
+        if ((address & 3) || !memory.write32(address, low32(b))) {
+            raiseException(5, address, true);
+            return true;
+        }
+        return true;
+    }
+    case 0x3F: { // SD
+        const std::uint64_t address = a + offset;
+        if ((address & 7) || !memory.write64(address, b)) {
+            raiseException(5, address, true);
             return true;
         }
         return true;
@@ -254,9 +390,6 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     default: break;
     }
 
-    std::ostringstream message;
-    message << "Unsupported R4300i opcode 0x" << std::hex << opcode
-            << " at 0x" << instructionAddress;
     raiseException(10, instructionAddress); // Reserved Instruction.
     return true;
 }
