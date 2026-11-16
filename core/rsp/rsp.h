@@ -6,8 +6,8 @@
 
 class N64Memory;
 
-// Initial scalar RSP processor core. Vector instructions and COP0 are not
-// implemented yet; instruction and data accesses use the SP's 4 KiB memories.
+// Initial RSP processor core. Scalar instructions are implemented; vector
+// registers are exposed for the vector execution unit being built incrementally.
 class Rsp
 {
 public:
@@ -20,6 +20,11 @@ public:
     std::uint32_t pc() const;
     std::uint32_t reg(unsigned int index) const;
     void setReg(unsigned int index, std::uint32_t value);
+
+    // Vector lanes are numbered 0..7, with lane 0 the most-significant
+    // 16-bit element in the architectural 128-bit register.
+    std::uint16_t vectorLane(unsigned int index, unsigned int lane) const;
+    void setVectorLane(unsigned int index, unsigned int lane, std::uint16_t value);
     void setPc(std::uint32_t address);
     void resume();
     bool halted() const;
@@ -31,6 +36,7 @@ private:
     static std::uint32_t signExtend16(std::uint32_t value);
 
     std::array<std::uint32_t, 32> registers_{};
+    std::array<std::array<std::uint16_t, 8>, 32> vectorRegisters_{};
     std::uint32_t pc_ = 0;
     std::uint32_t nextPc_ = 4;
     std::uint32_t hi_ = 0;
