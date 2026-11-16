@@ -29,7 +29,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Initial COP0 access, ERET, and basic exception handling
 - [x] Byte, halfword, word, doubleword, and unaligned merge memory instructions
 - [x] Initial LL/SC load-linked and store-conditional support
-- [x] Initial 8 MiB RDRAM and read-only cartridge/boot ROM mappings
+- [x] Initial 8 MiB RDRAM, read-only cartridge/boot ROM, and 64-byte PIF RAM mappings
 - [x] Connect the R4300i CPU to the memory bus through an initial N64 system core\n- [x] Connect desktop ROM loading and normalized cartridge images to the system core
 - [ ] Memory-mapped hardware (MI, VI, AI, PI, SI, RI)
 - [ ] TLB and complete virtual-memory behavior
@@ -38,7 +38,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [ ] Controller input
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The desktop ROM loader now normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. The memory bus does not yet implement memory-mapped devices. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus also models the PIF's 64-byte RAM window; PIF command processing and authentic IPL boot behavior are not implemented yet. The desktop ROM loader now normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. The memory bus does not yet implement memory-mapped devices. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
