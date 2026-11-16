@@ -21,6 +21,10 @@ public:
     static constexpr std::uint64_t SiPifAddressRead = SiRegisterBase + 0x04;
     static constexpr std::uint64_t SiPifAddressWrite = SiRegisterBase + 0x10;
     static constexpr std::uint64_t SiStatus = SiRegisterBase + 0x18;
+    static constexpr std::uint64_t MiRegisterBase = 0x04300000ULL;
+    static constexpr std::uint64_t MiVersion = MiRegisterBase + 0x04;
+    static constexpr std::uint64_t MiInterrupt = MiRegisterBase + 0x08;
+    static constexpr std::uint64_t MiInterruptMask = MiRegisterBase + 0x0C;
     static constexpr std::size_t PifRamSize = 64;
 
     N64MemoryBus();
@@ -29,6 +33,7 @@ public:
     bool write8(std::uint64_t address, std::uint8_t value) override;
     bool read32(std::uint64_t address, std::uint32_t &value) override;
     bool write32(std::uint64_t address, std::uint32_t value) override;
+    bool interruptPending() const override;
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
@@ -55,4 +60,6 @@ private:
     Pif pif_;
     std::uint32_t siDramAddress_ = 0;
     std::uint32_t siStatus_ = 0;
+    std::uint32_t miInterrupts_ = 0;
+    std::uint32_t miInterruptMask_ = 0;
 };
