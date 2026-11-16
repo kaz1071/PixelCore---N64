@@ -21,6 +21,7 @@ public:
     std::uint32_t reg(unsigned int index) const;
     void setReg(unsigned int index, std::uint32_t value);
     bool halted() const;
+    bool broke() const;
 
 private:
     bool execute(std::uint32_t instruction, N64Memory &memory,
@@ -33,4 +34,5 @@ private:
     bool delaySlotPending_ = false;
     bool currentInstructionInDelaySlot_ = false;
     bool halted_ = false;
+    bool broke_ = false;
 };
