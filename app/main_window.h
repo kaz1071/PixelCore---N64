@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QString>
+#include <QtGlobal>
 
 class QLabel;
 
