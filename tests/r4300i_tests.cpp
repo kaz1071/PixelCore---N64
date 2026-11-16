@@ -137,6 +137,65 @@ int main()
                     "misaligned LH raises AdEL");
     passed &= check(cpu.cp0(R4300i::BadVAddr) == 1, "AdEL records BadVAddr");
 
+
+    // LWL/LWR merge the correct bytes for every address offset (big-endian).
+    const std::uint32_t loadLeftExpected[4] = {
+        0x11223344U, 0x223344DDU, 0x3344CCDDU, 0x44BBCCDDU
+    };
+    const std::uint32_t loadRightExpected[4] = {
+        0xAABBCC11U, 0xAABB1122U, 0xAA112233U, 0x11223344U
+    };
+    for (unsigned int k = 0; k < 4; ++k) {
+        memory.words.clear();
+        memory.words[base] = iType(0x22, 1, 2, 0); // LWL
+        memory.words[0x100] = 0x11223344U;
+        cpu.reset();
+        cpu.setReg(1, 0x100 + k);
+        cpu.setReg(2, 0xAABBCCDDU);
+        passed &= check(cpu.step(memory, error), "LWL executes");
+        passed &= check(static_cast<std::uint32_t>(cpu.reg(2)) == loadLeftExpected[k],
+                        "LWL merges expected big-endian bytes");
+
+        memory.words.clear();
+        memory.words[base] = iType(0x26, 1, 2, 0); // LWR
+        memory.words[0x100] = 0x11223344U;
+        cpu.reset();
+        cpu.setReg(1, 0x100 + k);
+        cpu.setReg(2, 0xAABBCCDDU);
+        passed &= check(cpu.step(memory, error), "LWR executes");
+        passed &= check(static_cast<std::uint32_t>(cpu.reg(2)) == loadRightExpected[k],
+                        "LWR merges expected big-endian bytes");
+    }
+
+    // SWL/SWR preserve untouched bytes for every address offset.
+    const std::uint32_t storeLeftExpected[4] = {
+        0x11223344U, 0xAA112233U, 0xAABB1122U, 0xAABBCC11U
+    };
+    const std::uint32_t storeRightExpected[4] = {
+        0x44BBCCDDU, 0x3344CCDDU, 0x223344DDU, 0x11223344U
+    };
+    for (unsigned int k = 0; k < 4; ++k) {
+        memory.words.clear();
+        memory.words[base] = iType(0x2A, 1, 2, 0); // SWL
+        memory.words[0x100] = 0xAABBCCDDU;
+        cpu.reset();
+        cpu.setReg(1, 0x100 + k);
+        cpu.setReg(2, 0x11223344U);
+        passed &= check(cpu.step(memory, error), "SWL executes");
+        passed &= check(memory.words[0x100] == storeLeftExpected[k],
+                        "SWL stores expected big-endian bytes");
+
+        memory.words.clear();
+        memory.words[base] = iType(0x2E, 1, 2, 0); // SWR
+        memory.words[0x100] = 0xAABBCCDDU;
+        cpu.reset();
+        cpu.setReg(1, 0x100 + k);
+        cpu.setReg(2, 0x11223344U);
+        passed &= check(cpu.step(memory, error), "SWR executes");
+        passed &= check(memory.words[0x100] == storeRightExpected[k],
+                        "SWR stores expected big-endian bytes");
+    }
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
