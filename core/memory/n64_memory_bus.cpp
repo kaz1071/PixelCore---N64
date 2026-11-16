@@ -99,6 +99,9 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical == SiDramAddress) { value = siDramAddress_; return true; }
     if (physical == SiPifAddressRead || physical == SiPifAddressWrite) { value = PifRamBase; return true; }
     if (physical == SiStatus) { value = siStatus_; return true; }
+    if (physical == MiVersion) { value = 0x02020102U; return true; }
+    if (physical == MiInterrupt) { value = miInterrupts_; return true; }
+    if (physical == MiInterruptMask) { value = miInterruptMask_; return true; }
 
     if (physical >= CartridgeBase &&
         physical - CartridgeBase <= cartridge_.size() &&
