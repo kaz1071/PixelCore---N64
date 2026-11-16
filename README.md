@@ -18,21 +18,27 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 
 ## Project status
 
-**Early development.** The desktop shell and initial ROM-header recognition are in place. Actual Nintendo 64 game emulation has not been implemented yet.
+**Early development.** The desktop shell, initial ROM-header recognition, starter R4300i CPU, and first physical-memory bus are in place. The emulator cannot run commercial games yet.
 
 - [x] Initial Qt desktop application
 - [x] ROM file picker
 - [x] Recognize common N64 ROM byte orders (.z64, .v64, and .n64)
 - [ ] Normalize ROM byte order for the emulation core
-- [x] Initial MIPS R4300i CPU core (registers, fetch/decode, starter instruction set)\n- [x] Expanded CPU arithmetic, shifts, HI/LO transfers, and 32-bit multiply/divide instructions\n- [x] Initial COP0 register access, ERET, and basic exception vectors
-- [ ] RDRAM and memory bus (the CPU currently uses a small abstract memory interface)
-- [x] Initial byte, halfword, word, and doubleword CPU memory instructions
+- [x] Initial MIPS R4300i CPU core and starter instruction set
+- [x] CPU arithmetic, shifts, HI/LO operations, and multiply/divide
+- [x] Initial COP0 access, ERET, and basic exception handling
+- [x] Byte, halfword, word, doubleword, and unaligned merge memory instructions
+- [x] Initial LL/SC load-linked and store-conditional support
+- [x] Initial 8 MiB RDRAM and read-only cartridge/boot ROM mappings
+- [ ] Connect ROM loading and CPU execution to the memory bus
+- [ ] Memory-mapped hardware (MI, VI, AI, PI, SI, RI)
+- [ ] TLB and complete virtual-memory behavior
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
 - [ ] Audio processing
 - [ ] Controller input
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and unaligned merge loads/stores and many coprocessor instructions are not implemented yet. COP0 and exceptions are currently an early, simplified implementation and need dedicated tests. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The memory bus currently maps RDRAM and read-only ROM images; it does not yet implement memory-mapped devices or connect the desktop ROM loader to CPU execution. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
