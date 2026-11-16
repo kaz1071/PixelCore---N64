@@ -3,7 +3,7 @@
 #include <algorithm>
 
 N64MemoryBus::N64MemoryBus()
-    : rdram_(RdramSize, 0)
+    : rdram_(RdramSize, 0), pifRam_(PifRamSize, 0)
 {
 }
 
@@ -65,6 +65,10 @@ bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
 bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
 {
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical >= PifRamBase && physical - PifRamBase < PifRamSize) {
+        pifRam_[static_cast<std::size_t>(physical - PifRamBase)] = value;
+        return true;
+    }
     if (physical >= RdramSize)
         return false;
 
@@ -81,6 +85,9 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
 
     if (physical < RdramSize)
         return readImage(rdram_, physical, value);
+
+    if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
+        return readImage(pifRam_, physical - PifRamBase, value);
 
     if (physical >= CartridgeBase &&
         physical - CartridgeBase <= cartridge_.size() &&
@@ -101,6 +108,14 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return false;
 
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4) {
+        const std::size_t index = static_cast<std::size_t>(physical - PifRamBase);
+        pifRam_[index] = static_cast<std::uint8_t>(value >> 24);
+        pifRam_[index + 1] = static_cast<std::uint8_t>(value >> 16);
+        pifRam_[index + 2] = static_cast<std::uint8_t>(value >> 8);
+        pifRam_[index + 3] = static_cast<std::uint8_t>(value);
+        return true;
+    }
     if (physical >= RdramSize)
         return false;
 
@@ -125,6 +140,11 @@ void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
 void N64MemoryBus::clearRdram()
 {
     std::fill(rdram_.begin(), rdram_.end(), 0);
+}
+
+void N64MemoryBus::clearPifRam()
+{
+    std::fill(pifRam_.begin(), pifRam_.end(), 0);
 }
 
 std::size_t N64MemoryBus::cartridgeSize() const { return cartridge_.size(); }
