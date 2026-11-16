@@ -66,7 +66,10 @@ bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
 {
     const std::uint64_t physical = toPhysicalAddress(address);
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize) {
-        pifRam_[static_cast<std::size_t>(physical - PifRamBase)] = value;
+        const std::size_t offset = static_cast<std::size_t>(physical - PifRamBase);
+        pifRam_[offset] = value;
+        if (offset == PifRamSize - 1)
+            processPifControl();
         return true;
     }
     if (physical >= RdramSize)
@@ -114,6 +117,8 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         pifRam_[index + 1] = static_cast<std::uint8_t>(value >> 16);
         pifRam_[index + 2] = static_cast<std::uint8_t>(value >> 8);
         pifRam_[index + 3] = static_cast<std::uint8_t>(value);
+        if (index <= PifRamSize - 1 && index + 3 >= PifRamSize - 1)
+            processPifControl();
         return true;
     }
     if (physical >= RdramSize)
@@ -146,6 +151,14 @@ void N64MemoryBus::clearPifRam()
 {
     std::fill(pifRam_.begin(), pifRam_.end(), 0);
 }
+
+void N64MemoryBus::processPifControl()
+{
+    pif_.processJoybus(pifRam_);
+}
+
+Pif &N64MemoryBus::pif() { return pif_; }
+const Pif &N64MemoryBus::pif() const { return pif_; }
 
 std::size_t N64MemoryBus::cartridgeSize() const { return cartridge_.size(); }
 std::size_t N64MemoryBus::bootRomSize() const { return bootRom_.size(); }
