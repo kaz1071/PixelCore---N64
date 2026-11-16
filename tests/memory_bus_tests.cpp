@@ -114,6 +114,42 @@ int main()
     passed &= check(bus.read8(N64MemoryBus::PifRamBase + 1, byte) && (byte & 0x80),
                     "disconnected controller sets the no-device response flag");
 
+    // SI DMA transfers the 64-byte command block between RDRAM and PIF RAM.
+    bus.clearPifRam();
+    bus.pif().setControllerConnected(0, true);
+    const std::uint8_t joybusBlock[64] = {
+        1, 3, 0x00
+    };
+    for (std::size_t i = 0; i < 64; i += 4)
+    {
+        const std::uint32_t packed =
+            (static_cast<std::uint32_t>(joybusBlock[i]) << 24) |
+            (static_cast<std::uint32_t>(joybusBlock[i + 1]) << 16) |
+            (static_cast<std::uint32_t>(joybusBlock[i + 2]) << 8) |
+            static_cast<std::uint32_t>(joybusBlock[i + 3]);
+        bus.write32(0x200 + i, packed);
+    }
+    bus.write32(N64MemoryBus::SiDramAddress, 0x200);
+    passed &= check(bus.write32(N64MemoryBus::SiPifAddressWrite,
+                                static_cast<std::uint32_t>(N64MemoryBus::PifRamBase)),
+                    "SI DMA copies command block from RDRAM to PIF");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 3, byte) && byte == 0x05,
+                    "SI write DMA runs the PIF controller command");
+    passed &= check(bus.write32(N64MemoryBus::SiPifAddressRead,
+                                static_cast<std::uint32_t>(N64MemoryBus::PifRamBase)),
+                    "SI DMA copies PIF response back to RDRAM");
+    passed &= check(bus.read8(0x203, byte) && byte == 0x05,
+                    "SI read DMA returns controller response to RDRAM");
+    passed &= check(bus.read32(N64MemoryBus::SiStatus, word) && word == 0,
+                    "SI status is idle after synchronous DMA completion");
+
+    bus.write32(N64MemoryBus::SiDramAddress, 0x201);
+    passed &= check(!bus.write32(N64MemoryBus::SiPifAddressWrite,
+                                 static_cast<std::uint32_t>(N64MemoryBus::PifRamBase)),
+                    "SI DMA rejects unaligned RDRAM addresses");
+    passed &= check(bus.read32(N64MemoryBus::SiStatus, word) && (word & 0x08),
+                    "SI reports an invalid DMA address");
+
     bus.clearRdram();
     passed &= check(bus.read32(0x100, word) && word == 0,
                     "clearing RDRAM resets its contents");
