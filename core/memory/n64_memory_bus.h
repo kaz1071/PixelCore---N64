@@ -53,6 +53,9 @@ public:
     bool read32(std::uint64_t address, std::uint32_t &value) override;
     bool write32(std::uint64_t address, std::uint32_t value) override;
     bool interruptPending() const override;
+    bool spHalted() const;
+    void setSpHalted(bool halted);
+    void setSpBroke(bool broke);
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
