@@ -26,12 +26,13 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [ ] Normalize ROM byte order for the emulation core
 - [x] Initial MIPS R4300i CPU core (registers, fetch/decode, starter instruction set)\n- [x] Expanded CPU arithmetic, shifts, HI/LO transfers, and 32-bit multiply/divide instructions\n- [x] Initial COP0 register access, ERET, and basic exception vectors
 - [ ] RDRAM and memory bus (the CPU currently uses a small abstract memory interface)
+- [x] Initial byte, halfword, word, and doubleword CPU memory instructions
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
 - [ ] Audio processing
 - [ ] Controller input
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many load/store and coprocessor instructions are not implemented yet. COP0 and exceptions are currently an early, simplified implementation and need dedicated tests. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and unaligned merge loads/stores and many coprocessor instructions are not implemented yet. COP0 and exceptions are currently an early, simplified implementation and need dedicated tests. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
