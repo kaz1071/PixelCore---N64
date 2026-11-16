@@ -50,6 +50,19 @@ int main()
                     "KSEG0 address aliases physical RDRAM");
     passed &= check(bus.read32(0xA0000100, word) && word == 0x12345678,
                     "KSEG1 address aliases physical RDRAM");
+
+    passed &= check(bus.write32(N64MemoryBus::SpDmemBase, 0x11223344),
+                    "write to RSP data memory");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase, word) && word == 0x11223344,
+                    "read back RSP data memory");
+    passed &= check(bus.read32(0xA4000000, word) && word == 0x11223344,
+                    "KSEG1 maps to RSP data memory");
+    passed &= check(bus.write32(N64MemoryBus::SpImemBase, 0xAABBCCDD),
+                    "write to RSP instruction memory");
+    passed &= check(bus.read32(0xA4001000, word) && word == 0xAABBCCDD,
+                    "KSEG1 maps to RSP instruction memory");
+    passed &= check(!bus.write32(N64MemoryBus::SpDmemBase + N64MemoryBus::SpMemorySize, 0),
+                    "RSP data memory rejects out-of-range writes");
     passed &= check(!bus.write32(0x80000001, 0xFFFFFFFF),
                     "unaligned word write is rejected");
 
@@ -198,6 +211,10 @@ int main()
     bus.clearRdram();
     passed &= check(bus.read32(0x100, word) && word == 0,
                     "clearing RDRAM resets its contents");
+    passed &= check(bus.read32(N64MemoryBus::SpDmemBase, word) && word == 0,
+                    "system RAM reset also clears RSP data memory");
+    passed &= check(bus.read32(N64MemoryBus::SpImemBase, word) && word == 0,
+                    "system RAM reset also clears RSP instruction memory");
 
     if (!passed) return 1;
     std::cout << "All N64 memory bus tests passed.\n";
