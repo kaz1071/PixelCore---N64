@@ -3,7 +3,8 @@
 #include <algorithm>
 
 N64MemoryBus::N64MemoryBus()
-    : rdram_(RdramSize, 0), pifRam_(PifRamSize, 0)
+    : rdram_(RdramSize, 0), pifRam_(PifRamSize, 0),
+      spDmem_(SpMemorySize, 0), spImem_(SpMemorySize, 0)
 {
 }
 
@@ -39,6 +40,17 @@ bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
         return true;
     }
 
+    if (physical >= SpDmemBase && physical - SpDmemBase < SpMemorySize)
+    {
+        value = spDmem_[static_cast<std::size_t>(physical - SpDmemBase)];
+        return true;
+    }
+    if (physical >= SpImemBase && physical - SpImemBase < SpMemorySize)
+    {
+        value = spImem_[static_cast<std::size_t>(physical - SpImemBase)];
+        return true;
+    }
+
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize)
     {
         value = pifRam_[static_cast<std::size_t>(physical - PifRamBase)];
@@ -71,6 +83,14 @@ bool N64MemoryBus::read8(std::uint64_t address, std::uint8_t &value)
 bool N64MemoryBus::write8(std::uint64_t address, std::uint8_t value)
 {
     const std::uint64_t physical = toPhysicalAddress(address);
+    if (physical >= SpDmemBase && physical - SpDmemBase < SpMemorySize) {
+        spDmem_[static_cast<std::size_t>(physical - SpDmemBase)] = value;
+        return true;
+    }
+    if (physical >= SpImemBase && physical - SpImemBase < SpMemorySize) {
+        spImem_[static_cast<std::size_t>(physical - SpImemBase)] = value;
+        return true;
+    }
     if (physical >= PifRamBase && physical - PifRamBase < PifRamSize) {
         const std::size_t offset = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[offset] = value;
@@ -92,6 +112,11 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
 
     if (physical < RdramSize)
         return readImage(rdram_, physical, value);
+
+    if (physical >= SpDmemBase && physical - SpDmemBase <= SpMemorySize - 4)
+        return readImage(spDmem_, physical - SpDmemBase, value);
+    if (physical >= SpImemBase && physical - SpImemBase <= SpMemorySize - 4)
+        return readImage(spImem_, physical - SpImemBase, value);
 
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4)
         return readImage(pifRam_, physical - PifRamBase, value);
@@ -145,6 +170,22 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         }
         return true;
     }
+    if (physical >= SpDmemBase && physical - SpDmemBase <= SpMemorySize - 4) {
+        const std::size_t index = static_cast<std::size_t>(physical - SpDmemBase);
+        spDmem_[index] = static_cast<std::uint8_t>(value >> 24);
+        spDmem_[index + 1] = static_cast<std::uint8_t>(value >> 16);
+        spDmem_[index + 2] = static_cast<std::uint8_t>(value >> 8);
+        spDmem_[index + 3] = static_cast<std::uint8_t>(value);
+        return true;
+    }
+    if (physical >= SpImemBase && physical - SpImemBase <= SpMemorySize - 4) {
+        const std::size_t index = static_cast<std::size_t>(physical - SpImemBase);
+        spImem_[index] = static_cast<std::uint8_t>(value >> 24);
+        spImem_[index + 1] = static_cast<std::uint8_t>(value >> 16);
+        spImem_[index + 2] = static_cast<std::uint8_t>(value >> 8);
+        spImem_[index + 3] = static_cast<std::uint8_t>(value);
+        return true;
+    }
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4) {
         const std::size_t index = static_cast<std::size_t>(physical - PifRamBase);
         pifRam_[index] = static_cast<std::uint8_t>(value >> 24);
@@ -177,6 +218,8 @@ void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
 void N64MemoryBus::clearRdram()
 {
     std::fill(rdram_.begin(), rdram_.end(), 0);
+    std::fill(spDmem_.begin(), spDmem_.end(), 0);
+    std::fill(spImem_.begin(), spImem_.end(), 0);
 }
 
 void N64MemoryBus::clearPifRam()
