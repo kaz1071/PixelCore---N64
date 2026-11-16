@@ -178,7 +178,7 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         case 0x3E: registers_[rd] = b >> (shift + 32); break; // DSRL32
         case 0x3F: registers_[rd] = static_cast<std::uint64_t>(
                        static_cast<std::int64_t>(b) >> (shift + 32)); break; // DSRA32
-        default: error = "Unsupported R4300i SPECIAL function"; return false;
+        default: raiseException(10, instructionAddress); return true; // Reserved Instruction
         }
         return true;
 
