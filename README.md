@@ -30,7 +30,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Byte, halfword, word, doubleword, and unaligned merge memory instructions
 - [x] Initial LL/SC load-linked and store-conditional support
 - [x] Initial 8 MiB RDRAM and read-only cartridge/boot ROM mappings
-- [ ] Connect ROM loading and CPU execution to the memory bus
+- [x] Connect the R4300i CPU to the memory bus through an initial N64 system core\n- [ ] Connect desktop ROM loading and normalized cartridge images to the system core
 - [ ] Memory-mapped hardware (MI, VI, AI, PI, SI, RI)
 - [ ] TLB and complete virtual-memory behavior
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
@@ -38,7 +38,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [ ] Controller input
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The memory bus currently maps RDRAM and read-only ROM images; it does not yet implement memory-mapped devices or connect the desktop ROM loader to CPU execution. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, interrupt delivery, and many coprocessor instructions are not implemented yet. The initial N64 system core now owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus does not yet implement memory-mapped devices, and the desktop ROM loader is not yet connected to the system core. LL/SC and COP0 behavior are early simplified implementations. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
