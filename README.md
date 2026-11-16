@@ -24,14 +24,14 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] ROM file picker
 - [x] Recognize common N64 ROM byte orders (.z64, .v64, and .n64)
 - [ ] Normalize ROM byte order for the emulation core
-- [x] Initial MIPS R4300i CPU core (registers, fetch/decode, starter instruction set)
+- [x] Initial MIPS R4300i CPU core (registers, fetch/decode, starter instruction set)\n- [x] Expanded CPU arithmetic, shifts, HI/LO transfers, and 32-bit multiply/divide instructions
 - [ ] RDRAM and memory bus (the CPU currently uses a small abstract memory interface)
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
 - [ ] Audio processing
 - [ ] Controller input
 - [ ] Save states
 
-Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, COP0, TLB behavior, precise cycle timing, and many load/store and coprocessor instructions are not implemented yet. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
