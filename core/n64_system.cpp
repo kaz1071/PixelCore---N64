@@ -8,6 +8,7 @@ N64System::N64System()
 void N64System::reset()
 {
     memory_.clearRdram();
+    memory_.clearPifRam();
     cpu_.reset();
 }
 
