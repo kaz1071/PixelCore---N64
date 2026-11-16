@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/cpu/r4300i.h"
+#include "core/pif/pif.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -28,12 +29,15 @@ public:
     void loadBootRom(const std::vector<std::uint8_t> &image);
     void clearRdram();
     void clearPifRam();
+    Pif &pif();
+    const Pif &pif() const;
 
     std::size_t cartridgeSize() const;
     std::size_t bootRomSize() const;
 
 private:
     static std::uint64_t toPhysicalAddress(std::uint64_t address);
+    void processPifControl();
     bool readImage(const std::vector<std::uint8_t> &image,
                    std::uint64_t offset, std::uint32_t &value) const;
 
@@ -41,4 +45,5 @@ private:
     std::vector<std::uint8_t> cartridge_;
     std::vector<std::uint8_t> bootRom_;
     std::vector<std::uint8_t> pifRam_;
+    Pif pif_;
 };
