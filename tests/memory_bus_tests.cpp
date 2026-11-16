@@ -40,6 +40,11 @@ int main()
     passed &= check(bus.cartridgeSize() == 8, "cartridge image size is reported");
     passed &= check(bus.read32(N64MemoryBus::CartridgeBase, word) &&
                     word == 0x80371240, "cartridge is mapped at its physical base");
+    std::uint8_t romByte = 0;
+    passed &= check(bus.read8(N64MemoryBus::CartridgeBase + 2, romByte) &&
+                    romByte == 0x12, "byte read works from cartridge ROM");
+    passed &= check(!bus.write8(N64MemoryBus::CartridgeBase, 0),
+                    "cartridge ROM rejects byte writes");
     passed &= check(!bus.write32(N64MemoryBus::CartridgeBase, 0),
                     "cartridge ROM is read-only");
     passed &= check(!bus.read32(N64MemoryBus::CartridgeBase + 8, word),
@@ -49,6 +54,10 @@ int main()
     bus.loadBootRom(boot);
     passed &= check(bus.read32(N64MemoryBus::BootRomBase, word) &&
                     word == 0x12345678, "boot ROM is mapped at reset physical address");
+    passed &= check(bus.read8(N64MemoryBus::BootRomBase + 3, romByte) &&
+                    romByte == 0x78, "byte read works from boot ROM");
+    passed &= check(!bus.write8(N64MemoryBus::BootRomBase, 0),
+                    "boot ROM rejects byte writes");
     passed &= check(!bus.write32(N64MemoryBus::BootRomBase, 0),
                     "boot ROM is read-only");
 
