@@ -196,6 +196,50 @@ int main()
                         "SWR stores expected big-endian bytes");
     }
 
+    // LL/SC: a matching reservation stores and reports success.
+    memory.words.clear();
+    memory.words[0x300] = 0x01020304U;
+    memory.words[base] = iType(0x30, 1, 2, 0); // LL r2,0(r1)
+    memory.words[base + 4] = iType(0x38, 1, 2, 0); // SC r2,0(r1)
+    cpu.reset();
+    cpu.setReg(1, 0x300);
+    cpu.setReg(2, 0xAABBCCDDU);
+    passed &= check(cpu.step(memory, error), "LL executes");
+    passed &= check(cpu.reg(2) == 0x01020304U, "LL loads and sign-extends the word");
+    passed &= check(cpu.step(memory, error), "SC executes with a reservation");
+    passed &= check(cpu.reg(2) == 1, "SC reports success in its target register");
+    passed &= check(memory.words[0x300] == 0x01020304U, "SC stores the loaded value");
+
+    // SC without a preceding LL must fail without modifying memory.
+    memory.words.clear();
+    memory.words[0x300] = 0x55667788U;
+    memory.words[base] = iType(0x38, 1, 2, 0); // SC without LL
+    cpu.reset();
+    cpu.setReg(1, 0x300);
+    cpu.setReg(2, 0xDEADBEEFU);
+    passed &= check(cpu.step(memory, error), "SC without reservation is handled");
+    passed &= check(cpu.reg(2) == 0, "SC without reservation reports failure");
+    passed &= check(memory.words[0x300] == 0x55667788U,
+                    "failed SC leaves memory unchanged");
+
+    // An ordinary store between LL and SC invalidates the reservation.
+    memory.words.clear();
+    memory.words[0x300] = 0x11111111U;
+    memory.words[0x304] = 0;
+    memory.words[base] = iType(0x30, 1, 2, 0); // LL
+    memory.words[base + 4] = iType(0x2B, 1, 3, 4); // SW to another word
+    memory.words[base + 8] = iType(0x38, 1, 2, 0); // SC
+    cpu.reset();
+    cpu.setReg(1, 0x300);
+    cpu.setReg(2, 0xAABBCCDDU);
+    cpu.setReg(3, 0x12345678U);
+    passed &= check(cpu.step(memory, error), "LL before invalidating store executes");
+    passed &= check(cpu.step(memory, error), "ordinary store invalidates LL reservation");
+    passed &= check(cpu.step(memory, error), "SC after ordinary store executes");
+    passed &= check(cpu.reg(2) == 0, "SC fails after an intervening store");
+    passed &= check(memory.words[0x300] == 0x11111111U,
+                    "failed SC after intervening store leaves target unchanged");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
