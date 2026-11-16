@@ -14,6 +14,8 @@ public:
     static constexpr std::size_t RdramSize = 8 * 1024 * 1024;
     static constexpr std::uint64_t CartridgeBase = 0x10000000ULL;
     static constexpr std::uint64_t BootRomBase = 0x1FC00000ULL;
+    static constexpr std::uint64_t PifRamBase = 0x1FC007C0ULL;
+    static constexpr std::size_t PifRamSize = 64;
 
     N64MemoryBus();
 
@@ -25,6 +27,7 @@ public:
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
     void clearRdram();
+    void clearPifRam();
 
     std::size_t cartridgeSize() const;
     std::size_t bootRomSize() const;
@@ -37,4 +40,5 @@ private:
     std::vector<std::uint8_t> rdram_;
     std::vector<std::uint8_t> cartridge_;
     std::vector<std::uint8_t> bootRom_;
+    std::vector<std::uint8_t> pifRam_;
 };
