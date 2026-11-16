@@ -10,6 +10,15 @@ public:
     virtual ~N64Memory() = default;
     virtual bool read32(std::uint64_t address, std::uint32_t &value) = 0;
     virtual bool write32(std::uint64_t address, std::uint32_t value) = 0;
+
+    // Default big-endian helpers. Memory implementations may override these
+    // when they have more efficient byte/halfword/doubleword access.
+    virtual bool read8(std::uint64_t address, std::uint8_t &value);
+    virtual bool read16(std::uint64_t address, std::uint16_t &value);
+    virtual bool read64(std::uint64_t address, std::uint64_t &value);
+    virtual bool write8(std::uint64_t address, std::uint8_t value);
+    virtual bool write16(std::uint64_t address, std::uint16_t value);
+    virtual bool write64(std::uint64_t address, std::uint64_t value);
 };
 
 class R4300i
