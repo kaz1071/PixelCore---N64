@@ -21,6 +21,8 @@ qt_add_executable(pixelcore-n64
     core/rom/rom_file.h
     core/cpu/r4300i.cpp
     core/cpu/r4300i.h
+    core/memory/n64_memory_bus.cpp
+    core/memory/n64_memory_bus.h
 )
 
 target_include_directories(pixelcore-n64 PRIVATE
@@ -55,4 +57,22 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME r4300i-cpu-tests COMMAND r4300i-tests)
+
+    add_executable(memory-bus-tests
+        tests/memory_bus_tests.cpp
+        core/memory/n64_memory_bus.cpp
+        core/cpu/r4300i.cpp
+        core/memory/n64_memory_bus.h
+        core/cpu/r4300i.h
+    )
+
+    target_include_directories(memory-bus-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_options(memory-bus-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    )
+
+    add_test(NAME n64-memory-bus-tests COMMAND memory-bus-tests)
 endif()
