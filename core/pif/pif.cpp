@@ -20,7 +20,7 @@ void Pif::setControllerState(std::size_t port, std::uint16_t buttons,
     controllers_[port].stickY = stickY;
 }
 
-void Pif::processJoybus(std::vector<std::uint8_t> &ram) const
+void Pif::processJoybus(std::vector<std::uint8_t> &ram)
 {
     // The final byte is the PIF control byte. Bit 0 requests Joybus execution.
     if (ram.size() < 64 || (ram[63] & 0x01) == 0)
@@ -65,9 +65,14 @@ void Pif::processJoybus(std::vector<std::uint8_t> &ram) const
             // The high bit in the receive-length byte reports no device.
             ram[offset + 1] |= 0x80;
         }
-        else if (command == 0x00 && rxLength >= 3)
+        else if ((command == 0x00 || command == 0xFF) && rxLength >= 3)
         {
-            // Standard N64 controller identification: gamepad, no Controller Pak.
+            // Identify and reset both return the standard gamepad identifier.
+            if (command == 0xFF)
+            {
+                controllers_[channel].stickX = 0;
+                controllers_[channel].stickY = 0;
+            }
             ram[responseOffset] = 0x05;
             ram[responseOffset + 1] = 0x00;
             ram[responseOffset + 2] = 0x02;
