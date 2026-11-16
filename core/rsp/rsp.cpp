@@ -16,6 +16,9 @@ void Rsp::reset()
     registers_.fill(0);
     for (auto &vector : vectorRegisters_)
         vector.fill(0);
+    vectorCarry_ = 0;
+    vectorCompare_ = 0;
+    vectorClip_ = 0;
     pc_ = 0;
     hi_ = 0;
     lo_ = 0;
@@ -144,6 +147,74 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
 
     switch (op)
     {
+    case 0x12: // COP2 vector arithmetic
+    {
+        if (rs != 0x10)
+        {
+            error = "Unsupported RSP COP2 transfer operation " + std::to_string(rs);
+            return false;
+        }
+
+        const unsigned element = (instruction >> 21) & 0xF;
+        const unsigned vt = rt;
+        const unsigned vs = rd;
+        const unsigned vd = (instruction >> 6) & 31;
+        const unsigned function = fn;
+        static constexpr unsigned elementMap[16][8] = {
+            {0,1,2,3,4,5,6,7}, {0,1,2,3,4,5,6,7},
+            {0,0,2,2,4,4,6,6}, {1,1,3,3,5,5,7,7},
+            {0,0,0,0,4,4,4,4}, {1,1,1,1,5,5,5,5},
+            {2,2,2,2,6,6,6,6}, {3,3,3,3,7,7,7,7},
+            {0,0,0,0,0,0,0,0}, {1,1,1,1,1,1,1,1},
+            {2,2,2,2,2,2,2,2}, {3,3,3,3,3,3,3,3},
+            {4,4,4,4,4,4,4,4}, {5,5,5,5,5,5,5,5},
+            {6,6,6,6,6,6,6,6}, {7,7,7,7,7,7,7,7}
+        };
+        std::array<std::uint16_t, 8> source{};
+        std::array<std::uint16_t, 8> left{};
+        for (unsigned lane = 0; lane < 8; ++lane)
+        {
+            left[lane] = vectorRegisters_[vs][lane];
+            source[lane] = vectorRegisters_[vt][elementMap[element][lane]];
+        }
+
+        switch (function)
+        {
+        case 0x10: // VADD: signed saturated add with VCO carry-in
+        case 0x11: // VSUB: signed saturated subtract with VCO borrow-in
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                const std::int32_t a16 = static_cast<std::int16_t>(left[lane]);
+                const std::int32_t b16 = static_cast<std::int16_t>(source[lane]);
+                const std::int32_t carry = (vectorCarry_ >> lane) & 1;
+                const std::int32_t result = function == 0x10
+                    ? a16 + b16 + carry : a16 - b16 - carry;
+                const std::int32_t saturated = result > 32767 ? 32767
+                    : (result < -32768 ? -32768 : result);
+                vectorRegisters_[vd][lane] = static_cast<std::uint16_t>(saturated);
+            }
+            vectorCarry_ = 0;
+            vectorCompare_ = 0;
+            break;
+        case 0x28: // VAND
+        case 0x2A: // VOR
+        case 0x2C: // VXOR
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                if (function == 0x28)
+                    vectorRegisters_[vd][lane] = left[lane] & source[lane];
+                else if (function == 0x2A)
+                    vectorRegisters_[vd][lane] = left[lane] | source[lane];
+                else
+                    vectorRegisters_[vd][lane] = left[lane] ^ source[lane];
+            }
+            break;
+        default:
+            error = "Unsupported RSP vector function " + std::to_string(function);
+            return false;
+        }
+        break;
+    }
     case 0x00:
         switch (fn)
         {
