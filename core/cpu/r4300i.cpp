@@ -273,6 +273,36 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         if (a != b) nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
         nextInstructionIsDelaySlot_ = true;
         return true;
+    case 0x06: // BLEZ
+        if (rt != 0) break;
+        if (static_cast<std::int64_t>(a) <= 0)
+            nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
+        nextInstructionIsDelaySlot_ = true;
+        return true;
+    case 0x07: // BGTZ
+        if (rt != 0) break;
+        if (static_cast<std::int64_t>(a) > 0)
+            nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
+        nextInstructionIsDelaySlot_ = true;
+        return true;
+    case 0x01: { // REGIMM conditional branches
+        bool takeBranch = false;
+        bool link = false;
+        switch (rt) {
+        case 0x00: takeBranch = static_cast<std::int64_t>(a) < 0; break; // BLTZ
+        case 0x01: takeBranch = static_cast<std::int64_t>(a) >= 0; break; // BGEZ
+        case 0x10: takeBranch = static_cast<std::int64_t>(a) < 0; link = true; break; // BLTZAL
+        case 0x11: takeBranch = static_cast<std::int64_t>(a) >= 0; link = true; break; // BGEZAL
+        default: break;
+        }
+        if (rt != 0x00 && rt != 0x01 && rt != 0x10 && rt != 0x11)
+            break;
+        if (link) registers_[31] = instructionAddress + 8;
+        if (takeBranch)
+            nextPc_ = pc_ + static_cast<std::uint64_t>(offset * 4);
+        nextInstructionIsDelaySlot_ = true;
+        return true;
+    }
     case 0x08: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDI (overflow trap not yet modeled)
     case 0x09: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDIU
     case 0x0A: registers_[rt] = static_cast<std::int64_t>(a) < offset; return true; // SLTI
