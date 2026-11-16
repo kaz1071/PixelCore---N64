@@ -9,10 +9,9 @@ project(PixelCoreN64
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets)
-
-qt_standard_project_setup()
 
 qt_add_executable(pixelcore-n64
     app/main.cpp
