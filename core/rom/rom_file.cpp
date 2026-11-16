@@ -1,5 +1,6 @@
 #include "core/rom/rom_file.h"
 
+#include <QByteArray>
 #include <QFile>
 
 bool N64Rom::load(const QString &path, QString &error)
@@ -42,9 +43,9 @@ bool N64Rom::load(const QString &path, QString &error)
         byteOrder_ = N64ByteOrder::LittleEndian;
         break;
     default:
-        error = QString("Unrecognized ROM header magic: %1")
-                    .arg(magic, 8, 16, QLatin1Char('0'))
-                    .toUpper();
+        error = QString("Unrecognized ROM header magic: 0x%1")
+                    .arg(QString::number(magic, 16).rightJustified(8, QLatin1Char('0'))
+                             .toUpper());
         return false;
     }
 
