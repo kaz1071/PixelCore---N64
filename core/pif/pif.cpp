@@ -20,10 +20,10 @@ void Pif::setControllerState(std::size_t port, std::uint16_t buttons,
     controllers_[port].stickY = stickY;
 }
 
-void Pif::processJoybus(std::array<std::uint8_t, 64> &ram) const
+void Pif::processJoybus(std::vector<std::uint8_t> &ram) const
 {
     // The final byte is the PIF control byte. Bit 0 requests Joybus execution.
-    if ((ram[63] & 0x01) == 0)
+    if (ram.size() < 64 || (ram[63] & 0x01) == 0)
         return;
 
     std::size_t offset = 0;
