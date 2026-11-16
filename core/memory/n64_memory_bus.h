@@ -16,6 +16,9 @@ public:
     static constexpr std::uint64_t CartridgeBase = 0x10000000ULL;
     static constexpr std::uint64_t BootRomBase = 0x1FC00000ULL;
     static constexpr std::uint64_t PifRamBase = 0x1FC007C0ULL;
+    static constexpr std::uint64_t SpDmemBase = 0x04000000ULL;
+    static constexpr std::uint64_t SpImemBase = 0x04001000ULL;
+    static constexpr std::size_t SpMemorySize = 4 * 1024;
     static constexpr std::uint64_t SiRegisterBase = 0x04800000ULL;
     static constexpr std::uint64_t SiDramAddress = SiRegisterBase;
     static constexpr std::uint64_t SiPifAddressRead = SiRegisterBase + 0x04;
@@ -57,6 +60,8 @@ private:
     std::vector<std::uint8_t> cartridge_;
     std::vector<std::uint8_t> bootRom_;
     std::vector<std::uint8_t> pifRam_;
+    std::vector<std::uint8_t> spDmem_;
+    std::vector<std::uint8_t> spImem_;
     Pif pif_;
     std::uint32_t siDramAddress_ = 0;
     std::uint32_t siStatus_ = 0;
