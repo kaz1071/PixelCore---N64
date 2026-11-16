@@ -49,6 +49,20 @@ int main()
     passed &= check(rsp.halted(), "BREAK halts the RSP");
     passed &= check(rsp.reg(0) == 0, "RSP register zero remains hardwired");
 
+    // Vector register storage exposes eight 16-bit lanes and clears on reset.
+    rsp.setVectorLane(3, 0, 0x1234);
+    rsp.setVectorLane(3, 7, 0xABCD);
+    passed &= check(rsp.vectorLane(3, 0) == 0x1234 &&
+                    rsp.vectorLane(3, 7) == 0xABCD,
+                    "RSP vector register stores and reads endpoint lanes");
+    rsp.setVectorLane(32, 0, 0xFFFF);
+    rsp.setVectorLane(3, 8, 0xFFFF);
+    passed &= check(rsp.vectorLane(32, 0) == 0 && rsp.vectorLane(3, 8) == 0,
+                    "RSP vector lane access safely rejects invalid indices");
+    rsp.reset();
+    passed &= check(rsp.vectorLane(3, 0) == 0 && rsp.vectorLane(3, 7) == 0,
+                    "RSP reset clears vector registers");
+
     rsp.reset();
     // Branch at 0, delay slot at 4, target at 12.
     memory.write32(N64MemoryBus::SpImemBase, iType(0x04, 0, 0, 2));
