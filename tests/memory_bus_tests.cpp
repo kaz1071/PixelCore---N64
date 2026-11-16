@@ -85,8 +85,8 @@ int main()
                     "controller identify returns gamepad type");
     passed &= check(bus.read8(N64MemoryBus::PifRamBase + 4, byte) && byte == 0x00,
                     "controller identify reports no accessory");
-    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0x01,
-                    "controller identify returns standard status");
+    passed &= check(bus.read8(N64MemoryBus::PifRamBase + 5, byte) && byte == 0x02,
+                    "controller identify reports no Controller Pak");
     passed &= check(bus.read8(N64MemoryBus::PifRamBase + 63, byte) && byte == 0,
                     "PIF clears the Joybus execute bit after processing");
 
