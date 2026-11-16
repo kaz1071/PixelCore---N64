@@ -5,10 +5,12 @@
 #include <QAction>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <QWidget>
