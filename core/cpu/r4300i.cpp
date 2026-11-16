@@ -56,6 +56,8 @@ bool N64Memory::write64(std::uint64_t address, std::uint64_t value)
            write32(address + 4, static_cast<std::uint32_t>(value));
 }
 
+bool N64Memory::interruptPending() const { return false; }
+
 namespace {
 std::int64_t signExtend16(std::uint16_t value)
 {
@@ -117,6 +119,25 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
 
 bool R4300i::step(N64Memory &memory, std::string &error)
 {
+    constexpr std::uint64_t ExternalInterruptBit = 1ULL << 10;
+    std::uint64_t &cause = cp0Registers_[Cause];
+    if (memory.interruptPending())
+        cause |= ExternalInterruptBit;
+    else
+        cause &= ~ExternalInterruptBit;
+
+    const std::uint64_t status = cp0Registers_[Status];
+    const bool interruptsEnabled = (status & 0x1) != 0 &&
+                                   (status & 0x6) == 0 &&
+                                   (status & cause & 0xFF00) != 0;
+    if (interruptsEnabled && !nextInstructionIsDelaySlot_)
+    {
+        currentInstructionInDelaySlot_ = false;
+        raiseException(0, pc_);
+        error.clear();
+        return true;
+    }
+
     std::uint32_t instruction = 0;
     const std::uint64_t instructionAddress = pc_;
 
