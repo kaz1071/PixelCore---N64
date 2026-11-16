@@ -149,7 +149,7 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
     {
     case 0x12: // COP2 vector arithmetic
     {
-        if (rs != 0x10)
+        if ((rs & 0x10U) == 0)
         {
             error = "Unsupported RSP COP2 transfer operation " + std::to_string(rs);
             return false;
