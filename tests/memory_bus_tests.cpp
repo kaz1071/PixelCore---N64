@@ -106,6 +106,7 @@ int main()
                     "controller read returns signed Y axis");
 
     bus.clearPifRam();
+    bus.pif().setControllerConnected(0, false);
     bus.write8(N64MemoryBus::PifRamBase + 0, 1);
     bus.write8(N64MemoryBus::PifRamBase + 1, 3);
     bus.write8(N64MemoryBus::PifRamBase + 2, 0x00);
