@@ -51,6 +51,31 @@ int main()
     passed &= check(system.memory().read32(N64MemoryBus::PifRamBase, pifWord) &&
                     pifWord == 0, "system reset clears PIF RAM");
 
+    // SI DMA completion raises an MI interrupt, which reaches the R4300i IP2 line.
+    passed &= check(system.memory().write32(N64MemoryBus::SiDramAddress, 0x100),
+                    "set RDRAM address for SI interrupt test");
+    passed &= check(system.memory().write32(N64MemoryBus::SiPifAddressWrite,
+                                            static_cast<std::uint32_t>(N64MemoryBus::PifRamBase)),
+                    "SI DMA completes and raises its interrupt");
+    passed &= check(system.memory().write32(N64MemoryBus::MiInterruptMask, 0x08),
+                    "enable SI interrupt in MI");
+    system.cpu().setCp0(R4300i::Status, 0x00400401);
+    passed &= check(system.memory().interruptPending(),
+                    "MI forwards enabled SI interrupt to CPU");
+    passed &= check(system.step(error), "CPU accepts enabled hardware interrupt");
+    passed &= check(system.cpu().pc() == R4300i::BootstrapExceptionVector,
+                    "hardware interrupt selects bootstrap exception vector");
+    passed &= check(system.cpu().cp0(R4300i::EPC) == R4300i::ResetAddress,
+                    "hardware interrupt records interrupted PC in EPC");
+    passed &= check(((system.cpu().cp0(R4300i::Cause) >> 2) & 0x1F) == 0,
+                    "hardware interrupt records exception code zero");
+    passed &= check((system.cpu().cp0(R4300i::Cause) & (1ULL << 10)) != 0,
+                    "hardware interrupt sets the external IP2 pending bit");
+    passed &= check(system.memory().write32(N64MemoryBus::SiStatus, 0),
+                    "SI status write acknowledges the interrupt");
+    passed &= check(!system.memory().interruptPending(),
+                    "acknowledged SI interrupt is no longer pending");
+
     if (!passed) return 1;
     std::cout << "All N64 system integration tests passed.\n";
     return 0;
