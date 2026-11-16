@@ -36,3 +36,23 @@ target_compile_options(pixelcore-n64 PRIVATE
 install(TARGETS pixelcore-n64
     RUNTIME DESTINATION bin
 )
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(r4300i-tests
+        tests/r4300i_tests.cpp
+        core/cpu/r4300i.cpp
+        core/cpu/r4300i.h
+    )
+
+    target_include_directories(r4300i-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_options(r4300i-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    )
+
+    add_test(NAME r4300i-cpu-tests COMMAND r4300i-tests)
+endif()
