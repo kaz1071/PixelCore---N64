@@ -192,9 +192,9 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         return transferSpToRdram(value);
     }
     if (physical == SpStatus) {
-        if (value & 0x00000001U) spStatus_ &= ~0x01U;
-        if (value & 0x00000002U) spStatus_ |= 0x01U;
-        if (value & 0x00000004U) spStatus_ &= ~0x02U;
+        if (value & 0x00000001U) spStatus_ &= ~0x01U; // Clear HALT
+        if (value & 0x00000002U) spStatus_ |= 0x01U;  // Set HALT
+        if (value & 0x00000004U) spStatus_ &= ~0x02U; // Clear BROKE
         return true;
     }
     if (physical == SpSemaphore) {
@@ -471,6 +471,23 @@ bool N64MemoryBus::transferRdramToSaveRam(std::uint32_t lengthMinusOne)
     piStatus_ = 0x08;
     miInterrupts_ |= 0x10U;
     return true;
+}
+
+bool N64MemoryBus::spHalted() const
+{
+    return (spStatus_ & 0x01U) != 0;
+}
+
+void N64MemoryBus::setSpHalted(bool halted)
+{
+    if (halted) spStatus_ |= 0x01U;
+    else spStatus_ &= ~0x01U;
+}
+
+void N64MemoryBus::setSpBroke(bool broke)
+{
+    if (broke) spStatus_ |= 0x02U;
+    else spStatus_ &= ~0x02U;
 }
 
 bool N64MemoryBus::interruptPending() const
