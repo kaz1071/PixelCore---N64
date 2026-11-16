@@ -21,6 +21,13 @@ static std::uint32_t rType(unsigned rs, unsigned rt, unsigned rd, unsigned sa, u
     return (rs << 21) | (rt << 16) | (rd << 11) | (sa << 6) | fn;
 }
 
+static std::uint32_t vectorType(unsigned element, unsigned vt, unsigned vs, unsigned vd, unsigned function)
+{
+    return (0x12U << 26) | (0x10U << 21) | ((element & 15U) << 21) |
+           ((vt & 31U) << 16) | ((vs & 31U) << 11) |
+           ((vd & 31U) << 6) | (function & 63U);
+}
+
 int main()
 {
     bool passed = true;
@@ -62,6 +69,56 @@ int main()
     rsp.reset();
     passed &= check(rsp.vectorLane(3, 0) == 0 && rsp.vectorLane(3, 7) == 0,
                     "RSP reset clears vector registers");
+
+    // Basic RSP vector ALU operations and broadcast selection.
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, static_cast<std::uint16_t>(lane + 10));
+        rsp.setVectorLane(2, lane, static_cast<std::uint16_t>(lane + 1));
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x10)); // VADD
+    passed &= check(rsp.step(memory, error), "RSP executes VADD");
+    for (unsigned lane = 0; lane < 8; ++lane)
+        passed &= check(rsp.vectorLane(3, lane) == lane + 11,
+                        "VADD adds corresponding vector lanes");
+
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, static_cast<std::uint16_t>(lane + 20));
+        rsp.setVectorLane(2, lane, static_cast<std::uint16_t>(3));
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(8, 2, 1, 3, 0x11)); // VSUB vt[0]
+    passed &= check(rsp.step(memory, error), "RSP executes broadcast VSUB");
+    for (unsigned lane = 0; lane < 8; ++lane)
+        passed &= check(rsp.vectorLane(3, lane) == lane + 17,
+                        "VSUB broadcasts selected source lane");
+
+    rsp.reset();
+    rsp.setVectorLane(1, 0, 0xF0F0);
+    rsp.setVectorLane(2, 0, 0x0FF0);
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x28)); // VAND
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 0x00F0,
+                    "VAND computes lane-wise bitwise AND");
+    memory.write32(N64MemoryBus::SpImemBase + 4, vectorType(0, 2, 1, 4, 0x2A)); // VOR
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(4, 0) == 0xFFF0,
+                    "VOR computes lane-wise bitwise OR");
+    memory.write32(N64MemoryBus::SpImemBase + 8, vectorType(0, 2, 1, 5, 0x2C)); // VXOR
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(5, 0) == 0xFF00,
+                    "VXOR computes lane-wise bitwise XOR");
+
+    rsp.reset();
+    rsp.setVectorLane(1, 0, 32760);
+    rsp.setVectorLane(2, 0, 100);
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x10));
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 32767,
+                    "VADD saturates positive signed overflow");
+    rsp.setVectorLane(1, 0, 0x8000);
+    rsp.setVectorLane(2, 0, 1);
+    rsp.setPc(0);
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 0x8000,
+                    "VADD saturates negative signed overflow");
 
     rsp.reset();
     // Branch at 0, delay slot at 4, target at 12.
