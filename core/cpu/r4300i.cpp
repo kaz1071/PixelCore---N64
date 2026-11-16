@@ -305,6 +305,23 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         registers_[rt] = static_cast<std::int64_t>(static_cast<std::int16_t>(value));
         return true;
     }
+    case 0x22: { // LWL (big-endian)
+        const std::uint64_t address = a + offset;
+        const std::uint64_t aligned = address & ~3ULL;
+        std::uint32_t memoryWord = 0;
+        if (!memory.read32(aligned, memoryWord)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
+        const unsigned int shift = byteOffset * 8;
+        const std::uint32_t preserveMask = byteOffset == 0
+            ? 0U : (0xFFFFFFFFU >> ((4 - byteOffset) * 8));
+        const std::uint32_t merged = (memoryWord << shift) |
+                                     (low32(b) & preserveMask);
+        registers_[rt] = signExtend32(merged);
+        return true;
+    }
     case 0x23: { // LW
         const std::uint64_t address = a + offset;
         std::uint32_t value = 0;
@@ -333,6 +350,23 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             return true;
         }
         registers_[rt] = value;
+        return true;
+    }
+    case 0x26: { // LWR (big-endian)
+        const std::uint64_t address = a + offset;
+        const std::uint64_t aligned = address & ~3ULL;
+        std::uint32_t memoryWord = 0;
+        if (!memory.read32(aligned, memoryWord)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
+        const unsigned int shift = (3 - byteOffset) * 8;
+        const std::uint32_t preserveMask = byteOffset == 3
+            ? 0U : (0xFFFFFFFFU << ((4 - byteOffset) * 8));
+        const std::uint32_t merged = (memoryWord >> shift) |
+                                     (low32(b) & preserveMask);
+        registers_[rt] = signExtend32(merged);
         return true;
     }
     case 0x27: { // LWU
@@ -368,6 +402,40 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         if ((address & 1) || !memory.write16(address, static_cast<std::uint16_t>(b))) {
             raiseException(5, address, true);
             return true;
+        }
+        return true;
+    }
+    case 0x2A: { // SWL (big-endian)
+        const std::uint64_t address = a + offset;
+        const std::uint64_t aligned = address & ~3ULL;
+        std::uint32_t memoryWord = 0;
+        if (!memory.read32(aligned, memoryWord)) {
+            raiseException(5, address, true);
+            return true;
+        }
+        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
+        const unsigned int shift = byteOffset * 8;
+        const std::uint32_t mask = 0xFFFFFFFFU >> shift;
+        const std::uint32_t value = low32(b) >> shift;
+        if (!memory.write32(aligned, (memoryWord & ~mask) | (value & mask))) {
+            raiseException(5, address, true);
+        }
+        return true;
+    }
+    case 0x2E: { // SWR (big-endian)
+        const std::uint64_t address = a + offset;
+        const std::uint64_t aligned = address & ~3ULL;
+        std::uint32_t memoryWord = 0;
+        if (!memory.read32(aligned, memoryWord)) {
+            raiseException(5, address, true);
+            return true;
+        }
+        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
+        const unsigned int shift = (3 - byteOffset) * 8;
+        const std::uint32_t mask = 0xFFFFFFFFU << shift;
+        const std::uint32_t value = low32(b) << shift;
+        if (!memory.write32(aligned, (memoryWord & ~mask) | (value & mask))) {
+            raiseException(5, address, true);
         }
         return true;
     }
