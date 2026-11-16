@@ -128,9 +128,18 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
     if (physical == SiPifAddressWrite)
         return transferRdramToPif();
     if (physical == SiStatus) {
-        // Writing bit 0 resets the SI DMA/IO state; interrupts are not wired yet.
-        if (value & 0x01U)
-            siStatus_ = 0;
+        // Any write clears the SI interrupt request.
+        siStatus_ &= ~0x1000U;
+        miInterrupts_ &= ~0x02U;
+        return true;
+    }
+    if (physical == MiInterruptMask) {
+        for (unsigned int bit = 0; bit < 6; ++bit) {
+            if (value & (1U << (bit * 2)))
+                miInterruptMask_ &= ~(1U << bit);
+            if (value & (1U << (bit * 2 + 1)))
+                miInterruptMask_ |= (1U << bit);
+        }
         return true;
     }
     if (physical >= PifRamBase && physical - PifRamBase <= PifRamSize - 4) {
@@ -172,6 +181,8 @@ void N64MemoryBus::clearPifRam()
     std::fill(pifRam_.begin(), pifRam_.end(), 0);
     siDramAddress_ = 0;
     siStatus_ = 0;
+    miInterrupts_ = 0;
+    miInterruptMask_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
@@ -192,7 +203,8 @@ bool N64MemoryBus::transferRdramToPif()
     siStatus_ = 0x01;
     std::copy_n(rdram_.begin() + siDramAddress_, PifRamSize, pifRam_.begin());
     processPifControl();
-    siStatus_ = 0;
+    siStatus_ = 0x1000;
+    miInterrupts_ |= 0x02U;
     return true;
 }
 
@@ -208,8 +220,14 @@ bool N64MemoryBus::transferPifToRdram()
 
     siStatus_ = 0x01;
     std::copy(pifRam_.begin(), pifRam_.end(), rdram_.begin() + siDramAddress_);
-    siStatus_ = 0;
+    siStatus_ = 0x1000;
+    miInterrupts_ |= 0x02U;
     return true;
+}
+
+bool N64MemoryBus::interruptPending() const
+{
+    return (miInterrupts_ & miInterruptMask_) != 0;
 }
 
 Pif &N64MemoryBus::pif() { return pif_; }
