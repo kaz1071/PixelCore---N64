@@ -117,9 +117,11 @@ int main()
     // SI DMA transfers the 64-byte command block between RDRAM and PIF RAM.
     bus.clearPifRam();
     bus.pif().setControllerConnected(0, true);
-    const std::uint8_t joybusBlock[64] = {
-        1, 3, 0x00
-    };
+    std::uint8_t joybusBlock[64] = {};
+    joybusBlock[0] = 1;
+    joybusBlock[1] = 3;
+    joybusBlock[2] = 0x00;
+    joybusBlock[63] = 0x01;
     for (std::size_t i = 0; i < 64; i += 4)
     {
         const std::uint32_t packed =
