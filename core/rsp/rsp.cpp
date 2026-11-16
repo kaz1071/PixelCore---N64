@@ -14,6 +14,8 @@ std::int32_t signed32(std::uint32_t value)
 void Rsp::reset()
 {
     registers_.fill(0);
+    for (auto &vector : vectorRegisters_)
+        vector.fill(0);
     pc_ = 0;
     hi_ = 0;
     lo_ = 0;
@@ -45,6 +47,19 @@ void Rsp::setReg(unsigned int index, std::uint32_t value)
 {
     if (index > 0 && index < registers_.size())
         registers_[index] = value;
+}
+
+std::uint16_t Rsp::vectorLane(unsigned int index, unsigned int lane) const
+{
+    if (index >= vectorRegisters_.size() || lane >= 8)
+        return 0;
+    return vectorRegisters_[index][lane];
+}
+
+void Rsp::setVectorLane(unsigned int index, unsigned int lane, std::uint16_t value)
+{
+    if (index < vectorRegisters_.size() && lane < 8)
+        vectorRegisters_[index][lane] = value;
 }
 bool Rsp::halted() const { return halted_; }
 bool Rsp::broke() const { return broke_; }
