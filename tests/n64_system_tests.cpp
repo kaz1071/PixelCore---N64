@@ -42,9 +42,18 @@ int main()
     // The system exposes a separately stepped scalar RSP sharing SP IMEM/DMEM.
     passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002A),
                     "write RSP test instruction through system memory bus");
+    passed &= check(system.memory().write32(N64MemoryBus::SpImemBase + 4, 0x0000000D),
+                    "write RSP BREAK instruction");
+    passed &= check(system.memory().write32(N64MemoryBus::SpStatus, 0x01),
+                    "clear SP HALT to start the RSP");
     passed &= check(system.stepRsp(error), "system steps its RSP processor");
     passed &= check(system.rsp().reg(8) == 42 && system.rsp().pc() == 4,
                     "system RSP executes from shared instruction memory");
+    passed &= check(system.stepRsp(error), "system steps RSP BREAK");
+    std::uint32_t spStatus = 0;
+    passed &= check(system.memory().read32(N64MemoryBus::SpStatus, spStatus) &&
+                    (spStatus & 0x03U) == 0x03U,
+                    "RSP BREAK sets SP HALT and BROKE status bits");
 
     passed &= check(system.memory().write32(N64MemoryBus::PifRamBase, 0xDEADBEEF),
                     "system test can write PIF RAM before reset");
