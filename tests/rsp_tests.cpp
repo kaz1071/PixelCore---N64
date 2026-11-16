@@ -99,6 +99,19 @@ int main()
     passed &= check(rsp.reg(9) == 1 && rsp.reg(10) == 0 && rsp.reg(11) == 3,
                     "RSP BLTZ selects the target after executing its delay slot");
 
+    rsp.reset();
+    // BNE uses the same PC-relative base and delay-slot rules.
+    memory.write32(N64MemoryBus::SpImemBase, iType(0x09, 0, 8, 1));
+    memory.write32(N64MemoryBus::SpImemBase + 4, iType(0x05, 8, 0, 2));
+    memory.write32(N64MemoryBus::SpImemBase + 8, iType(0x09, 0, 9, 4));
+    memory.write32(N64MemoryBus::SpImemBase + 12, iType(0x09, 0, 10, 5));
+    memory.write32(N64MemoryBus::SpImemBase + 16, iType(0x09, 0, 11, 6));
+    passed &= check(rsp.step(memory, error) && rsp.step(memory, error) &&
+                    rsp.step(memory, error) && rsp.step(memory, error),
+                    "RSP executes BNE and its delay slot");
+    passed &= check(rsp.reg(9) == 4 && rsp.reg(10) == 0 && rsp.reg(11) == 6,
+                    "RSP BNE branches to the correct target");
+
     if (!passed) return 1;
     std::cout << "All RSP scalar CPU tests passed.\n";
     return 0;
