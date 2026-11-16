@@ -19,6 +19,8 @@ qt_add_executable(pixelcore-n64
     app/main_window.h
     core/rom/rom_file.cpp
     core/rom/rom_file.h
+    core/pif/pif.cpp
+    core/pif/pif.h
     core/cpu/r4300i.cpp
     core/cpu/r4300i.h
     core/memory/n64_memory_bus.cpp
@@ -63,6 +65,8 @@ if(BUILD_TESTING)
     add_executable(memory-bus-tests
         tests/memory_bus_tests.cpp
         core/memory/n64_memory_bus.cpp
+        core/pif/pif.cpp
+        core/pif/pif.h
         core/cpu/r4300i.cpp
         core/memory/n64_memory_bus.h
         core/cpu/r4300i.h
