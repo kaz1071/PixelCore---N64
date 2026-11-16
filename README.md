@@ -30,10 +30,11 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Byte, halfword, word, doubleword, and unaligned merge memory instructions
 - [x] Initial LL/SC load-linked and store-conditional support
 - [x] Initial 8 MiB RDRAM, read-only cartridge/boot ROM, and 64-byte PIF RAM mappings
-- [x] Connect the R4300i CPU to the memory bus through an initial N64 system core\n- [x] Connect desktop ROM loading and normalized cartridge images to the system core
+- [x] Connect the R4300i CPU to the memory bus through an initial N64 system core
+- [x] Connect desktop ROM loading and normalized cartridge images to the system core
 - [x] Initial PIF Joybus controller identify/reset/read command processing
 - [x] Initial SI 64-byte DMA transfers between RDRAM and PIF RAM
-- [x] Initial MI routing and R4300i handling for SI completion interrupts\n- [ ] Memory-mapped hardware (MI, VI, AI, PI, SI, RI)
+- [x] Initial MI routing and R4300i handling for SI completion interrupts\n- [ ] Remaining hardware registers and devices (complete MI/SI, VI, AI, PI, RI)
 - [ ] TLB and complete virtual-memory behavior
 - [ ] Reality Co-Processor (RCP), including RSP and RDP
 - [ ] Audio processing
