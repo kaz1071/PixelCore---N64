@@ -415,6 +415,7 @@ int main()
                     "TLBR restores indexed TLB entry into CP0 registers");
 
     memory.words[base + 8] = tlbp;
+    memory.words[base + 12] = tlbp;
     cpu.setCp0(R4300i::EntryHi, 0x0045602A);
     passed &= check(cpu.step(memory, error), "TLBP executes");
     passed &= check(cpu.cp0(R4300i::Index) == 5,
@@ -430,10 +431,10 @@ int main()
     cpu.setCp0(R4300i::EntryLo0, 0x12345 | 1);
     cpu.setCp0(R4300i::EntryLo1, 0x23457 | 1);
     cpu.setCp0(R4300i::Index, 6);
-    memory.words[base + 12] = tlbwi;
+    memory.words[base + 16] = tlbwi;
     passed &= check(cpu.step(memory, error), "write global TLB entry");
     cpu.setCp0(R4300i::EntryHi, 0x0045607F);
-    memory.words[base + 16] = tlbp;
+    memory.words[base + 20] = tlbp;
     passed &= check(cpu.step(memory, error), "probe global TLB entry");
     passed &= check(cpu.cp0(R4300i::Index) == 6,
                     "TLBP matches global entry regardless of ASID");
