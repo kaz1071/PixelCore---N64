@@ -216,7 +216,12 @@ int main()
 
     passed &= check(bus.write32(N64MemoryBus::ViVSync, 4) &&
                     bus.write32(N64MemoryBus::ViCurrent, 0),
-                    "reset VI timing before cycle-clock test");
+                    "acknowledge VI interrupt before cycle-clock test");
+    // VI_CURRENT is read-only; writing it acknowledges the interrupt but
+    // does not reset the scanline counter. Advance from line 2 to frame line 0.
+    bus.advanceViScanlines(2);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+                    "cycle-clock test starts at the beginning of a VI frame");
     bus.advanceViCycles(29761);
     passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
                     "VI does not advance before a full scanline of CPU cycles");
@@ -226,6 +231,8 @@ int main()
     bus.advanceViCycles(29762U * 3U);
     passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
                     "cycle-driven VI timing wraps at the configured frame length");
+    passed &= check(bus.write32(N64MemoryBus::ViCurrent, 0),
+                    "acknowledge cycle-driven VI interrupt before PI tests");
 
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
