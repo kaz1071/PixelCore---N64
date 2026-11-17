@@ -290,6 +290,62 @@ int main()
     passed &= check(cpu.pc() == base + 24 && cpu.reg(3) == 23,
                     "BGTZ does not branch when register is zero");
 
+
+    // Signed arithmetic instructions raise Integer Overflow (Ov, code 12).
+    const auto expectOverflow = [&](std::uint32_t instruction,
+                                    std::uint64_t lhs, std::uint64_t rhs,
+                                    const char *name) {
+        memory.words.clear();
+        memory.words[base] = instruction;
+        cpu.reset();
+        cpu.setReg(1, lhs);
+        cpu.setReg(2, rhs);
+        const bool executed = cpu.step(memory, error);
+        return check(executed, name) &&
+               check(((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 12,
+                     "signed arithmetic raises Integer Overflow") &&
+               check(cpu.cp0(R4300i::EPC) == base,
+                     "overflow exception records faulting instruction") &&
+               check(cpu.pc() == R4300i::BootstrapExceptionVector,
+                     "overflow exception uses bootstrap vector while BEV is set");
+    };
+
+    passed &= expectOverflow(rType(1, 2, 3, 0, 0x20),
+                             0x7FFFFFFFULL, 1, "ADD positive overflow is handled");
+    passed &= expectOverflow(rType(1, 2, 3, 0, 0x20),
+                             0xFFFFFFFF80000000ULL, 0xFFFFFFFFFFFFFFFFULL,
+                             "ADD negative overflow is handled");
+    passed &= expectOverflow(iType(0x08, 1, 2, 1),
+                             0x7FFFFFFFULL, 0, "ADDI positive overflow is handled");
+    passed &= expectOverflow(rType(1, 2, 3, 0, 0x22),
+                             0xFFFFFFFF80000000ULL, 1,
+                             "SUB negative overflow is handled");
+    passed &= expectOverflow(rType(1, 2, 3, 0, 0x2C),
+                             0x7FFFFFFFFFFFFFFFULL, 1,
+                             "DADD positive overflow is handled");
+    passed &= expectOverflow(iType(0x18, 1, 2, 1),
+                             0x7FFFFFFFFFFFFFFFULL, 0,
+                             "DADDI positive overflow is handled");
+    passed &= expectOverflow(rType(1, 2, 3, 0, 0x2E),
+                             0x8000000000000000ULL, 1,
+                             "DSUB negative overflow is handled");
+
+    // Non-overflowing signed arithmetic writes the correctly sign-extended result.
+    memory.words.clear();
+    memory.words[base] = rType(1, 2, 3, 0, 0x20); // ADD
+    cpu.reset();
+    cpu.setReg(1, 20);
+    cpu.setReg(2, 22);
+    passed &= check(cpu.step(memory, error) && cpu.reg(3) == 42,
+                    "ADD produces a normal signed result");
+    memory.words[base] = rType(1, 2, 3, 0, 0x22); // SUB
+    cpu.reset();
+    cpu.setReg(1, 20);
+    cpu.setReg(2, 22);
+    passed &= check(cpu.step(memory, error) &&
+                    cpu.reg(3) == 0xFFFFFFFFFFFFFFFEULL,
+                    "SUB sign-extends a negative 32-bit result");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
