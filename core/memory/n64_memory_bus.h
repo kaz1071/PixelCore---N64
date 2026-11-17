@@ -87,6 +87,7 @@ public:
     std::size_t bootRomSize() const;
     bool renderFramebuffer(std::uint32_t width, std::uint32_t height, std::vector<std::uint32_t> &pixels) const;
     void advanceViScanlines(std::uint32_t scanlines);
+    void advanceViCycles(std::uint32_t cpuCycles);
 
 private:
     static std::uint64_t toPhysicalAddress(std::uint64_t address);
@@ -125,4 +126,5 @@ private:
     std::uint32_t spSemaphore_ = 0;
     std::uint32_t spProgramCounter_ = 0;
     std::uint32_t viRegisters_[ViRegisterCount]{};
+    std::uint32_t viCycleRemainder_ = 0;
 };
