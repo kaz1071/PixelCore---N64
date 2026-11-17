@@ -58,48 +58,96 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
 
     case 0x36: // FillRectangle
     {
-        // This first rasterizer supports RGBA16 and RGBA32 color images.
-        if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
-            (colorImageSize_ != 2 && colorImageSize_ != 3))
-            break;
-
         const std::uint32_t xStart = static_cast<std::uint32_t>((command >> 44) & 0x0FFFU) >> 2;
         const std::uint32_t yStart = static_cast<std::uint32_t>((command >> 32) & 0x0FFFU) >> 2;
         const std::uint32_t xEnd = static_cast<std::uint32_t>((command >> 12) & 0x0FFFU) >> 2;
         const std::uint32_t yEnd = static_cast<std::uint32_t>(command & 0x0FFFU) >> 2;
-        const std::uint32_t left = std::min(xStart, colorImageWidth_);
-        const std::uint32_t right = std::min(xEnd, colorImageWidth_);
         const std::size_t bytesPerPixel = colorImageSize_ == 2 ? 2U : 4U;
-
-        for (std::uint32_t y = yStart; y < yEnd; ++y)
+        if (colorImageFormat_ == 0 && colorImageWidth_ != 0 &&
+            (colorImageSize_ == 2 || colorImageSize_ == 3))
         {
-            for (std::uint32_t x = left; x < right; ++x)
-            {
-                const std::uint64_t offset =
-                    static_cast<std::uint64_t>(colorImageAddress_) +
-                    (static_cast<std::uint64_t>(y) * colorImageWidth_ + x) * bytesPerPixel;
-                if (offset > rdram.size() || bytesPerPixel > rdram.size() - offset)
-                    continue;
-
-                if (bytesPerPixel == 4)
+            for (std::uint32_t y = yStart; y < yEnd; ++y)
+                for (std::uint32_t x = std::min(xStart, colorImageWidth_);
+                     x < std::min(xEnd, colorImageWidth_); ++x)
                 {
-                    rdram[static_cast<std::size_t>(offset)] =
-                        static_cast<std::uint8_t>(fillColor_ >> 24);
-                    rdram[static_cast<std::size_t>(offset + 1)] =
-                        static_cast<std::uint8_t>(fillColor_ >> 16);
-                    rdram[static_cast<std::size_t>(offset + 2)] =
-                        static_cast<std::uint8_t>(fillColor_ >> 8);
-                    rdram[static_cast<std::size_t>(offset + 3)] =
-                        static_cast<std::uint8_t>(fillColor_);
+                    const std::uint64_t offset = static_cast<std::uint64_t>(colorImageAddress_) +
+                        (static_cast<std::uint64_t>(y) * colorImageWidth_ + x) * bytesPerPixel;
+                    if (offset > rdram.size() || bytesPerPixel > rdram.size() - offset) continue;
+                    if (bytesPerPixel == 4)
+                    {
+                        rdram[offset] = static_cast<std::uint8_t>(fillColor_ >> 24);
+                        rdram[offset + 1] = static_cast<std::uint8_t>(fillColor_ >> 16);
+                        rdram[offset + 2] = static_cast<std::uint8_t>(fillColor_ >> 8);
+                        rdram[offset + 3] = static_cast<std::uint8_t>(fillColor_);
+                    }
+                    else
+                    {
+                        const auto pixel = static_cast<std::uint16_t>((x & 1U) ? fillColor_ : fillColor_ >> 16);
+                        rdram[offset] = static_cast<std::uint8_t>(pixel >> 8);
+                        rdram[offset + 1] = static_cast<std::uint8_t>(pixel);
+                    }
+                }
+        }
+        break;
+    }
+
+    case 0x08: // FillTriangle (edge-only triangle)
+    {
+        if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
+            (colorImageSize_ != 2 && colorImageSize_ != 3) || lastCommand_.size() != 4)
+            break;
+
+        const std::uint64_t w0 = lastCommand_[0];
+        const std::uint64_t w1 = lastCommand_[1];
+        const std::uint64_t w2 = lastCommand_[2];
+        const std::uint64_t w3 = lastCommand_[3];
+        const int yh = static_cast<int>((w0 >> 32) & 0x3FFFU);
+        const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
+        const int yl = static_cast<int>(w0 & 0x3FFFU);
+        const auto highSigned = [](std::uint64_t value) {
+            return static_cast<std::int32_t>(static_cast<std::uint32_t>(value >> 32));
+        };
+        const auto lowSigned = [](std::uint64_t value) {
+            return static_cast<std::int32_t>(static_cast<std::uint32_t>(value));
+        };
+        const std::int64_t xh = highSigned(w1);
+        const std::int64_t dxhdy = lowSigned(w1);
+        const std::int64_t xm = highSigned(w2);
+        const std::int64_t dxmdy = lowSigned(w2);
+        const std::int64_t xl = highSigned(w3);
+        const std::int64_t dxldy = lowSigned(w3);
+        const int firstY = std::max(0, yh >> 2);
+        const int middleY = std::max(0, ym >> 2);
+        const int lastY = std::min(4096, (yl + 3) >> 2);
+        const std::size_t bpp = colorImageSize_ == 2 ? 2U : 4U;
+
+        for (int y = firstY; y < lastY; ++y)
+        {
+            const std::int64_t major = xh + dxhdy * (y - (yh >> 2));
+            const bool lowerHalf = y >= middleY;
+            const std::int64_t minor = lowerHalf
+                ? xl + dxldy * (y - middleY)
+                : xm + dxmdy * (y - (yh >> 2));
+            const int left = static_cast<int>(std::max<std::int64_t>(0, std::min(major, minor) >> 16));
+            const int right = static_cast<int>(std::min<std::int64_t>(colorImageWidth_,
+                std::max(major, minor) >> 16));
+            for (int x = left; x < right; ++x)
+            {
+                const std::uint64_t offset = static_cast<std::uint64_t>(colorImageAddress_) +
+                    (static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) * bpp;
+                if (offset > rdram.size() || bpp > rdram.size() - offset) continue;
+                if (bpp == 4)
+                {
+                    rdram[offset] = static_cast<std::uint8_t>(fillColor_ >> 24);
+                    rdram[offset + 1] = static_cast<std::uint8_t>(fillColor_ >> 16);
+                    rdram[offset + 2] = static_cast<std::uint8_t>(fillColor_ >> 8);
+                    rdram[offset + 3] = static_cast<std::uint8_t>(fillColor_);
                 }
                 else
                 {
-                    const std::uint16_t pixel = static_cast<std::uint16_t>(
-                        (x & 1U) ? fillColor_ : (fillColor_ >> 16));
-                    rdram[static_cast<std::size_t>(offset)] =
-                        static_cast<std::uint8_t>(pixel >> 8);
-                    rdram[static_cast<std::size_t>(offset + 1)] =
-                        static_cast<std::uint8_t>(pixel);
+                    const auto pixel = static_cast<std::uint16_t>((x & 1) ? fillColor_ : fillColor_ >> 16);
+                    rdram[offset] = static_cast<std::uint8_t>(pixel >> 8);
+                    rdram[offset + 1] = static_cast<std::uint8_t>(pixel);
                 }
             }
         }
