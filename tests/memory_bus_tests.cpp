@@ -429,6 +429,56 @@ int main()
     passed &= check(dpBus.read32(N64MemoryBus::MiInterrupt, word) && !(word & 0x20U),
                     "DPC acknowledgement clears the MI DP interrupt");
 
+    // The initial RDP rasterizer draws fill rectangles into RGBA32 RDRAM images.
+    N64MemoryBus renderBus;
+    const std::uint64_t setColorImage =
+        (static_cast<std::uint64_t>(0x3F) << 56) |
+        (static_cast<std::uint64_t>(3) << 51) |
+        (static_cast<std::uint64_t>(3) << 32) | 0x200U;
+    const std::uint64_t setFillColor =
+        (static_cast<std::uint64_t>(0x37) << 56) | 0xFF0000FFU;
+    const std::uint64_t fillRectangle =
+        (static_cast<std::uint64_t>(0x36) << 56) | (8ULL << 12) | 8ULL;
+    const std::uint64_t commands[] = {setColorImage, setFillColor, fillRectangle};
+    for (std::size_t i = 0; i < 3; ++i)
+    {
+        const std::uint64_t address = 0x300U + i * 8U;
+        passed &= check(renderBus.write32(address,
+                    static_cast<std::uint32_t>(commands[i] >> 32)),
+                    "write RDP rendering command high word");
+        passed &= check(renderBus.write32(address + 4,
+                    static_cast<std::uint32_t>(commands[i])),
+                    "write RDP rendering command low word");
+    }
+    passed &= check(renderBus.write32(N64MemoryBus::DpStart, 0x300),
+                    "set RDP rendering command-list start");
+    passed &= check(renderBus.write32(N64MemoryBus::DpEnd, 0x318),
+                    "submit color-image and fill-rectangle commands");
+    passed &= check(renderBus.write32(N64MemoryBus::ViControl, 3),
+                    "configure VI for RGBA32 framebuffer output");
+    passed &= check(renderBus.write32(N64MemoryBus::ViOrigin, 0x200),
+                    "point VI at the RDP color image");
+    passed &= check(renderBus.write32(N64MemoryBus::ViWidth, 4),
+                    "configure four-pixel framebuffer width");
+    std::vector<std::uint32_t> renderedPixels;
+    passed &= check(renderBus.renderFramebuffer(4, 2, renderedPixels),
+                    "VI can read back the RDP-rendered color image");
+    passed &= check(renderedPixels.size() == 8,
+                    "RDP framebuffer contains the expected eight pixels");
+    if (renderedPixels.size() == 8)
+    {
+        passed &= check(renderedPixels[0] == 0xFFFF0000U &&
+                        renderedPixels[1] == 0xFFFF0000U &&
+                        renderedPixels[4] == 0xFFFF0000U &&
+                        renderedPixels[5] == 0xFFFF0000U,
+                        "RDP fill rectangle writes the expected red 2-by-2 area");
+        passed &= check(renderedPixels[2] == 0x00000000U &&
+                        renderedPixels[3] == 0x00000000U &&
+                        renderedPixels[6] == 0x00000000U &&
+                        renderedPixels[7] == 0x00000000U,
+                        "RDP fill rectangle leaves pixels outside its bounds untouched");
+    }
+
     if (!passed) return 1;
     std::cout << "All N64 memory bus tests passed.\n";
     return 0;
