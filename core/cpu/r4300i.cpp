@@ -111,6 +111,7 @@ void R4300i::reset()
     currentInstructionInDelaySlot_ = false;
     llBit_ = false;
     llAddress_ = 0;
+    tlb_.fill({});
 }
 
 void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
@@ -446,6 +447,44 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             nextPc_ = pc_ + 4;
             nextInstructionIsDelaySlot_ = false;
             return true;
+        }
+        if (rs == 0x10) {
+            const unsigned int index = static_cast<unsigned int>(cp0Registers_[Index] & 0x1F);
+            switch (function) {
+            case 0x01: // TLBR: copy indexed TLB entry to CP0 registers.
+                cp0Registers_[PageMask] = tlb_[index].pageMask;
+                cp0Registers_[EntryHi] = tlb_[index].entryHi;
+                cp0Registers_[EntryLo0] = tlb_[index].entryLo0;
+                cp0Registers_[EntryLo1] = tlb_[index].entryLo1;
+                return true;
+            case 0x02: // TLBWI: write indexed TLB entry.
+                tlb_[index] = {cp0Registers_[PageMask], cp0Registers_[EntryHi],
+                               cp0Registers_[EntryLo0], cp0Registers_[EntryLo1]};
+                return true;
+            case 0x06: { // TLBWR: write entry selected by Random.
+                const unsigned int random = static_cast<unsigned int>(cp0Registers_[Random] & 0x1F);
+                tlb_[random] = {cp0Registers_[PageMask], cp0Registers_[EntryHi],
+                                cp0Registers_[EntryLo0], cp0Registers_[EntryLo1]};
+                return true;
+            }
+            case 0x08: { // TLBP: probe for matching VPN2 and ASID/global entry.
+                cp0Registers_[Index] = 0x80000000ULL;
+                const std::uint64_t queryVpn = cp0Registers_[EntryHi] & ~0x1FFFULL;
+                const std::uint64_t queryAsid = cp0Registers_[EntryHi] & 0xFFULL;
+                for (unsigned int i = 0; i < tlb_.size(); ++i) {
+                    const auto &entry = tlb_[i];
+                    const std::uint64_t entryVpn = entry.entryHi & ~0x1FFFULL;
+                    const bool global = (entry.entryLo0 & 1ULL) && (entry.entryLo1 & 1ULL);
+                    if (entryVpn == queryVpn &&
+                        (global || (entry.entryHi & 0xFFULL) == queryAsid)) {
+                        cp0Registers_[Index] = i;
+                        break;
+                    }
+                }
+                return true;
+            }
+            default: break;
+            }
         }
         raiseException(11, instructionAddress); // Coprocessor Unusable / unsupported COP0 operation.
         return true;
