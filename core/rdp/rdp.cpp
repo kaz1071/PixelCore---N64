@@ -16,6 +16,10 @@ void Rdp::reset()
     fillColor_ = 0;
     otherModesHigh_ = 0;
     otherModesLow_ = 0;
+    blendColor_ = 0;
+    fogColor_ = 0;
+    primitiveColor_ = 0;
+    environmentColor_ = 0;
     scissorLeft_ = 0;
     scissorTop_ = 0;
     scissorRight_ = 4096;
@@ -73,6 +77,22 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
     case 0x2F: // SetOtherModes
         otherModesHigh_ = static_cast<std::uint32_t>((command >> 32) & 0x00FFFFFFU);
         otherModesLow_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x38: // SetFogColor
+        fogColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x39: // SetBlendColor
+        blendColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x3A: // SetPrimitiveColor
+        primitiveColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x3B: // SetEnvironmentColor
+        environmentColor_ = static_cast<std::uint32_t>(command);
         break;
 
     case 0x36: // FillRectangle
@@ -237,4 +257,24 @@ std::uint32_t Rdp::otherModesLow() const
 std::uint8_t Rdp::cycleType() const
 {
     return static_cast<std::uint8_t>((otherModesHigh_ >> 20) & 0x03U);
+}
+
+std::uint32_t Rdp::blendColor() const
+{
+    return blendColor_;
+}
+
+std::uint32_t Rdp::fogColor() const
+{
+    return fogColor_;
+}
+
+std::uint32_t Rdp::primitiveColor() const
+{
+    return primitiveColor_;
+}
+
+std::uint32_t Rdp::environmentColor() const
+{
+    return environmentColor_;
 }
