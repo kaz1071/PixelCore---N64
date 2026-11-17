@@ -101,21 +101,24 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         const std::uint64_t w1 = lastCommand_[1];
         const std::uint64_t w2 = lastCommand_[2];
         const std::uint64_t w3 = lastCommand_[3];
-        const int yh = static_cast<int>((w0 >> 32) & 0x3FFFU);
+        // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
+        const int yh = static_cast<int>(w0 & 0x3FFFU);
         const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
-        const int yl = static_cast<int>(w0 & 0x3FFFU);
+        const int yl = static_cast<int>((w0 >> 32) & 0x3FFFU);
         const auto highSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value >> 32));
         };
         const auto lowSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value));
         };
-        const std::int64_t xh = highSigned(w1);
-        const std::int64_t dxhdy = lowSigned(w1);
-        const std::int64_t xm = highSigned(w2);
-        const std::int64_t dxmdy = lowSigned(w2);
-        const std::int64_t xl = highSigned(w3);
-        const std::int64_t dxldy = lowSigned(w3);
+        // Edge words are ordered XL/DXLDY, XH/DXHDY, XM/DXMDY.
+        // XH is the long edge; the minor edge changes from XM to XL at YM.
+        const std::int64_t xl = highSigned(w1);
+        const std::int64_t dxldy = lowSigned(w1);
+        const std::int64_t xh = highSigned(w2);
+        const std::int64_t dxhdy = lowSigned(w2);
+        const std::int64_t xm = highSigned(w3);
+        const std::int64_t dxmdy = lowSigned(w3);
         const int firstY = std::max(0, yh >> 2);
         const int middleY = std::max(0, ym >> 2);
         const int lastY = std::min(4096, (yl + 3) >> 2);
@@ -127,7 +130,7 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
             const bool lowerHalf = y >= middleY;
             const std::int64_t minor = lowerHalf
                 ? xm + dxldy * (y - middleY)
-                : xh + dxmdy * (y - (yh >> 2));
+                : xm + dxmdy * (y - (yh >> 2));
             const int left = static_cast<int>(std::max<std::int64_t>(0, std::min(major, minor) >> 16));
             const int right = static_cast<int>(std::min<std::int64_t>(colorImageWidth_,
                 std::max(major, minor) >> 16));
