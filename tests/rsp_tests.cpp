@@ -95,6 +95,24 @@ int main()
         passed &= check(rsp.vectorLane(3, lane) == lane + 17,
                         "VSUB broadcasts selected source lane");
 
+    // VABS applies the sign of vs to the magnitude of vt.
+    rsp.reset();
+    rsp.setVectorLane(1, 0, 1);
+    rsp.setVectorLane(1, 1, 0xFFFF);
+    rsp.setVectorLane(1, 2, 0);
+    rsp.setVectorLane(1, 3, 0x8000);
+    rsp.setVectorLane(2, 0, 7);
+    rsp.setVectorLane(2, 1, 7);
+    rsp.setVectorLane(2, 2, 7);
+    rsp.setVectorLane(2, 3, 0x8000);
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x13)); // VABS
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(3, 0) == 7 &&
+                    rsp.vectorLane(3, 1) == 0xFFF9 &&
+                    rsp.vectorLane(3, 2) == 0 &&
+                    rsp.vectorLane(3, 3) == 0x7FFF,
+                    "VABS applies signed magnitude and saturates INT16_MIN");
+
     // VADDC and VSUBC preserve per-lane carry/borrow for the next arithmetic op.
     rsp.reset();
     for (unsigned lane = 0; lane < 8; ++lane)
