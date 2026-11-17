@@ -60,6 +60,7 @@ public:
     std::uint16_t primitiveDeltaZ() const;
     std::int16_t conversionCoefficient(std::size_t index) const;
     const RdpTileState &tile(std::size_t index) const;
+    std::uint8_t tmemByte(std::size_t index) const;
 
 private:
     std::vector<std::uint64_t> pending_;
@@ -67,6 +68,10 @@ private:
     std::size_t expectedWords_ = 0;
     std::uint64_t completedCommands_ = 0;
     std::uint8_t lastOpcode_ = 0;
+    std::uint32_t textureImageAddress_ = 0;
+    std::uint32_t textureImageWidth_ = 0;
+    std::uint8_t textureImageSize_ = 0;
+    std::array<std::uint8_t, 4096> tmem_{};
     std::uint32_t colorImageAddress_ = 0;
     std::uint32_t colorImageWidth_ = 0;
     std::uint8_t colorImageFormat_ = 0;
