@@ -18,10 +18,11 @@ void Rdp::reset()
 
 std::size_t Rdp::commandWordCount(std::uint8_t opcode)
 {
-    // Triangle packets contain edge data followed by optional shade,
-    // texture, and depth interpolation coefficients.
+    // Every triangle starts with four edge words. Optional coefficient
+    // blocks add eight shade words, eight texture words, and two depth
+    // words, respectively (all counts are 64-bit command words).
     constexpr std::size_t triangleWords[8] = {
-        4, 6, 6, 8, 6, 8, 8, 10
+        4, 12, 12, 20, 6, 14, 14, 22
     };
 
     if (opcode >= 0x08 && opcode <= 0x0F)
