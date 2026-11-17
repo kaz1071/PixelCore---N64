@@ -89,6 +89,8 @@ if(BUILD_TESTING)
     add_executable(memory-bus-tests
         tests/memory_bus_tests.cpp
         core/memory/n64_memory_bus.cpp
+        core/rdp/rdp.cpp
+        core/rdp/rdp.h
         core/pif/pif.cpp
         core/pif/pif.h
         core/cpu/r4300i.cpp
