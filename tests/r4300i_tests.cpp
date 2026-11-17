@@ -492,6 +492,42 @@ int main()
     passed &= check(cpu.reg(2) == 0x0BADF00DULL,
                     "TLB-mapped LW reads translated physical page");
 
+    // All remaining scalar widths and atomic accesses use the same TLB mapping.
+    memory.words.clear();
+    memory.words[base] = tlbwi;
+    memory.words[base + 4] = iType(0x24, 1, 2, 0); // LBU
+    memory.words[base + 8] = iType(0x28, 1, 3, 1); // SB
+    memory.words[base + 12] = iType(0x25, 1, 4, 2); // LHU
+    memory.words[base + 16] = iType(0x29, 1, 5, 4); // SH
+    memory.words[base + 20] = iType(0x30, 1, 6, 8); // LL
+    memory.words[base + 24] = iType(0x38, 1, 6, 8); // SC
+    memory.words[0x20080] = 0x80AA1234U;
+    memory.words[0x20088] = 0x11223344U;
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000);
+    cpu.setCp0(R4300i::Index, 0);
+    cpu.setCp0(R4300i::EntryHi, 0x0040002A);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryLo0, (0x20ULL << 6) | 0x7ULL);
+    cpu.setCp0(R4300i::EntryLo1, (0x21ULL << 6) | 0x7ULL);
+    cpu.setReg(1, 0x00400080);
+    cpu.setReg(3, 0x5A);
+    passed &= check(cpu.step(memory, error), "install TLB for byte/halfword/LL-SC tests");
+    passed &= check(cpu.step(memory, error) && cpu.reg(2) == 0x80,
+                    "TLB-mapped LBU reads translated physical byte");
+    passed &= check(cpu.step(memory, error) && memory.words[0x20080] == 0x805A1234U,
+                    "TLB-mapped SB writes translated physical byte");
+    passed &= check(cpu.step(memory, error) && cpu.reg(4) == 0x5A12,
+                    "TLB-mapped LHU reads translated physical halfword");
+    cpu.setReg(5, 0xBEEF);
+    passed &= check(cpu.step(memory, error) && memory.words[0x20084] == 0xBEEF0000U,
+                    "TLB-mapped SH writes translated physical halfword");
+    passed &= check(cpu.step(memory, error) && cpu.reg(6) == 0x11223344U,
+                    "TLB-mapped LL reads translated physical word");
+    passed &= check(cpu.step(memory, error) && cpu.reg(6) == 1 &&
+                    memory.words[0x20088] == 0x11223344U,
+                    "TLB-mapped SC uses physical reservation address");
+
     // A missing mapped page raises TLBL and selects the TLB refill vector.
     memory.words.clear();
     memory.words[base] = iType(0x23, 1, 2, 0);
