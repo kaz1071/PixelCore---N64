@@ -517,7 +517,7 @@ int main()
                     "TLB-mapped LBU reads translated physical byte");
     passed &= check(cpu.step(memory, error) && memory.words[0x20080] == 0x805A1234U,
                     "TLB-mapped SB writes translated physical byte");
-    passed &= check(cpu.step(memory, error) && cpu.reg(4) == 0x5A12,
+    passed &= check(cpu.step(memory, error) && cpu.reg(4) == 0x1234,
                     "TLB-mapped LHU reads translated physical halfword");
     cpu.setReg(5, 0xBEEF);
     passed &= check(cpu.step(memory, error) && memory.words[0x20084] == 0xBEEF0000U,
