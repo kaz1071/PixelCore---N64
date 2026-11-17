@@ -34,7 +34,9 @@ class R4300i
 {
 public:
     static constexpr std::uint64_t ResetAddress = 0xBFC00000ULL;
+    static constexpr std::uint64_t TlbRefillExceptionVector = 0x80000000ULL;
     static constexpr std::uint64_t GeneralExceptionVector = 0x80000180ULL;
+    static constexpr std::uint64_t BootstrapTlbRefillExceptionVector = 0xBFC00200ULL;
     static constexpr std::uint64_t BootstrapExceptionVector = 0xBFC00380ULL;
 
     // CP0 register numbers used by the R4300i.
