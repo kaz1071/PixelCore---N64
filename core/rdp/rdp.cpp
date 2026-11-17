@@ -233,3 +233,8 @@ std::uint32_t Rdp::otherModesLow() const
 {
     return otherModesLow_;
 }
+
+std::uint8_t Rdp::cycleType() const
+{
+    return static_cast<std::uint8_t>((otherModesHigh_ >> 20) & 0x03U);
+}
