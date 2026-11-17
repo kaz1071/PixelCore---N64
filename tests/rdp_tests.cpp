@@ -79,11 +79,13 @@ int main()
     submit(triangleHeader);
     submit((1ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XL=1.0, DXLDY=-1
     submit((1ULL << 16) << 32); // XH=1.0, DXHDY=0
-    submit((5ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XM=5.0, DXMDY=-1
-    check(framebuffer[(2 * 8 + 5) * 4] == 0xFF,
-          "upper triangle edge steps backward from the middle scanline");
+    submit((5ULL << 16) << 32 | 65536U); // XM=5.0, DXMDY=+1
+    check(framebuffer[(2 * 8 + 1) * 4] == 0xFF,
+          "upper minor edge steps from XH at the top scanline");
+    check(framebuffer[(2 * 8 + 2) * 4] == 0,
+          "upper triangle does not fill beyond its minor edge");
     check(framebuffer[(4 * 8 + 3) * 4] == 0xFF,
-          "lower triangle edge steps forward from the middle scanline");
+          "lower minor edge steps from XM at the middle scanline");
     check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
           framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
           "edge-only triangle fills an interior pixel");
