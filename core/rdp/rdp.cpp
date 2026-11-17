@@ -80,6 +80,17 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         fillColor_ = static_cast<std::uint32_t>(command);
         break;
 
+    case 0x32: // SetTileSize
+    {
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        RdpTileState &tileState = tiles_[tileIndex];
+        tileState.upperLeftS = static_cast<std::uint16_t>((command >> 44) & 0x0FFFU);
+        tileState.upperLeftT = static_cast<std::uint16_t>((command >> 32) & 0x0FFFU);
+        tileState.lowerRightS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
+        tileState.lowerRightT = static_cast<std::uint16_t>(command & 0x0FFFU);
+        break;
+    }
+
     case 0x35: // SetTile
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
