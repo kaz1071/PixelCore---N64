@@ -240,6 +240,40 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
             vectorCarry_ = 0;
             vectorCompare_ = 0;
             break;
+        case 0x20: // VLT
+        case 0x21: // VEQ
+        case 0x22: // VNE
+        case 0x23: // VGE
+        {
+            std::uint16_t selected = 0;
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                const std::int32_t a16 = static_cast<std::int16_t>(left[lane]);
+                const std::int32_t b16 = static_cast<std::int16_t>(source[lane]);
+                const bool equal = left[lane] == source[lane];
+                const bool vcoLow = (vectorCarry_ & (1U << lane)) != 0;
+                const bool vcoHigh = (vectorCarry_ & (1U << (lane + 8))) != 0;
+                bool condition = false;
+                switch (function)
+                {
+                case 0x20: condition = (a16 < b16) || (equal && vcoLow && vcoHigh); break;
+                case 0x21: condition = equal && !vcoHigh; break;
+                case 0x22: condition = !equal || vcoHigh; break;
+                case 0x23: condition = (a16 > b16) || (equal && !(vcoLow && vcoHigh)); break;
+                }
+                if (condition)
+                    selected |= static_cast<std::uint16_t>(1U << lane);
+                vectorRegisters_[vd][lane] = condition ? left[lane] : source[lane];
+            }
+            vectorCompare_ = selected;
+            vectorCarry_ = 0;
+            break;
+        }
+        case 0x27: // VMRG: select VS when the corresponding VCC bit is set
+            for (unsigned lane = 0; lane < 8; ++lane)
+                vectorRegisters_[vd][lane] =
+                    (vectorCompare_ & (1U << lane)) ? left[lane] : source[lane];
+            break;
         case 0x28: // VAND
         case 0x2A: // VOR
         case 0x2C: // VXOR
