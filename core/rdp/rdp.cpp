@@ -143,11 +143,11 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         {
             const std::int64_t major = xh + dxhdy * (y - (yh >> 2));
             const bool lowerHalf = y >= middleY;
-            // The upper minor edge starts at XH/YH and reaches XM/YM.
-            // The lower minor edge starts at XM/YM and reaches XL/YL.
+            // The minor edge starts at XM/YH, reaches the middle vertex,
+            // then continues from XM/YM toward XL/YL with the lower slope.
             const std::int64_t minor = lowerHalf
                 ? xm + dxldy * (y - middleY)
-                : xh + dxmdy * (y - (yh >> 2));
+                : xm + dxmdy * (y - (yh >> 2));
             const int left = static_cast<int>(std::max<std::int64_t>(scissorLeft_, std::min(major, minor) >> 16));
             const int right = static_cast<int>(std::min<std::int64_t>(std::min(colorImageWidth_, scissorRight_),
                 std::max(major, minor) >> 16));
