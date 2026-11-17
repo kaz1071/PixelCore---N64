@@ -25,6 +25,8 @@ qt_add_executable(pixelcore-n64
     core/pif/pif.h
     core/rsp/rsp.cpp
     core/rsp/rsp.h
+    core/rdp/rdp.cpp
+    core/rdp/rdp.h
     core/cpu/r4300i.cpp
     core/cpu/r4300i.h
     core/memory/n64_memory_bus.cpp
@@ -167,4 +169,20 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME n64-rsp-scalar-tests COMMAND rsp-tests)
+
+    add_executable(rdp-tests
+        tests/rdp_tests.cpp
+        core/rdp/rdp.cpp
+        core/rdp/rdp.h
+    )
+
+    target_include_directories(rdp-tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    target_compile_options(rdp-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+    )
+
+    add_test(NAME n64-rdp-command-tests COMMAND rdp-tests)
 endif()
