@@ -129,6 +129,27 @@ int main()
     check(rdp.tile(0).format == 0 && rdp.tile(8).format == 0,
           "SetTile leaves other tiles untouched and invalid reads return defaults");
 
+    // LoadBlock and LoadTile retain the source rectangle and load mode per tile.
+    const std::uint64_t loadBlock = (0x33ULL << 56) | (0x111ULL << 44) |
+        (0x222ULL << 32) | (3ULL << 24) | (0x333ULL << 12) | 0x444ULL;
+    check(rdp.pushCommandWord(loadBlock), "LoadBlock completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.tile(3).loaded && rdp.tile(3).loadType == 1,
+          "LoadBlock marks the selected tile loaded with block mode");
+    check(rdp.tile(3).loadStartS == 0x111 && rdp.tile(3).loadStartT == 0x222 &&
+          rdp.tile(3).loadEndS == 0x333 && rdp.tile(3).loadEndT == 0 &&
+          rdp.tile(3).loadDxt == 0x444, "LoadBlock decodes coordinates and DXT");
+    const std::uint64_t loadTile = (0x34ULL << 56) | (0x055ULL << 44) |
+        (0x066ULL << 32) | (3ULL << 24) | (0x077ULL << 12) | 0x088ULL;
+    check(rdp.pushCommandWord(loadTile), "LoadTile completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.tile(3).loaded && rdp.tile(3).loadType == 2,
+          "LoadTile marks the selected tile loaded with tile mode");
+    check(rdp.tile(3).loadStartS == 0x055 && rdp.tile(3).loadStartT == 0x066 &&
+          rdp.tile(3).loadEndS == 0x077 && rdp.tile(3).loadEndT == 0x088 &&
+          rdp.tile(3).loadDxt == 0, "LoadTile decodes all four bounds");
+    check(!rdp.tile(2).loaded, "texture loads do not modify other tiles");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
@@ -148,7 +169,7 @@ int main()
     check(rdp.conversionCoefficient(0) == 0 && rdp.conversionCoefficient(5) == 0,
           "reset clears conversion coefficients");
     check(rdp.tile(3).format == 0 && rdp.tile(3).line == 0 &&
-          rdp.tile(3).upperLeftS == 0 && rdp.tile(3).lowerRightT == 0,
+          rdp.tile(3).upperLeftS == 0 && rdp.tile(3).lowerRightT == 0 && !rdp.tile(3).loaded,
           "reset clears tile descriptors and bounds");
     check(rdp.primitiveMinLevel() == 0 && rdp.primitiveLodFraction() == 0,
           "reset clears primitive color LOD parameters");
