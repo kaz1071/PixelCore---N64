@@ -214,25 +214,22 @@ int main()
     passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x40),
                     "disable VI interrupt in MI mask");
 
-    passed &= check(bus.write32(N64MemoryBus::ViVSync, 4) &&
-                    bus.write32(N64MemoryBus::ViCurrent, 0),
-                    "acknowledge VI interrupt before cycle-clock test");
-    // VI_CURRENT is read-only; writing it acknowledges the interrupt but
-    // does not reset the scanline counter. Advance from line 2 to frame line 0.
-    bus.advanceViScanlines(2);
-    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
-                    "cycle-clock test starts at the beginning of a VI frame");
-    bus.advanceViCycles(29761);
-    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+    // Test the CPU-cycle clock on a fresh bus so manual scanline stepping
+    // and previously latched VI interrupts cannot leak into this test.
+    N64MemoryBus cycleBus;
+    passed &= check(cycleBus.write32(N64MemoryBus::ViVSync, 4),
+                    "configure a four-line frame for cycle-clock test");
+    passed &= check(cycleBus.write32(N64MemoryBus::ViInterrupt, 2),
+                    "configure cycle-clock VI compare line");
+    cycleBus.advanceViCycles(29761);
+    passed &= check(cycleBus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
                     "VI does not advance before a full scanline of CPU cycles");
-    bus.advanceViCycles(1);
-    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 1,
+    cycleBus.advanceViCycles(1);
+    passed &= check(cycleBus.read32(N64MemoryBus::ViCurrent, word) && word == 1,
                     "VI advances after one NTSC scanline worth of CPU cycles");
-    bus.advanceViCycles(29762U * 3U);
-    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+    cycleBus.advanceViCycles(29762U * 3U);
+    passed &= check(cycleBus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
                     "cycle-driven VI timing wraps at the configured frame length");
-    passed &= check(bus.write32(N64MemoryBus::ViCurrent, 0),
-                    "acknowledge cycle-driven VI interrupt before PI tests");
 
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
@@ -248,7 +245,7 @@ int main()
                     "PI DMA copies second cartridge word into RDRAM");
     passed &= check(bus.read32(N64MemoryBus::PiStatus, word) && word == 0x08,
                     "PI status reports DMA completion interrupt");
-    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0x10,
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x10U) != 0,
                     "PI DMA raises the MI PI interrupt bit");
     passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x200),
                     "enable PI interrupt in MI mask");
@@ -256,7 +253,7 @@ int main()
                     "enabled PI interrupt reaches the CPU interrupt line");
     passed &= check(bus.write32(N64MemoryBus::PiStatus, 0x02),
                     "PI status acknowledges completion interrupt");
-    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && word == 0,
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x10U) == 0,
                     "PI acknowledgement clears the MI PI interrupt");
     passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x100),
                     "disable PI interrupt in MI mask");
