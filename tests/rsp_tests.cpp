@@ -95,6 +95,71 @@ int main()
         passed &= check(rsp.vectorLane(3, lane) == lane + 17,
                         "VSUB broadcasts selected source lane");
 
+    // Vector comparisons write the selected operand and leave a VCC mask for VMRG.
+    rsp.reset();
+    const std::uint16_t compareLeft[8] = {1, 2, 3, 4, 0xFFFF, 0x8000, 7, 9};
+    const std::uint16_t compareRight[8] = {2, 2, 2, 4, 1, 0x7FFF, 7, 8};
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, compareLeft[lane]);
+        rsp.setVectorLane(2, lane, compareRight[lane]);
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x20)); // VLT
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(3, 0) == 1 &&
+                    rsp.vectorLane(3, 1) == 2 &&
+                    rsp.vectorLane(3, 2) == 2 &&
+                    rsp.vectorLane(3, 4) == 0xFFFF &&
+                    rsp.vectorLane(3, 5) == 0x8000,
+                    "VLT compares signed lanes and selects the lesser operand");
+    memory.write32(N64MemoryBus::SpImemBase + 4, vectorType(0, 2, 1, 4, 0x27)); // VMRG
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(4, 0) == 1 &&
+                    rsp.vectorLane(4, 1) == 2 &&
+                    rsp.vectorLane(4, 4) == 0xFFFF,
+                    "VMRG selects lanes using the VCC mask from VLT");
+
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, compareLeft[lane]);
+        rsp.setVectorLane(2, lane, compareRight[lane]);
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x21)); // VEQ
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(3, 1) == 2 &&
+                    rsp.vectorLane(3, 2) == 2 &&
+                    rsp.vectorLane(3, 3) == 4 &&
+                    rsp.vectorLane(3, 0) == 2,
+                    "VEQ selects VS only for equal lanes");
+
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, compareLeft[lane]);
+        rsp.setVectorLane(2, lane, compareRight[lane]);
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x22)); // VNE
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(3, 0) == 1 &&
+                    rsp.vectorLane(3, 1) == 2 &&
+                    rsp.vectorLane(3, 3) == 4,
+                    "VNE selects VS only for unequal lanes");
+
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, compareLeft[lane]);
+        rsp.setVectorLane(2, lane, compareRight[lane]);
+    }
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x23)); // VGE
+    passed &= check(rsp.step(memory, error) &&
+                    rsp.vectorLane(3, 0) == 2 &&
+                    rsp.vectorLane(3, 1) == 2 &&
+                    rsp.vectorLane(3, 2) == 3 &&
+                    rsp.vectorLane(3, 3) == 4,
+                    "VGE compares signed lanes and selects the greater operand");
+
     // VABS applies the sign of vs to the magnitude of vt.
     rsp.reset();
     rsp.setVectorLane(1, 0, 1);
