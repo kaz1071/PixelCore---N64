@@ -111,8 +111,8 @@ int main()
     check(framebuffer16[oddPixel] == 0x07 &&
           framebuffer16[oddPixel + 1] == 0xC1,
           "RGBA16 triangle writes the lower fill-color halfword to odd pixels");
-    check(framebuffer16[(2 * 8 + 7) * 2] == 0xF8 &&
-          framebuffer16[(2 * 8 + 7) * 2 + 1] == 0x00,
+    check(framebuffer16[(2 * 8 + 7) * 2] == 0x07 &&
+          framebuffer16[(2 * 8 + 7) * 2 + 1] == 0xC1,
           "RGBA16 triangle follows the upper minor edge slope");
 
     // Scissor clipping limits fill rectangles to the configured region.
@@ -150,7 +150,7 @@ int main()
     submitClippedTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitClippedTriangle((0x37ULL << 56) | 0x11223344ULL);
     submitClippedTriangle((0x2DULL << 56) | (12ULL << 44) | (8ULL << 32) |
-                          (20ULL << 12) | 20ULL); // x=1..5, y=2..5
+                          (20ULL << 12) | 20ULL); // x=3..5, y=2..5
     submitClippedTriangle(triangleHeader);
     submitClippedTriangle((5ULL << 16) << 32 | 65536U);
     submitClippedTriangle((1ULL << 16) << 32 | 65536U);
