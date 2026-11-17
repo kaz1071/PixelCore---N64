@@ -190,7 +190,8 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
     llBit_ = false; // Exceptions cancel an outstanding load-linked reservation.
     std::uint64_t &status = cp0Registers_[Status];
     std::uint64_t &cause = cp0Registers_[Cause];
-    if ((status & 0x2) == 0) {
+    const bool wasExceptionLevel = (status & 0x2) != 0;
+    if (!wasExceptionLevel) {
         cp0Registers_[EPC] = currentInstructionInDelaySlot_ ? faultAddress - 4 : faultAddress;
         if (currentInstructionInDelaySlot_)
             cause |= (1ULL << 31);
@@ -200,9 +201,9 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
     cause = (cause & ~0x7CULL) | (static_cast<std::uint64_t>(exceptionCode & 0x1F) << 2);
     if (hasBadAddress)
         cp0Registers_[BadVAddr] = faultAddress;
-    status |= 0x2; // EXL
     const bool tlbRefill = (exceptionCode == 2 || exceptionCode == 3) &&
-                           (status & 0x2) == 0;
+                           !wasExceptionLevel;
+    status |= 0x2; // EXL
     const std::uint64_t vector = tlbRefill
         ? ((status & (1ULL << 22)) ? BootstrapTlbRefillExceptionVector
                                    : TlbRefillExceptionVector)
