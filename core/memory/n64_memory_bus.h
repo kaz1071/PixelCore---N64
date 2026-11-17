@@ -2,6 +2,7 @@
 
 #include "core/cpu/r4300i.h"
 #include "core/pif/pif.h"
+#include "core/rdp/rdp.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -28,6 +29,15 @@ public:
     static constexpr std::uint64_t SpDmaBusy = SpRegisterBase + 0x18;
     static constexpr std::uint64_t SpSemaphore = SpRegisterBase + 0x1C;
     static constexpr std::uint64_t SpProgramCounter = 0x04080000ULL;
+    static constexpr std::uint64_t DpRegisterBase = 0x04100000ULL;
+    static constexpr std::uint64_t DpStart = DpRegisterBase;
+    static constexpr std::uint64_t DpEnd = DpRegisterBase + 0x04;
+    static constexpr std::uint64_t DpCurrent = DpRegisterBase + 0x08;
+    static constexpr std::uint64_t DpStatus = DpRegisterBase + 0x0C;
+    static constexpr std::uint64_t DpClock = DpRegisterBase + 0x10;
+    static constexpr std::uint64_t DpBufferBusy = DpRegisterBase + 0x14;
+    static constexpr std::uint64_t DpPipeBusy = DpRegisterBase + 0x18;
+    static constexpr std::uint64_t DpTmem = DpRegisterBase + 0x1C;
     static constexpr std::uint64_t PiRegisterBase = 0x04600000ULL;
     static constexpr std::uint64_t PiDramAddress = PiRegisterBase;
     static constexpr std::uint64_t PiCartAddress = PiRegisterBase + 0x04;
@@ -82,6 +92,8 @@ public:
     void clearPifRam();
     Pif &pif();
     const Pif &pif() const;
+    Rdp &rdp();
+    const Rdp &rdp() const;
 
     std::size_t cartridgeSize() const;
     std::size_t bootRomSize() const;
@@ -98,6 +110,7 @@ private:
     bool transferRdramToSaveRam(std::uint32_t lengthMinusOne);
     bool transferRdramToSp(std::uint32_t lengthControl);
     bool transferSpToRdram(std::uint32_t lengthControl);
+    void processRdpCommands();
     bool readImage(const std::vector<std::uint8_t> &image,
                    std::uint64_t offset, std::uint32_t &value) const;
 
@@ -109,6 +122,12 @@ private:
     std::vector<std::uint8_t> spImem_;
     std::vector<std::uint8_t> saveRam_;
     Pif pif_;
+    Rdp rdp_;
+    std::uint32_t dpStart_ = 0;
+    std::uint32_t dpEnd_ = 0;
+    std::uint32_t dpCurrent_ = 0;
+    std::uint32_t dpClock_ = 0;
+    std::uint32_t dpStatus_ = 0;
     std::uint32_t siDramAddress_ = 0;
     std::uint32_t siStatus_ = 0;
     std::uint32_t miInterrupts_ = 0;
