@@ -288,7 +288,7 @@ void MainWindow::updateRomDisplay()
     const double sizeMiB = static_cast<double>(loadedRomSize_) / (1024.0 * 1024.0);
 
     framebufferView_->setMessage(
-        QString("ROM loaded\\n\\n%1\\n%2\\n%3\\n%4 MiB\\n\\n"
+        QString("ROM loaded\n\n%1\n%2\n%3\n%4 MiB\n\n"
                 "Waiting for the emulated VI to produce a framebuffer.")
             .arg(fileInfo.fileName())
             .arg(loadedRomTitle_.isEmpty() ? "Title: (not set in ROM header)" :
@@ -308,13 +308,13 @@ void MainWindow::updateFramebuffer()
     std::uint32_t width = 0;
     if (!system_.memory().read32(N64MemoryBus::ViWidth, width) ||
         width == 0 || width > 640) {
-        framebufferView_->setMessage("ROM loaded\\n\\nWaiting for VI video configuration...");
+        framebufferView_->setMessage("ROM loaded\n\nWaiting for VI video configuration...");
         return;
     }
 
     std::vector<std::uint32_t> pixels;
     if (!system_.memory().renderFramebuffer(width, DisplayHeight, pixels)) {
-        framebufferView_->setMessage("ROM loaded\\n\\nWaiting for a valid VI framebuffer...");
+        framebufferView_->setMessage("ROM loaded\n\nWaiting for a valid VI framebuffer...");
         return;
     }
 
