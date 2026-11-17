@@ -579,15 +579,8 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         break;
     case 0x30: { // LL (Load Linked, 32-bit)
         const std::uint64_t address = a + offset;
-        std::uint64_t physicalAddress = 0;
         std::uint32_t value = 0;
-        if ((address & 3)) {
-            raiseException(4, address, true);
-            return true;
-        }
-        if (!translateAddress(address, false, physicalAddress, instructionAddress))
-            return true;
-        if (!memory.read32(physicalAddress, value)) {
+        if ((address & 3) || !memory.read32(address, value)) {
             raiseException(4, address, true);
             return true;
         }
@@ -636,8 +629,15 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     }
     case 0x23: { // LW
         const std::uint64_t address = a + offset;
+        std::uint64_t physicalAddress = 0;
         std::uint32_t value = 0;
-        if ((address & 3) || !memory.read32(address, value)) {
+        if (address & 3) {
+            raiseException(4, address, true);
+            return true;
+        }
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read32(physicalAddress, value)) {
             raiseException(4, address, true);
             return true;
         }
