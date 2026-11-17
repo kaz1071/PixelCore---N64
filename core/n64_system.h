@@ -16,6 +16,7 @@ public:
 
     void reset();
     bool step(std::string &error);
+    void advanceCpuCycles(std::uint32_t cycles);
     bool stepRsp(std::string &error);
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
