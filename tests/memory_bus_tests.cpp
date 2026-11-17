@@ -399,6 +399,36 @@ int main()
     passed &= check(bus.read32(N64MemoryBus::SpImemBase, word) && word == 0,
                     "system RAM reset also clears RSP instruction memory");
 
+    // DPC command DMA feeds big-endian 64-bit words into the RDP decoder.
+    N64MemoryBus dpBus;
+    passed &= check(dpBus.write32(0x100, 0x24000000),
+                    "write first word of an RDP texture rectangle command");
+    passed &= check(dpBus.write32(0x104, 0x00000000),
+                    "write second half of the RDP command header");
+    passed &= check(dpBus.write32(0x108, 0x12345678),
+                    "write first half of RDP texture rectangle parameters");
+    passed &= check(dpBus.write32(0x10C, 0x9ABCDEF0),
+                    "write second half of RDP texture rectangle parameters");
+    passed &= check(dpBus.write32(N64MemoryBus::DpStart, 0x100),
+                    "set DPC command-list start address");
+    passed &= check(dpBus.write32(N64MemoryBus::DpEnd, 0x110),
+                    "DPC end register starts command processing");
+    passed &= check(dpBus.rdp().completedCommands() == 1,
+                    "DPC DMA submits one complete texture rectangle command");
+    passed &= check(dpBus.rdp().lastOpcode() == 0x24 &&
+                    dpBus.rdp().lastWordCount() == 2,
+                    "RDP receives the complete two-word texture rectangle");
+    passed &= check(dpBus.read32(N64MemoryBus::DpCurrent, word) && word == 0x110,
+                    "DPC current address advances to the end pointer");
+    passed &= check(dpBus.read32(N64MemoryBus::DpClock, word) && word == 2,
+                    "DPC clock counts transferred 64-bit command words");
+    passed &= check(dpBus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x20U),
+                    "completed DPC command list raises the MI DP interrupt");
+    passed &= check(dpBus.write32(N64MemoryBus::DpStatus, 0x40),
+                    "DPC status acknowledges the DP interrupt");
+    passed &= check(dpBus.read32(N64MemoryBus::MiInterrupt, word) && !(word & 0x20U),
+                    "DPC acknowledgement clears the MI DP interrupt");
+
     if (!passed) return 1;
     std::cout << "All N64 memory bus tests passed.\n";
     return 0;
