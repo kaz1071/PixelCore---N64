@@ -86,8 +86,8 @@ int main()
           "upper triangle fills the second pixel in its span");
     check(framebuffer[(4 * 8 + 4) * 4] == 0xFF,
           "lower minor edge steps from XM at the middle scanline");
-    check(framebuffer[(2 * 8 + 6) * 4] == 0,
-          "edge-only triangle leaves pixels outside its edges untouched");
+    check(framebuffer[(2 * 8 + 7) * 4] == 0xFF,
+          "upper minor edge advances from the middle-edge origin");
 
     // Repeat the same triangle into an RGBA16 image. Fill color alternates
     // its upper/lower halfword by pixel parity, as the RDP fill mode does.
@@ -111,8 +111,9 @@ int main()
     check(framebuffer16[oddPixel] == 0x07 &&
           framebuffer16[oddPixel + 1] == 0xC1,
           "RGBA16 triangle writes the lower fill-color halfword to odd pixels");
-    check(framebuffer16[(2 * 8 + 6) * 2] == 0,
-          "RGBA16 triangle clips pixels beyond its right edge");
+    check(framebuffer16[(2 * 8 + 7) * 2] == 0xF8 &&
+          framebuffer16[(2 * 8 + 7) * 2 + 1] == 0x00,
+          "RGBA16 triangle follows the upper minor edge slope");
 
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
