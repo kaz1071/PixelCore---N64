@@ -5,6 +5,23 @@
 #include <array>
 #include <vector>
 
+struct RdpTileState
+{
+    std::uint8_t format = 0;
+    std::uint8_t size = 0;
+    std::uint16_t line = 0;
+    std::uint16_t tmem = 0;
+    std::uint8_t palette = 0;
+    std::uint8_t clampT = 0;
+    std::uint8_t mirrorT = 0;
+    std::uint8_t maskT = 0;
+    std::uint8_t shiftT = 0;
+    std::uint8_t clampS = 0;
+    std::uint8_t mirrorS = 0;
+    std::uint8_t maskS = 0;
+    std::uint8_t shiftS = 0;
+};
+
 // RDP command-stream decoder with an initial fill-rectangle rasterizer.
 class Rdp
 {
@@ -31,6 +48,7 @@ public:
     std::uint16_t primitiveDepth() const;
     std::uint16_t primitiveDeltaZ() const;
     std::int16_t conversionCoefficient(std::size_t index) const;
+    const RdpTileState &tile(std::size_t index) const;
 
 private:
     std::vector<std::uint64_t> pending_;
@@ -54,6 +72,7 @@ private:
     std::uint16_t primitiveDepth_ = 0;
     std::uint16_t primitiveDeltaZ_ = 0;
     std::array<std::int16_t, 6> conversionCoefficients_{};
+    std::array<RdpTileState, 8> tiles_{};
     std::uint32_t scissorLeft_ = 0;
     std::uint32_t scissorTop_ = 0;
     std::uint32_t scissorRight_ = 4096;
