@@ -180,6 +180,38 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
 
         switch (function)
         {
+        case 0x14: // VADDC: unsigned add, recording per-lane carry-out in VCO
+        {
+            std::uint16_t carries = 0;
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                const std::uint32_t sum =
+                    static_cast<std::uint32_t>(left[lane]) + source[lane];
+                vectorRegisters_[vd][lane] = static_cast<std::uint16_t>(sum);
+                if (sum > 0xFFFFU)
+                    carries |= static_cast<std::uint16_t>(1U << lane);
+            }
+            vectorCarry_ = carries;
+            vectorCompare_ = 0;
+            break;
+        }
+        case 0x15: // VSUBC: unsigned subtract, recording borrow and nonzero flags
+        {
+            std::uint16_t flags = 0;
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                const std::uint16_t difference =
+                    static_cast<std::uint16_t>(left[lane] - source[lane]);
+                vectorRegisters_[vd][lane] = difference;
+                if (left[lane] < source[lane])
+                    flags |= static_cast<std::uint16_t>(1U << lane);
+                if (difference != 0)
+                    flags |= static_cast<std::uint16_t>(1U << (lane + 8));
+            }
+            vectorCarry_ = flags;
+            vectorCompare_ = 0;
+            break;
+        }
         case 0x10: // VADD: signed saturated add with VCO carry-in
         case 0x11: // VSUB: signed saturated subtract with VCO borrow-in
             for (unsigned lane = 0; lane < 8; ++lane)
