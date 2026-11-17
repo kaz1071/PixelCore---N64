@@ -148,6 +148,30 @@ int main()
     passed &= check(!bus.read32(N64MemoryBus::CartridgeBase + 8, word),
                     "out-of-range cartridge read is rejected");
 
+    // VI register block and early framebuffer conversion.
+    std::vector<std::uint32_t> frame;
+    passed &= check(bus.write32(N64MemoryBus::ViControl, 2), "VI selects 16-bit RGBA mode");
+    passed &= check(bus.write32(N64MemoryBus::ViOrigin, 0x1000), "VI framebuffer origin");
+    passed &= check(bus.write32(N64MemoryBus::ViWidth, 2), "VI framebuffer width");
+    passed &= check(bus.write8(0x1000, 0xF8) && bus.write8(0x1001, 0x01) &&
+                    bus.write8(0x1002, 0x07) && bus.write8(0x1003, 0xC1),
+                    "write RGBA5551 framebuffer pixels");
+    passed &= check(bus.read32(N64MemoryBus::ViControl, word) && word == 2,
+                    "VI control register reads back");
+    passed &= check(bus.renderFramebuffer(2, 1, frame) && frame.size() == 2 &&
+                    frame[0] == 0xFFFF0000U && frame[1] == 0xFF00FF00U,
+                    "VI converts RGBA5551 to ARGB pixels");
+    passed &= check(bus.write32(N64MemoryBus::ViControl, 3), "VI selects 32-bit RGBA mode");
+    passed &= check(bus.write8(0x1000, 0x12) && bus.write8(0x1001, 0x34) &&
+                    bus.write8(0x1002, 0x56) && bus.write8(0x1003, 0x78),
+                    "write RGBA8888 framebuffer pixel");
+    passed &= check(bus.renderFramebuffer(1, 1, frame) && frame[0] == 0x78123456U,
+                    "VI converts RGBA8888 to ARGB pixels");
+    passed &= check(!bus.renderFramebuffer(3, 1, frame), "VI rejects width beyond VI_WIDTH");
+    passed &= check(bus.write32(N64MemoryBus::ViOrigin,
+                                static_cast<std::uint32_t>(N64MemoryBus::RdramSize - 2)) &&
+                    !bus.renderFramebuffer(2, 1, frame), "VI rejects out-of-bounds framebuffer");
+
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
                     "set PI destination RDRAM address");
