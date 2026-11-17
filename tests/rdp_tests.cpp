@@ -101,6 +101,23 @@ int main()
     check(rdp.conversionCoefficient(5) == 170, "SetConvert decodes K5");
     check(rdp.conversionCoefficient(6) == 0, "out-of-range conversion coefficient reads as zero");
 
+    const std::uint64_t setTile = (0x35ULL << 56) | (5ULL << 53) | (2ULL << 51) |
+        (0x12ULL << 41) | (0x34ULL << 32) | (3ULL << 24) | (9ULL << 20) |
+        (3ULL << 18) | (0xAULL << 14) | (0x5ULL << 10) | (2ULL << 8) |
+        (0xCULL << 4) | 0x7ULL;
+    check(rdp.pushCommandWord(setTile), "SetTile completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    const RdpTileState &decodedTile = rdp.tile(3);
+    check(decodedTile.format == 5 && decodedTile.size == 2, "SetTile decodes format and texel size");
+    check(decodedTile.line == 0x12 && decodedTile.tmem == 0x34, "SetTile decodes line and TMEM address");
+    check(decodedTile.palette == 9, "SetTile decodes palette");
+    check(decodedTile.clampT == 1 && decodedTile.mirrorT == 1 &&
+          decodedTile.maskT == 0xA && decodedTile.shiftT == 5, "SetTile decodes T wrapping and shift fields");
+    check(decodedTile.clampS == 1 && decodedTile.mirrorS == 0 &&
+          decodedTile.maskS == 0xC && decodedTile.shiftS == 7, "SetTile decodes S wrapping and shift fields");
+    check(rdp.tile(0).format == 0 && rdp.tile(8).format == 0,
+          "SetTile leaves other tiles untouched and invalid reads return defaults");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
@@ -119,6 +136,7 @@ int main()
           "reset clears primitive depth registers");
     check(rdp.conversionCoefficient(0) == 0 && rdp.conversionCoefficient(5) == 0,
           "reset clears conversion coefficients");
+    check(rdp.tile(3).format == 0 && rdp.tile(3).line == 0, "reset clears tile descriptors");
     check(rdp.primitiveMinLevel() == 0 && rdp.primitiveLodFraction() == 0,
           "reset clears primitive color LOD parameters");
     check(rdp.completedCommands() == 0, "reset clears command count");
