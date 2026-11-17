@@ -453,6 +453,41 @@ int main()
     passed &= check(cpu.cp0(R4300i::Index) == 7,
                     "TLBP honors PageMask when matching larger pages");
 
+    // Virtual-address translation: KSEG0 maps directly and a TLB entry
+    // translates a mapped virtual page for LW/SW.
+    memory.words.clear();
+    memory.words[base] = iType(0x23, 1, 2, 0); // LW r2,0(r1)
+    memory.words[base + 4] = iType(0x2B, 1, 3, 4); // SW r3,4(r1)
+    memory.words[0x100] = 0xCAFEBABEU;
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000); // Kernel mode, ERL clear.
+    cpu.setReg(1, 0xFFFFFFFF80000100ULL); // KSEG0 -> physical 0x100.
+    cpu.setReg(3, 0x12345678);
+    passed &= check(cpu.step(memory, error), "KSEG0 virtual LW executes");
+    passed &= check(cpu.reg(2) == 0xFFFFFFFFCAFEBABEULL,
+                    "KSEG0 virtual address maps to physical memory");
+    passed &= check(cpu.step(memory, error), "KSEG0 virtual SW executes");
+    passed &= check(memory.words[0x104] == 0x12345678,
+                    "KSEG0 virtual store writes translated physical address");
+
+    // Install a 4 KiB TLB page: VPN2 0x00400000, ASID 0x2A,
+    // even page PFN 0x20 (physical 0x20000), valid and dirty.
+    memory.words.clear();
+    memory.words[base] = iType(0x23, 1, 2, 0);
+    memory.words[0x20000] = 0x0BADF00DU;
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000); // Kernel mode, ERL clear.
+    cpu.setCp0(R4300i::EntryHi, 0x0040002A);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryLo0, (0x20ULL << 6) | 0x7ULL);
+    cpu.setCp0(R4300i::EntryLo1, (0x21ULL << 6) | 0x7ULL);
+    memory.words[base + 4] = tlbwi;
+    passed &= check(cpu.step(memory, error), "install TLB translation entry");
+    cpu.setReg(1, 0x00400080);
+    passed &= check(cpu.step(memory, error), "TLB-mapped LW executes");
+    passed &= check(cpu.reg(2) == 0xFFFFFFFF0BADF00DULL,
+                    "TLB-mapped LW reads translated physical page");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
