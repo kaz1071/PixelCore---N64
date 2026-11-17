@@ -492,6 +492,22 @@ int main()
     passed &= check(cpu.reg(2) == 0x0BADF00DULL,
                     "TLB-mapped LW reads translated physical page");
 
+    // A missing mapped page raises TLBL and selects the TLB refill vector.
+    memory.words.clear();
+    memory.words[base] = iType(0x23, 1, 2, 0);
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000); // Kernel mode, ERL and EXL clear.
+    cpu.setReg(1, 0x00600000);
+    passed &= check(cpu.step(memory, error), "TLB load miss is handled");
+    passed &= check(((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 2,
+                    "TLB load miss raises TLBL");
+    passed &= check(cpu.cp0(R4300i::BadVAddr) == 0x00600000,
+                    "TLB load miss records BadVAddr");
+    passed &= check(cpu.cp0(R4300i::EntryHi) == 0x00600000,
+                    "TLB load miss updates EntryHi VPN2");
+    passed &= check(cpu.pc() == R4300i::BootstrapTlbRefillExceptionVector,
+                    "TLB load miss selects bootstrap refill vector");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
