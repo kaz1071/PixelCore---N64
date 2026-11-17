@@ -529,6 +529,28 @@ int main()
                     memory.words[0x20088] == 0x11223344U,
                     "TLB-mapped SC uses physical reservation address");
 
+    // LLAddr reports the physical reservation granule, and an intervening
+    // ordinary store clears the reservation before a later SC.
+    memory.words.clear();
+    memory.words[base] = iType(0x30, 1, 2, 0); // LL r2,0(r1)
+    memory.words[base + 4] = iType(0x2B, 1, 3, 4); // SW r3,4(r1)
+    memory.words[base + 8] = iType(0x38, 1, 2, 0); // SC r2,0(r1)
+    memory.words[0x100] = 0x55667788U;
+    memory.words[0x104] = 0;
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000);
+    cpu.setReg(1, 0xFFFFFFFF80000100ULL);
+    cpu.setReg(3, 0xAABBCCDDU);
+    passed &= check(cpu.step(memory, error) && cpu.reg(2) == 0x55667788U,
+                    "LL establishes a reservation on the translated address");
+    passed &= check(cpu.cp0(R4300i::LLAddr) == 0x100,
+                    "LLAddr records the physical reservation granule");
+    passed &= check(cpu.step(memory, error) && memory.words[0x104] == 0xAABBCCDDU,
+                    "ordinary store executes between LL and SC");
+    passed &= check(cpu.step(memory, error) && cpu.reg(2) == 0 &&
+                    memory.words[0x100] == 0x55667788U,
+                    "intervening store makes SC fail without modifying memory");
+
     // A missing mapped page raises TLBL and selects the TLB refill vector.
     memory.words.clear();
     memory.words[base] = iType(0x23, 1, 2, 0);
