@@ -25,6 +25,8 @@ public:
     std::uint32_t fogColor() const;
     std::uint32_t primitiveColor() const;
     std::uint32_t environmentColor() const;
+    std::uint16_t primitiveDepth() const;
+    std::uint16_t primitiveDeltaZ() const;
 
 private:
     std::vector<std::uint64_t> pending_;
@@ -43,6 +45,8 @@ private:
     std::uint32_t fogColor_ = 0;
     std::uint32_t primitiveColor_ = 0;
     std::uint32_t environmentColor_ = 0;
+    std::uint16_t primitiveDepth_ = 0;
+    std::uint16_t primitiveDeltaZ_ = 0;
     std::uint32_t scissorLeft_ = 0;
     std::uint32_t scissorTop_ = 0;
     std::uint32_t scissorRight_ = 4096;
