@@ -2,7 +2,8 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <string>\n#include <vector>
+#include <string>
+#include <vector>
 
 namespace
 {
