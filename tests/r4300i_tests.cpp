@@ -567,6 +567,43 @@ int main()
     passed &= check(cpu.pc() == R4300i::BootstrapTlbRefillExceptionVector,
                     "TLB load miss selects bootstrap refill vector");
 
+    // A matching TLB entry with V=0 raises TLBL rather than behaving
+    // like a miss, while a valid read-only page rejects stores with TLBS.
+    memory.words.clear();
+    memory.words[base] = tlbwi;
+    memory.words[base + 4] = iType(0x23, 1, 2, 0); // LW
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000);
+    cpu.setCp0(R4300i::Index, 1);
+    cpu.setCp0(R4300i::EntryHi, 0x0040002A);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryLo0, 0x20ULL << 6); // V=0
+    cpu.setCp0(R4300i::EntryLo1, 0x21ULL << 6); // V=0
+    cpu.setReg(1, 0x00400000);
+    passed &= check(cpu.step(memory, error), "install invalid TLB entry");
+    passed &= check(cpu.step(memory, error) &&
+                    ((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 2 &&
+                    cpu.cp0(R4300i::BadVAddr) == 0x00400000,
+                    "TLB invalid load raises TLBL with BadVAddr");
+
+    memory.words.clear();
+    memory.words[base] = tlbwi;
+    memory.words[base + 4] = iType(0x2B, 1, 2, 0); // SW
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00400000);
+    cpu.setCp0(R4300i::Index, 1);
+    cpu.setCp0(R4300i::EntryHi, 0x0040002A);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryLo0, (0x20ULL << 6) | 0x2ULL); // V=1, D=0
+    cpu.setCp0(R4300i::EntryLo1, (0x21ULL << 6) | 0x2ULL);
+    cpu.setReg(1, 0x00400000);
+    cpu.setReg(2, 0x12345678);
+    passed &= check(cpu.step(memory, error), "install clean read-only TLB entry");
+    passed &= check(cpu.step(memory, error) &&
+                    ((cpu.cp0(R4300i::Cause) >> 2) & 0x1F) == 3 &&
+                    cpu.cp0(R4300i::BadVAddr) == 0x00400000,
+                    "store to clean TLB page raises TLBS with BadVAddr");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
