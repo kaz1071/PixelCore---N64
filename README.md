@@ -39,14 +39,15 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Initial SP DMA between RDRAM and RSP DMEM/IMEM, including block count and skip
 - [x] Initial scalar RSP core with integer arithmetic, HI/LO multiply/divide, branches, delay slots, and DMEM access
 - [x] Initial SP PC, HALT, and BROKE control/status integration
-- [x] Initial VI register block and RGBA5551/RGBA8888 framebuffer extraction\n- [ ] Complete hardware register models (MI, SI, PI, VI timing/interrupts, AI, RI)
+- [x] Initial VI register block and RGBA5551/RGBA8888 framebuffer extraction
+- [ ] Complete hardware register models (MI, SI, PI, VI timing/interrupts, AI, RI)
 - [ ] TLB and complete virtual-memory behavior
 - [ ] Complete RCP (RSP vector unit/COP0, RDP, and accurate device scheduling)
 - [ ] Audio processing
 - [x] Initial keyboard-to-PIF controller input mapping (game execution not active yet)
 - [ ] Save states
 
-CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, full interrupt coverage, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus also models the PIF's 64-byte RAM window and an early Joybus controller path supporting controller identification, reset, and button/stick reads. The initial SI DMA engine transfers the 64-byte command block between RDRAM and PIF RAM and invokes Joybus processing. Transfers are currently synchronous, but completion raises the SI interrupt through MI and the CPU can accept the external IP2 interrupt when enabled. Full asynchronous timing and other RCP interrupt sources remain unimplemented. Keyboard input is now mapped to controller 0's PIF state, but game execution/rendering is not active yet. Accessory protocols, full controller-pak behavior, CIC handling, and authentic IPL boot remain unimplemented. The desktop ROM loader now normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. The initial PI path transfers cartridge data into RDRAM and RDRAM data into an in-memory 128 KiB save-RAM window, and raises the PI interrupt through MI. Save data is not yet persisted to disk. The memory bus maps the RSP's 4 KiB data and instruction memories. The initial SP DMA engine moves data between RDRAM and DMEM/IMEM, including multi-block transfers; it is synchronous. The initial scalar RSP processor executes a starter subset of integer instructions from IMEM and can access DMEM. It supports basic SP PC/HALT/BROKE control, but vector instructions, COP0, complete SP status behavior, automatic RSP scheduling, and accurate RSP timing are not implemented. Initial SI, MI, and VI register paths are modeled. The VI can extract RGBA5551 or RGBA8888 pixels from RDRAM into an ARGB framebuffer, but scanout timing, VI interrupts, scaling, filtering, and the desktop display connection are not implemented yet; the remaining hardware devices are also incomplete. LL/SC and COP0 behavior are early simplified implementations. The automated test suite currently contains five targets covering the R4300i CPU, memory bus, system integration, ROM normalization, and scalar RSP. Features are checked off as they are implemented and tested.
+CPU instruction coverage is still incomplete. Arithmetic overflow exceptions, full TLB behavior, precise cycle timing, full interrupt coverage, and many coprocessor instructions are not implemented yet. The initial N64 system core owns the CPU and memory bus and can execute test instructions fetched from a mapped boot ROM. The memory bus also models the PIF's 64-byte RAM window and an early Joybus controller path supporting controller identification, reset, and button/stick reads. The initial SI DMA engine transfers the 64-byte command block between RDRAM and PIF RAM and invokes Joybus processing. Transfers are currently synchronous, but completion raises the SI interrupt through MI and the CPU can accept the external IP2 interrupt when enabled. Full asynchronous timing and other RCP interrupt sources remain unimplemented. Keyboard input is now mapped to controller 0's PIF state, but game execution/rendering is not active yet. Accessory protocols, full controller-pak behavior, CIC handling, and authentic IPL boot remain unimplemented. The desktop ROM loader normalizes .z64, .v64, and .n64 images into canonical big-endian bytes and maps the cartridge into the system core. The initial PI path transfers cartridge data into RDRAM and RDRAM data into an in-memory 128 KiB save-RAM window, and raises the PI interrupt through MI. Save data is not yet persisted to disk. The memory bus maps the RSP's 4 KiB data and instruction memories. The initial SP DMA engine moves data between RDRAM and DMEM/IMEM, including multi-block transfers; it is synchronous. The initial scalar RSP processor executes a starter subset of integer instructions from IMEM and can access DMEM. It supports basic SP PC/HALT/BROKE control, but vector instructions, COP0, complete SP status behavior, automatic RSP scheduling, and accurate RSP timing are not implemented. Initial SI, MI, and VI register paths are modeled. The VI can extract RGBA5551 or RGBA8888 pixels from RDRAM into an ARGB framebuffer, but scanout timing, VI interrupts, scaling, filtering, and the desktop display connection are not implemented yet; the remaining hardware devices are also incomplete. LL/SC and COP0 behavior are early simplified implementations. The automated test suite currently contains five targets covering the R4300i CPU, memory bus, system integration, ROM normalization, and scalar RSP. Features are checked off as they are implemented and tested.
 
 ## Dependencies
 
@@ -63,17 +64,37 @@ sudo apt install build-essential cmake qt6-base-dev
 
 ## Build
 
-From the repository root:
+Clone the repository and build it:
 
 ```bash
+git clone https://github.com/kaz1071/PixelCore---N64.git
+cd PixelCore---N64
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
 ```
 
-Run the application:
+Run directly from the build folder:
 
 ```bash
 ./build/pixelcore-n64
+```
+
+## Install
+
+To install PixelCore - N64 for the current Linux user, with its launcher and icon:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+cmake --build build -j"$(nproc)"
+cmake --install build
+```
+
+The executable is installed to `$HOME/.local/bin/pixelcore-n64`. The desktop launcher is generated using the install prefix selected at configure time, so it does not depend on the source checkout directory, the current working directory, or a particular Linux username. The icon is installed in the standard hicolor icon theme directory.
+
+If your desktop environment does not immediately show the launcher, log out and back in or refresh its application menu. To launch from a terminal after installation:
+
+```bash
+"$HOME/.local/bin/pixelcore-n64"
 ```
 
 ## ROM files
