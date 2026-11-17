@@ -129,9 +129,12 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         {
             const std::int64_t major = xh + dxhdy * (y - (yh >> 2));
             const bool lowerHalf = y >= middleY;
+            // XM is the minor-edge position at YM for both halves.
+            // Step backward from YM on the upper half and forward from YM
+            // on the lower half; anchoring the upper edge at YH shifts it.
             const std::int64_t minor = lowerHalf
                 ? xm + dxldy * (y - middleY)
-                : xm + dxmdy * (y - (yh >> 2));
+                : xm + dxmdy * (y - middleY);
             const int left = static_cast<int>(std::max<std::int64_t>(0, std::min(major, minor) >> 16));
             const int right = static_cast<int>(std::min<std::int64_t>(colorImageWidth_,
                 std::max(major, minor) >> 16));
