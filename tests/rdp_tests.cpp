@@ -77,6 +77,11 @@ int main()
     setColor(0x39, 0x50607080U);
     setColor(0x3A, 0x90A0B0C0U);
     setColor(0x3B, 0xD0E0F001U);
+    check(rdp.pushCommandWord((0x2EULL << 56) | (0xABCDULL << 16) | 0x1234ULL),
+          "SetPrimDepth completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.primitiveDepth() == 0xABCDU, "SetPrimDepth stores the depth value");
+    check(rdp.primitiveDeltaZ() == 0x1234U, "SetPrimDepth stores the delta-Z value");
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
@@ -89,6 +94,8 @@ int main()
     check(rdp.blendColor() == 0 && rdp.fogColor() == 0 &&
           rdp.primitiveColor() == 0 && rdp.environmentColor() == 0,
           "reset clears all RDP color registers");
+    check(rdp.primitiveDepth() == 0 && rdp.primitiveDeltaZ() == 0,
+          "reset clears primitive depth registers");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
