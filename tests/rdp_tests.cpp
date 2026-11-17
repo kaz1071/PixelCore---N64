@@ -114,6 +114,31 @@ int main()
     check(framebuffer16[(2 * 8 + 6) * 2] == 0,
           "RGBA16 triangle clips pixels beyond its right edge");
 
+    // Scissor clipping limits fill rectangles to the configured region.
+    Rdp clipped;
+    std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
+    const auto submitClipped = [&clipped, &clippedBuffer](std::uint64_t word) {
+        if (clipped.pushCommandWord(word))
+            clipped.executeLastCommand(clippedBuffer);
+    };
+    submitClipped((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitClipped((0x37ULL << 56) | 0xAABBCCDDULL);
+    submitClipped((0x2DULL << 56) | (8ULL << 44) | (4ULL << 32) |
+                  (20ULL << 12) | 16ULL); // x=2..5, y=1..4
+    submitClipped((0x36ULL << 56) | (28ULL << 12) | 28ULL); // full 7x7 rectangle
+    check(clippedBuffer[(1 * 8 + 2) * 4] == 0xAA,
+          "scissor permits pixels inside its top-left boundary");
+    check(clippedBuffer[(3 * 8 + 4) * 4] == 0xAA,
+          "scissor permits pixels inside its bottom-right boundary");
+    check(clippedBuffer[(0 * 8 + 2) * 4] == 0,
+          "scissor clips pixels above its top boundary");
+    check(clippedBuffer[(1 * 8 + 1) * 4] == 0,
+          "scissor clips pixels left of its boundary");
+    check(clippedBuffer[(1 * 8 + 5) * 4] == 0,
+          "scissor clips pixels at its exclusive right boundary");
+    check(clippedBuffer[(4 * 8 + 2) * 4] == 0,
+          "scissor clips pixels at its exclusive bottom boundary");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
