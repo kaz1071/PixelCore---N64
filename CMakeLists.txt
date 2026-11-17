@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(PixelCoreN64
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "A Nintendo 64 emulator for Linux"
     LANGUAGES CXX
 )
+
+include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,12 +39,30 @@ target_include_directories(pixelcore-n64 PRIVATE
 
 target_link_libraries(pixelcore-n64 PRIVATE Qt6::Widgets)
 
+target_compile_definitions(pixelcore-n64 PRIVATE
+    PIXELCORE_N64_VERSION="${PROJECT_VERSION}"
+)
+
 target_compile_options(pixelcore-n64 PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
 )
 
 install(TARGETS pixelcore-n64
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+configure_file(
+    data/pixelcore-n64.desktop.in
+    ${CMAKE_CURRENT_BINARY_DIR}/pixelcore-n64.desktop
+    @ONLY
+)
+
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/pixelcore-n64.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES assets/pixelcore-n64.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
 )
 
 include(CTest)
