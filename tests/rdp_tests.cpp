@@ -80,6 +80,31 @@ int main()
     check(framebuffer[(2 * 8 + 6) * 4] == 0,
           "edge-only triangle leaves pixels outside its edges untouched");
 
+    // Repeat the same triangle into an RGBA16 image. Fill color alternates
+    // its upper/lower halfword by pixel parity, as the RDP fill mode does.
+    Rdp raster16;
+    std::vector<std::uint8_t> framebuffer16(8 * 8 * 2, 0);
+    const auto submit16 = [&raster16, &framebuffer16](std::uint64_t word) {
+        if (raster16.pushCommandWord(word))
+            raster16.executeLastCommand(framebuffer16);
+    };
+    submit16((0x3FULL << 56) | (2ULL << 51) | (7ULL << 32));
+    submit16((0x37ULL << 56) | 0xF80007C1ULL);
+    submit16(triangleHeader);
+    submit16((1ULL << 16) << 32);
+    submit16((1ULL << 16) << 32);
+    submit16((5ULL << 16) << 32);
+    const std::size_t evenPixel = (2 * 8 + 2) * 2;
+    const std::size_t oddPixel = (2 * 8 + 3) * 2;
+    check(framebuffer16[evenPixel] == 0xF8 &&
+          framebuffer16[evenPixel + 1] == 0x00,
+          "RGBA16 triangle writes the upper fill-color halfword to even pixels");
+    check(framebuffer16[oddPixel] == 0x07 &&
+          framebuffer16[oddPixel + 1] == 0xC1,
+          "RGBA16 triangle writes the lower fill-color halfword to odd pixels");
+    check(framebuffer16[(2 * 8 + 6) * 2] == 0,
+          "RGBA16 triangle clips pixels beyond its right edge");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
