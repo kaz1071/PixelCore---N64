@@ -53,7 +53,22 @@ int main()
           rdp.lastCommand()[1] == 0x123456789ABCDEF0ULL,
           "complete command words are retained");
 
+    // SetOtherModes retains its 24-bit high and 32-bit low register fields.
+    const std::uint32_t expectedModesHigh = 0x00ABCDEFU;
+    const std::uint32_t expectedModesLow = 0x12345678U;
+    check(rdp.pushCommandWord((0x2FULL << 56) |
+          (static_cast<std::uint64_t>(expectedModesHigh) << 32) | expectedModesLow),
+          "SetOtherModes completes as a single-word command");
+    std::vector<std::uint8_t> commandBuffer;
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.otherModesHigh() == expectedModesHigh,
+          "SetOtherModes stores its high register bits");
+    check(rdp.otherModesLow() == expectedModesLow,
+          "SetOtherModes stores its low register bits");
+
     rdp.reset();
+    check(rdp.otherModesHigh() == 0 && rdp.otherModesLow() == 0,
+          "reset clears OtherModes registers");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
