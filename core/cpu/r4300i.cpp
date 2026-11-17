@@ -67,6 +67,17 @@ bool R4300i::translateAddress(std::uint64_t virtualAddress, bool isStore,
     const unsigned int mode = static_cast<unsigned int>((status >> 3) & 0x3);
     const bool kernelMode = (status & 0x6) != 0 || mode == 0;
     const bool errorLevel = (status & 0x4) != 0;
+    const auto raiseTlbFault = [&](unsigned int exceptionCode) {
+        const std::uint64_t asid = cp0Registers_[EntryHi] & 0xFFULL;
+        cp0Registers_[EntryHi] =
+            (static_cast<std::uint64_t>(address) & ~0x1FFFULL) | asid;
+        cp0Registers_[Context] =
+            (cp0Registers_[Context] & 0xFF800000ULL) |
+            ((static_cast<std::uint64_t>(address) >> 9) & 0x007FFFF0ULL);
+        raiseException(exceptionCode, instructionAddress);
+        cp0Registers_[BadVAddr] = virtualAddress;
+        return false;
+    };
 
     // The R4300i's ERL mode provides a direct-mapped kuseg window. This is
     // also useful immediately after reset, before the OS installs its TLB.
@@ -102,17 +113,10 @@ bool R4300i::translateAddress(std::uint64_t virtualAddress, bool isStore,
         const std::uint64_t pageSize = (pairMask + 1) / 2;
         const bool oddPage = (address & pageSize) != 0;
         const std::uint64_t entryLo = oddPage ? entry.entryLo1 : entry.entryLo0;
-        if ((entryLo & 2ULL) == 0) {
-            cp0Registers_[EntryHi] = (entry.entryHi & ~0xFFULL) | asid;
-            raiseException(isStore ? 3 : 2, instructionAddress);
-            cp0Registers_[BadVAddr] = virtualAddress;
-            return false;
-        }
-        if (isStore && (entryLo & 4ULL) == 0) {
-            raiseException(3, instructionAddress);
-            cp0Registers_[BadVAddr] = virtualAddress;
-            return false;
-        }
+        if ((entryLo & 2ULL) == 0)
+            return raiseTlbFault(isStore ? 3 : 2);
+        if (isStore && (entryLo & 4ULL) == 0)
+            return raiseTlbFault(3);
 
         const std::uint64_t offsetMask = pageSize - 1;
         const std::uint64_t physicalBase =
@@ -121,11 +125,7 @@ bool R4300i::translateAddress(std::uint64_t virtualAddress, bool isStore,
         return true;
     }
 
-    cp0Registers_[EntryHi] = (static_cast<std::uint64_t>(address) & ~0x1FFFULL) |
-                             (cp0Registers_[EntryHi] & 0xFFULL);
-    raiseException(isStore ? 3 : 2, instructionAddress);
-    cp0Registers_[BadVAddr] = virtualAddress;
-    return false;
+    return raiseTlbFault(isStore ? 3 : 2);
 }
 
 namespace {
@@ -201,8 +201,13 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
     if (hasBadAddress)
         cp0Registers_[BadVAddr] = faultAddress;
     status |= 0x2; // EXL
-    const std::uint64_t vector = (status & (1ULL << 22))
-        ? BootstrapExceptionVector : GeneralExceptionVector;
+    const bool tlbRefill = (exceptionCode == 2 || exceptionCode == 3) &&
+                           (status & 0x2) == 0;
+    const std::uint64_t vector = tlbRefill
+        ? ((status & (1ULL << 22)) ? BootstrapTlbRefillExceptionVector
+                                   : TlbRefillExceptionVector)
+        : ((status & (1ULL << 22)) ? BootstrapExceptionVector
+                                   : GeneralExceptionVector);
     pc_ = vector;
     nextPc_ = vector + 4;
     nextInstructionIsDelaySlot_ = false;
@@ -552,7 +557,6 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             }
             case 0x08: { // TLBP: probe for matching VPN2 and ASID/global entry.
                 cp0Registers_[Index] = 0x80000000ULL;
-                const std::uint64_t queryVpn = cp0Registers_[EntryHi] & ~0x1FFFULL;
                 const std::uint64_t queryAsid = cp0Registers_[EntryHi] & 0xFFULL;
                 for (unsigned int i = 0; i < tlb_.size(); ++i) {
                     const auto &entry = tlb_[i];
