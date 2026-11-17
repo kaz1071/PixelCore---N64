@@ -74,6 +74,26 @@ std::uint32_t low32(std::uint64_t value)
 {
     return static_cast<std::uint32_t>(value);
 }
+
+bool addOverflows32(std::uint32_t a, std::uint32_t b, std::uint32_t result)
+{
+    return ((~(a ^ b) & (a ^ result)) & 0x80000000U) != 0;
+}
+
+bool subOverflows32(std::uint32_t a, std::uint32_t b, std::uint32_t result)
+{
+    return (((a ^ b) & (a ^ result)) & 0x80000000U) != 0;
+}
+
+bool addOverflows64(std::uint64_t a, std::uint64_t b, std::uint64_t result)
+{
+    return ((~(a ^ b) & (a ^ result)) >> 63) != 0;
+}
+
+bool subOverflows64(std::uint64_t a, std::uint64_t b, std::uint64_t result)
+{
+    return (((a ^ b) & (a ^ result)) >> 63) != 0;
+}
 }
 
 void R4300i::reset()
@@ -234,7 +254,27 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             }
             break;
         }
+        case 0x20: { // ADD (signed 32-bit, traps on overflow)
+            const std::uint32_t lhs = low32(a), rhs = low32(b);
+            const std::uint32_t result = lhs + rhs;
+            if (addOverflows32(lhs, rhs, result)) {
+                raiseException(12, instructionAddress);
+                return true;
+            }
+            registers_[rd] = signExtend32(result);
+            break;
+        }
         case 0x21: registers_[rd] = signExtend32(low32(a + b)); break; // ADDU
+        case 0x22: { // SUB (signed 32-bit, traps on overflow)
+            const std::uint32_t lhs = low32(a), rhs = low32(b);
+            const std::uint32_t result = lhs - rhs;
+            if (subOverflows32(lhs, rhs, result)) {
+                raiseException(12, instructionAddress);
+                return true;
+            }
+            registers_[rd] = signExtend32(result);
+            break;
+        }
         case 0x23: registers_[rd] = signExtend32(low32(a - b)); break; // SUBU
         case 0x24: registers_[rd] = a & b; break; // AND
         case 0x25: registers_[rd] = a | b; break; // OR
@@ -242,9 +282,25 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         case 0x27: registers_[rd] = ~(a | b); break; // NOR
         case 0x2A: registers_[rd] = static_cast<std::int64_t>(a) < static_cast<std::int64_t>(b); break; // SLT
         case 0x2B: registers_[rd] = a < b; break; // SLTU
-        case 0x2C: registers_[rd] = a + b; break; // DADD (overflow trap not yet modeled)
+        case 0x2C: { // DADD (signed 64-bit, traps on overflow)
+            const std::uint64_t result = a + b;
+            if (addOverflows64(a, b, result)) {
+                raiseException(12, instructionAddress);
+                return true;
+            }
+            registers_[rd] = result;
+            break;
+        }
         case 0x2D: registers_[rd] = a + b; break; // DADDU
-        case 0x2E: registers_[rd] = a - b; break; // DSUB (overflow trap not yet modeled)
+        case 0x2E: { // DSUB (signed 64-bit, traps on overflow)
+            const std::uint64_t result = a - b;
+            if (subOverflows64(a, b, result)) {
+                raiseException(12, instructionAddress);
+                return true;
+            }
+            registers_[rd] = result;
+            break;
+        }
         case 0x2F: registers_[rd] = a - b; break; // DSUBU
         case 0x38: registers_[rd] = b << shift; break; // DSLL
         case 0x3A: registers_[rd] = b >> shift; break; // DSRL
@@ -303,7 +359,17 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         nextInstructionIsDelaySlot_ = true;
         return true;
     }
-    case 0x08: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDI (overflow trap not yet modeled)
+    case 0x08: { // ADDI (signed 32-bit immediate, traps on overflow)
+        const std::uint32_t lhs = low32(a);
+        const std::uint32_t rhs = static_cast<std::uint32_t>(offset);
+        const std::uint32_t result = lhs + rhs;
+        if (addOverflows32(lhs, rhs, result)) {
+            raiseException(12, instructionAddress);
+            return true;
+        }
+        registers_[rt] = signExtend32(result);
+        return true;
+    }
     case 0x09: registers_[rt] = signExtend32(low32(a + offset)); return true; // ADDIU
     case 0x0A: registers_[rt] = static_cast<std::int64_t>(a) < offset; return true; // SLTI
     case 0x0B: registers_[rt] = a < static_cast<std::uint64_t>(offset); return true; // SLTIU
@@ -311,7 +377,16 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     case 0x0D: registers_[rt] = a | immediate; return true; // ORI
     case 0x0E: registers_[rt] = a ^ immediate; return true; // XORI
     case 0x0F: registers_[rt] = signExtend32(static_cast<std::uint32_t>(immediate) << 16); return true; // LUI
-    case 0x18: registers_[rt] = a + offset; return true; // DADDI (overflow trap not yet modeled)
+    case 0x18: { // DADDI (signed 64-bit immediate, traps on overflow)
+        const std::uint64_t rhs = static_cast<std::uint64_t>(offset);
+        const std::uint64_t result = a + rhs;
+        if (addOverflows64(a, rhs, result)) {
+            raiseException(12, instructionAddress);
+            return true;
+        }
+        registers_[rt] = result;
+        return true;
+    }
     case 0x19: registers_[rt] = a + offset; return true; // DADDIU
     case 0x10: // COP0
         if (rs == 0x00) { // MFC0
