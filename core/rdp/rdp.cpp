@@ -14,6 +14,8 @@ void Rdp::reset()
     colorImageFormat_ = 0;
     colorImageSize_ = 0;
     fillColor_ = 0;
+    otherModesHigh_ = 0;
+    otherModesLow_ = 0;
     scissorLeft_ = 0;
     scissorTop_ = 0;
     scissorRight_ = 4096;
@@ -66,6 +68,11 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
 
     case 0x37: // SetFillColor
         fillColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x2F: // SetOtherModes
+        otherModesHigh_ = static_cast<std::uint32_t>((command >> 32) & 0x00FFFFFFU);
+        otherModesLow_ = static_cast<std::uint32_t>(command);
         break;
 
     case 0x36: // FillRectangle
@@ -216,4 +223,13 @@ std::size_t Rdp::lastWordCount() const
 const std::vector<std::uint64_t> &Rdp::lastCommand() const
 {
     return lastCommand_;
+}
+std::uint32_t Rdp::otherModesHigh() const
+{
+    return otherModesHigh_;
+}
+
+std::uint32_t Rdp::otherModesLow() const
+{
+    return otherModesLow_;
 }
