@@ -310,6 +310,19 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
     return true;
 }
 
+void N64MemoryBus::advanceViCycles(std::uint32_t cpuCycles)
+{
+    // Approximate NTSC R4300i clock divided by 60 Hz and 525 scanlines.
+    // CPU instruction timing is currently one cycle per successful step;
+    // this is a deterministic early scheduler, not cycle-accurate hardware.
+    constexpr std::uint32_t CpuCyclesPerScanline = 29762;
+    const std::uint64_t accumulated = static_cast<std::uint64_t>(viCycleRemainder_) + cpuCycles;
+    const std::uint32_t scanlines = static_cast<std::uint32_t>(accumulated / CpuCyclesPerScanline);
+    viCycleRemainder_ = static_cast<std::uint32_t>(accumulated % CpuCyclesPerScanline);
+    if (scanlines != 0)
+        advanceViScanlines(scanlines);
+}
+
 void N64MemoryBus::advanceViScanlines(std::uint32_t scanlines)
 {
     // VI_V_SYNC specifies the number of scanlines in a frame. A zero value
@@ -404,6 +417,7 @@ void N64MemoryBus::clearPifRam()
     spSemaphore_ = 0;
     spProgramCounter_ = 0;
     std::fill(viRegisters_, viRegisters_ + ViRegisterCount, 0);
+    viCycleRemainder_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
