@@ -346,6 +346,51 @@ int main()
                     cpu.reg(3) == 0xFFFFFFFFFFFFFFFEULL,
                     "SUB sign-extends a negative 32-bit result");
 
+
+    // 64-bit multiply/divide instructions use the full HI/LO datapath.
+    memory.words.clear();
+    memory.words[base] = rType(1, 2, 0, 0, 0x1C); // DMULT
+    cpu.reset();
+    cpu.setReg(1, 0xFFFFFFFFFFFFFFFEULL); // -2
+    cpu.setReg(2, 3);
+    passed &= check(cpu.step(memory, error), "DMULT executes");
+    passed &= check(cpu.lo() == 0xFFFFFFFFFFFFFFFAULL &&
+                    cpu.hi() == 0xFFFFFFFFFFFFFFFFULL,
+                    "DMULT produces signed 128-bit product");
+
+    memory.words[base] = rType(1, 2, 0, 0, 0x1D); // DMULTU
+    cpu.reset();
+    cpu.setReg(1, 0xFFFFFFFFFFFFFFFFULL);
+    cpu.setReg(2, 2);
+    passed &= check(cpu.step(memory, error), "DMULTU executes");
+    passed &= check(cpu.lo() == 0xFFFFFFFFFFFFFFFEULL && cpu.hi() == 1,
+                    "DMULTU produces unsigned 128-bit product");
+
+    memory.words[base] = rType(1, 2, 0, 0, 0x1E); // DDIV
+    cpu.reset();
+    cpu.setReg(1, static_cast<std::uint64_t>(-100LL));
+    cpu.setReg(2, 7);
+    passed &= check(cpu.step(memory, error), "DDIV executes");
+    passed &= check(cpu.lo() == static_cast<std::uint64_t>(-14LL) &&
+                    cpu.hi() == static_cast<std::uint64_t>(-2LL),
+                    "DDIV stores signed quotient and remainder");
+
+    memory.words[base] = rType(1, 2, 0, 0, 0x1F); // DDIVU
+    cpu.reset();
+    cpu.setReg(1, 100);
+    cpu.setReg(2, 7);
+    passed &= check(cpu.step(memory, error), "DDIVU executes");
+    passed &= check(cpu.lo() == 14 && cpu.hi() == 2,
+                    "DDIVU stores unsigned quotient and remainder");
+
+    // Divide by zero leaves HI/LO unchanged.
+    cpu.reset();
+    cpu.setReg(1, 123);
+    cpu.setReg(2, 0);
+    passed &= check(cpu.step(memory, error), "DDIVU by zero is handled");
+    passed &= check(cpu.lo() == 0 && cpu.hi() == 0,
+                    "DDIVU by zero preserves HI/LO");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
