@@ -214,6 +214,19 @@ int main()
     passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x40),
                     "disable VI interrupt in MI mask");
 
+    passed &= check(bus.write32(N64MemoryBus::ViVSync, 4) &&
+                    bus.write32(N64MemoryBus::ViCurrent, 0),
+                    "reset VI timing before cycle-clock test");
+    bus.advanceViCycles(29761);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+                    "VI does not advance before a full scanline of CPU cycles");
+    bus.advanceViCycles(1);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 1,
+                    "VI advances after one NTSC scanline worth of CPU cycles");
+    bus.advanceViCycles(29762U * 3U);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+                    "cycle-driven VI timing wraps at the configured frame length");
+
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
                     "set PI destination RDRAM address");
