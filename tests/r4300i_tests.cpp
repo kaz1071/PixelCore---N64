@@ -391,6 +391,53 @@ int main()
     passed &= check(cpu.lo() == 0 && cpu.hi() == 0,
                     "DDIVU by zero preserves HI/LO");
 
+
+    // TLB management instructions: indexed write/read and probe by VPN2 + ASID.
+    const std::uint32_t cop0 = 0x10U << 26;
+    const std::uint32_t tlbwi = cop0 | (0x10U << 21) | 0x02U;
+    const std::uint32_t tlbr = cop0 | (0x10U << 21) | 0x01U;
+    const std::uint32_t tlbp = cop0 | (0x10U << 21) | 0x08U;
+    cpu.reset();
+    cpu.setCp0(R4300i::Index, 5);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryHi, 0x0045602A);
+    cpu.setCp0(R4300i::EntryLo0, 0x12345);
+    cpu.setCp0(R4300i::EntryLo1, 0x23457);
+    memory.words.clear();
+    memory.words[base] = tlbwi;
+    passed &= check(cpu.step(memory, error), "TLBWI executes");
+    cpu.setCp0(R4300i::EntryHi, 0);
+    memory.words[base + 4] = tlbr;
+    passed &= check(cpu.step(memory, error), "TLBR executes");
+    passed &= check(cpu.cp0(R4300i::EntryHi) == 0x0045602A &&
+                    cpu.cp0(R4300i::EntryLo0) == 0x12345 &&
+                    cpu.cp0(R4300i::EntryLo1) == 0x23457,
+                    "TLBR restores indexed TLB entry into CP0 registers");
+
+    memory.words[base + 8] = tlbp;
+    cpu.setCp0(R4300i::EntryHi, 0x0045602A);
+    passed &= check(cpu.step(memory, error), "TLBP executes");
+    passed &= check(cpu.cp0(R4300i::Index) == 5,
+                    "TLBP finds matching VPN2 and ASID");
+
+    cpu.setCp0(R4300i::EntryHi, 0x0045602B); // Different ASID, not global.
+    passed &= check(cpu.step(memory, error), "TLBP handles nonmatching ASID");
+    passed &= check((cpu.cp0(R4300i::Index) & 0x80000000ULL) != 0,
+                    "TLBP sets probe-failure bit when ASID differs");
+
+    // Global bit in both EntryLo halves permits a match across ASIDs.
+    cpu.setCp0(R4300i::EntryHi, 0x0045602A);
+    cpu.setCp0(R4300i::EntryLo0, 0x12345 | 1);
+    cpu.setCp0(R4300i::EntryLo1, 0x23457 | 1);
+    cpu.setCp0(R4300i::Index, 6);
+    memory.words[base + 12] = tlbwi;
+    passed &= check(cpu.step(memory, error), "write global TLB entry");
+    cpu.setCp0(R4300i::EntryHi, 0x0045607F);
+    memory.words[base + 16] = tlbp;
+    passed &= check(cpu.step(memory, error), "probe global TLB entry");
+    passed &= check(cpu.cp0(R4300i::Index) == 6,
+                    "TLBP matches global entry regardless of ASID");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
