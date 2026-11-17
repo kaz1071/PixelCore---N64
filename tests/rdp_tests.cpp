@@ -22,13 +22,19 @@ void check(bool condition, const std::string &message)
 int main()
 {
     check(Rdp::commandWordCount(0x08) == 4, "fill triangle packet has four words");
-    check(Rdp::commandWordCount(0x09) == 6, "shaded triangle packet has six words");
-    check(Rdp::commandWordCount(0x0A) == 6, "textured triangle packet has six words");
-    check(Rdp::commandWordCount(0x0B) == 8, "shaded textured triangle packet has eight words");
+    check(Rdp::commandWordCount(0x09) == 12, "shaded triangle packet has twelve words");
+    check(Rdp::commandWordCount(0x0A) == 12, "textured triangle packet has twelve words");
+    check(Rdp::commandWordCount(0x0B) == 20, "shaded textured triangle packet has twenty words");
     check(Rdp::commandWordCount(0x0C) == 6, "depth triangle packet has six words");
-    check(Rdp::commandWordCount(0x0D) == 8, "shaded depth triangle packet has eight words");
-    check(Rdp::commandWordCount(0x0E) == 8, "textured depth triangle packet has eight words");
-    check(Rdp::commandWordCount(0x0F) == 10, "full triangle packet has ten words");
+    check(Rdp::commandWordCount(0x08) + 8 == Rdp::commandWordCount(0x09),
+          "shade coefficients add eight command words");
+    check(Rdp::commandWordCount(0x08) + 8 == Rdp::commandWordCount(0x0A),
+          "texture coefficients add eight command words");
+    check(Rdp::commandWordCount(0x08) + 2 == Rdp::commandWordCount(0x0C),
+          "depth coefficients add two command words");
+    check(Rdp::commandWordCount(0x0D) == 14, "shaded depth triangle packet has fourteen words");
+    check(Rdp::commandWordCount(0x0E) == 14, "textured depth triangle packet has fourteen words");
+    check(Rdp::commandWordCount(0x0F) == 22, "full triangle packet has twenty-two words");
     check(Rdp::commandWordCount(0x24) == 2, "texture rectangle packet has two words");
     check(Rdp::commandWordCount(0x25) == 2, "flipped texture rectangle packet has two words");
     check(Rdp::commandWordCount(0x2F) == 1, "single-word command has one word");
