@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PixelCore - N64
+Comment=Nintendo 64 emulator
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/pixelcore-n64
+Icon=pixelcore-n64
+Terminal=false
+Categories=Game;Emulator;
