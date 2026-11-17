@@ -502,6 +502,7 @@ int main()
     memory.words[base + 20] = iType(0x30, 1, 6, 8); // LL
     memory.words[base + 24] = iType(0x38, 1, 6, 8); // SC
     memory.words[0x20080] = 0x80AA1234U;
+    memory.words[0x20084] = 0;
     memory.words[0x20088] = 0x11223344U;
     cpu.reset();
     cpu.setCp0(R4300i::Status, 0x00400000);
