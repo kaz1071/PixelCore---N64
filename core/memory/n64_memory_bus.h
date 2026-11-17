@@ -45,6 +45,22 @@ public:
     static constexpr std::uint64_t MiVersion = MiRegisterBase + 0x04;
     static constexpr std::uint64_t MiInterrupt = MiRegisterBase + 0x08;
     static constexpr std::uint64_t MiInterruptMask = MiRegisterBase + 0x0C;
+    static constexpr std::uint64_t ViRegisterBase = 0x04400000ULL;
+    static constexpr std::uint64_t ViControl = ViRegisterBase;
+    static constexpr std::uint64_t ViOrigin = ViRegisterBase + 0x04;
+    static constexpr std::uint64_t ViWidth = ViRegisterBase + 0x08;
+    static constexpr std::uint64_t ViInterrupt = ViRegisterBase + 0x0C;
+    static constexpr std::uint64_t ViCurrent = ViRegisterBase + 0x10;
+    static constexpr std::uint64_t ViBurst = ViRegisterBase + 0x14;
+    static constexpr std::uint64_t ViVSync = ViRegisterBase + 0x18;
+    static constexpr std::uint64_t ViHSync = ViRegisterBase + 0x1C;
+    static constexpr std::uint64_t ViLeap = ViRegisterBase + 0x20;
+    static constexpr std::uint64_t ViHStart = ViRegisterBase + 0x24;
+    static constexpr std::uint64_t ViVStart = ViRegisterBase + 0x28;
+    static constexpr std::uint64_t ViVBurst = ViRegisterBase + 0x2C;
+    static constexpr std::uint64_t ViXScale = ViRegisterBase + 0x30;
+    static constexpr std::uint64_t ViYScale = ViRegisterBase + 0x34;
+    static constexpr std::size_t ViRegisterCount = 14;
     static constexpr std::size_t PifRamSize = 64;
 
     N64MemoryBus();
@@ -69,6 +85,7 @@ public:
 
     std::size_t cartridgeSize() const;
     std::size_t bootRomSize() const;
+    bool renderFramebuffer(std::uint32_t width, std::uint32_t height, std::vector<std::uint32_t> &pixels) const;
 
 private:
     static std::uint64_t toPhysicalAddress(std::uint64_t address);
@@ -106,4 +123,5 @@ private:
     std::uint32_t spStatus_ = 1;
     std::uint32_t spSemaphore_ = 0;
     std::uint32_t spProgramCounter_ = 0;
+    std::uint32_t viRegisters_[ViRegisterCount]{};
 };
