@@ -139,6 +139,10 @@ int main()
     check(rdp.tile(3).loadStartS == 0x111 && rdp.tile(3).loadStartT == 0x222 &&
           rdp.tile(3).loadEndS == 0x333 && rdp.tile(3).loadEndT == 0 &&
           rdp.tile(3).loadDxt == 0x444, "LoadBlock decodes coordinates and DXT");
+    commandBuffer.resize(0x10000);
+    check(rdp.pushCommandWord((0x3DULL << 56) | (1023ULL << 32)),
+          "SetTextureImage configures a valid source image for LoadTile");
+    rdp.executeLastCommand(commandBuffer);
     const std::uint64_t loadTile = (0x34ULL << 56) | (0x055ULL << 44) |
         (0x066ULL << 32) | (3ULL << 24) | (0x077ULL << 12) | 0x088ULL;
     check(rdp.pushCommandWord(loadTile), "LoadTile completes as a single-word command");
