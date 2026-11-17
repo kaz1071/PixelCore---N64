@@ -25,6 +25,8 @@ public:
     std::uint32_t blendColor() const;
     std::uint32_t fogColor() const;
     std::uint32_t primitiveColor() const;
+    std::uint8_t primitiveMinLevel() const;
+    std::uint8_t primitiveLodFraction() const;
     std::uint32_t environmentColor() const;
     std::uint16_t primitiveDepth() const;
     std::uint16_t primitiveDeltaZ() const;
@@ -46,6 +48,8 @@ private:
     std::uint32_t blendColor_ = 0;
     std::uint32_t fogColor_ = 0;
     std::uint32_t primitiveColor_ = 0;
+    std::uint8_t primitiveMinLevel_ = 0;
+    std::uint8_t primitiveLodFraction_ = 0;
     std::uint32_t environmentColor_ = 0;
     std::uint16_t primitiveDepth_ = 0;
     std::uint16_t primitiveDeltaZ_ = 0;
