@@ -19,6 +19,8 @@ void Rdp::reset()
     blendColor_ = 0;
     fogColor_ = 0;
     primitiveColor_ = 0;
+    primitiveMinLevel_ = 0;
+    primitiveLodFraction_ = 0;
     environmentColor_ = 0;
     primitiveDepth_ = 0;
     primitiveDeltaZ_ = 0;
@@ -106,6 +108,8 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         break;
 
     case 0x3A: // SetPrimitiveColor
+        primitiveMinLevel_ = static_cast<std::uint8_t>((command >> 40) & 0xFFU);
+        primitiveLodFraction_ = static_cast<std::uint8_t>((command >> 32) & 0xFFU);
         primitiveColor_ = static_cast<std::uint32_t>(command);
         break;
 
@@ -290,6 +294,16 @@ std::uint32_t Rdp::fogColor() const
 std::uint32_t Rdp::primitiveColor() const
 {
     return primitiveColor_;
+}
+
+std::uint8_t Rdp::primitiveMinLevel() const
+{
+    return primitiveMinLevel_;
+}
+
+std::uint8_t Rdp::primitiveLodFraction() const
+{
+    return primitiveLodFraction_;
 }
 
 std::uint32_t Rdp::environmentColor() const
