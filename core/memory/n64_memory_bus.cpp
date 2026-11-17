@@ -481,7 +481,8 @@ void N64MemoryBus::processRdpCommands()
             (static_cast<std::uint64_t>(rdram_[offset + 6]) << 8) |
              static_cast<std::uint64_t>(rdram_[offset + 7]);
 
-        rdp_.pushCommandWord(word);
+        if (rdp_.pushCommandWord(word))
+            rdp_.executeLastCommand(rdram_);
         dpCurrent_ += 8;
         ++dpClock_;
     }
