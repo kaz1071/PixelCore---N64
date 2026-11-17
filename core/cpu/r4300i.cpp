@@ -254,6 +254,43 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             }
             break;
         }
+
+        case 0x1C: { // DMULT (signed 64-bit multiply)
+            const __int128 product = static_cast<__int128>(static_cast<std::int64_t>(a)) *
+                                     static_cast<__int128>(static_cast<std::int64_t>(b));
+            const unsigned __int128 bits = static_cast<unsigned __int128>(product);
+            lo_ = static_cast<std::uint64_t>(bits);
+            hi_ = static_cast<std::uint64_t>(bits >> 64);
+            break;
+        }
+        case 0x1D: { // DMULTU (unsigned 64-bit multiply)
+            const unsigned __int128 product = static_cast<unsigned __int128>(a) *
+                                              static_cast<unsigned __int128>(b);
+            lo_ = static_cast<std::uint64_t>(product);
+            hi_ = static_cast<std::uint64_t>(product >> 64);
+            break;
+        }
+        case 0x1E: { // DDIV (signed 64-bit divide)
+            const std::int64_t dividend = static_cast<std::int64_t>(a);
+            const std::int64_t divisor = static_cast<std::int64_t>(b);
+            if (divisor != 0) {
+                if (dividend == std::numeric_limits<std::int64_t>::min() && divisor == -1) {
+                    lo_ = 0x8000000000000000ULL;
+                    hi_ = 0;
+                } else {
+                    lo_ = static_cast<std::uint64_t>(dividend / divisor);
+                    hi_ = static_cast<std::uint64_t>(dividend % divisor);
+                }
+            }
+            break;
+        }
+        case 0x1F: { // DDIVU (unsigned 64-bit divide)
+            if (b != 0) {
+                lo_ = a / b;
+                hi_ = a % b;
+            }
+            break;
+        }
         case 0x20: { // ADD (signed 32-bit, traps on overflow)
             const std::uint32_t lhs = low32(a), rhs = low32(b);
             const std::uint32_t result = lhs + rhs;
