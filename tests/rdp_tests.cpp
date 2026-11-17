@@ -68,11 +68,11 @@ int main()
     submit((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submit((0x37ULL << 56) | 0xFF0000FFULL);
     const std::uint64_t triangleHeader =
-        (0x08ULL << 56) | (4ULL << 32) | (4ULL << 16) | 20ULL;
+        (0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL;
     submit(triangleHeader);
-    submit((1ULL << 48) | 0ULL); // xh=1, dxh/dy=0
-    submit((5ULL << 48) | 0ULL); // xm=5, dxm/dy=0
-    submit((1ULL << 48) | 0xFFFF0000ULL); // xl=1, dxl/dy=-1
+    submit((1ULL << 16) << 32); // XL=1.0, DXLDY=0
+    submit((1ULL << 16) << 32); // XH=1.0, DXHDY=0
+    submit((5ULL << 16) << 32); // XM=5.0, DXMDY=0
     check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
           framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
           "edge-only triangle fills an interior pixel");
