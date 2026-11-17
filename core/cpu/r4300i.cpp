@@ -584,56 +584,6 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         break;
     case 0x30: { // LL (Load Linked, 32-bit)
         const std::uint64_t address = a + offset;
-        std::uint32_t value = 0;
-        if ((address & 3) || !memory.read32(address, value)) {
-            raiseException(4, address, true);
-            return true;
-        }
-        registers_[rt] = signExtend32(value);
-        llAddress_ = address;
-        llBit_ = true;
-        cp0Registers_[LLAddr] = address & ~0xFULL;
-        return true;
-    }
-    case 0x20: { // LB
-        const std::uint64_t address = a + offset;
-        std::uint8_t value = 0;
-        if (!memory.read8(address, value)) {
-            raiseException(4, address, true);
-            return true;
-        }
-        registers_[rt] = static_cast<std::int64_t>(static_cast<std::int8_t>(value));
-        return true;
-    }
-    case 0x21: { // LH
-        const std::uint64_t address = a + offset;
-        std::uint16_t value = 0;
-        if ((address & 1) || !memory.read16(address, value)) {
-            raiseException(4, address, true);
-            return true;
-        }
-        registers_[rt] = static_cast<std::int64_t>(static_cast<std::int16_t>(value));
-        return true;
-    }
-    case 0x22: { // LWL (big-endian)
-        const std::uint64_t address = a + offset;
-        const std::uint64_t aligned = address & ~3ULL;
-        std::uint32_t memoryWord = 0;
-        if (!memory.read32(aligned, memoryWord)) {
-            raiseException(4, address, true);
-            return true;
-        }
-        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
-        const unsigned int shift = byteOffset * 8;
-        const std::uint32_t preserveMask = byteOffset == 0
-            ? 0U : (0xFFFFFFFFU >> ((4 - byteOffset) * 8));
-        const std::uint32_t merged = (memoryWord << shift) |
-                                     (low32(b) & preserveMask);
-        registers_[rt] = signExtend32(merged);
-        return true;
-    }
-    case 0x23: { // LW
-        const std::uint64_t address = a + offset;
         std::uint64_t physicalAddress = 0;
         std::uint32_t value = 0;
         if (address & 3) {
@@ -647,133 +597,157 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             return true;
         }
         registers_[rt] = signExtend32(value);
+        llAddress_ = physicalAddress;
+        llBit_ = true;
+        cp0Registers_[LLAddr] = physicalAddress & ~0xFULL;
         return true;
     }
+    case 0x20: // LB
     case 0x24: { // LBU
         const std::uint64_t address = a + offset;
+        std::uint64_t physicalAddress = 0;
         std::uint8_t value = 0;
-        if (!memory.read8(address, value)) {
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read8(physicalAddress, value)) {
             raiseException(4, address, true);
             return true;
         }
-        registers_[rt] = value;
+        registers_[rt] = opcode == 0x20
+            ? static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<std::int8_t>(value)))
+            : value;
         return true;
     }
+    case 0x21: // LH
     case 0x25: { // LHU
         const std::uint64_t address = a + offset;
+        std::uint64_t physicalAddress = 0;
         std::uint16_t value = 0;
-        if ((address & 1) || !memory.read16(address, value)) {
+        if (address & 1) {
             raiseException(4, address, true);
             return true;
         }
-        registers_[rt] = value;
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read16(physicalAddress, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = opcode == 0x21
+            ? static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<std::int16_t>(value)))
+            : value;
         return true;
     }
+    case 0x22: // LWL (big-endian)
     case 0x26: { // LWR (big-endian)
         const std::uint64_t address = a + offset;
-        const std::uint64_t aligned = address & ~3ULL;
+        std::uint64_t physicalAddress = 0;
         std::uint32_t memoryWord = 0;
-        if (!memory.read32(aligned, memoryWord)) {
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read32(physicalAddress & ~3ULL, memoryWord)) {
             raiseException(4, address, true);
             return true;
         }
         const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
-        const unsigned int shift = (3 - byteOffset) * 8;
-        const std::uint32_t preserveMask = byteOffset == 3
-            ? 0U : (0xFFFFFFFFU << ((byteOffset + 1) * 8));
-        const std::uint32_t merged = (memoryWord >> shift) |
-                                     (low32(b) & preserveMask);
-        registers_[rt] = signExtend32(merged);
+        if (opcode == 0x22) {
+            const unsigned int shift = byteOffset * 8;
+            const std::uint32_t preserveMask = byteOffset == 0
+                ? 0U : (0xFFFFFFFFU >> ((4 - byteOffset) * 8));
+            registers_[rt] = signExtend32((memoryWord << shift) |
+                                          (low32(b) & preserveMask));
+        } else {
+            const unsigned int shift = (3 - byteOffset) * 8;
+            const std::uint32_t preserveMask = byteOffset == 3
+                ? 0U : (0xFFFFFFFFU << ((byteOffset + 1) * 8));
+            registers_[rt] = signExtend32((memoryWord >> shift) |
+                                          (low32(b) & preserveMask));
+        }
         return true;
     }
+    case 0x23: // LW
     case 0x27: { // LWU
         const std::uint64_t address = a + offset;
+        std::uint64_t physicalAddress = 0;
         std::uint32_t value = 0;
-        if ((address & 3) || !memory.read32(address, value)) {
+        if (address & 3) {
             raiseException(4, address, true);
             return true;
         }
-        registers_[rt] = value;
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read32(physicalAddress, value)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        registers_[rt] = opcode == 0x23 ? signExtend32(value) : value;
         return true;
     }
     case 0x37: { // LD
         const std::uint64_t address = a + offset;
-        std::uint64_t value = 0;
-        if ((address & 7) || !memory.read64(address, value)) {
+        std::uint64_t physicalAddress = 0, value = 0;
+        if (address & 7) {
+            raiseException(4, address, true);
+            return true;
+        }
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read64(physicalAddress, value)) {
             raiseException(4, address, true);
             return true;
         }
         registers_[rt] = value;
         return true;
     }
-    case 0x28: { // SB
+    case 0x28: // SB
+    case 0x29: // SH
+    case 0x2B: // SW
+    case 0x3F: { // SD
         const std::uint64_t address = a + offset;
         llBit_ = false;
-        if (!memory.write8(address, static_cast<std::uint8_t>(b))) {
+        const unsigned int alignment = opcode == 0x29 ? 2 :
+                                       opcode == 0x2B ? 4 :
+                                       opcode == 0x3F ? 8 : 1;
+        if ((address & (alignment - 1)) != 0) {
             raiseException(5, address, true);
             return true;
         }
-        return true;
-    }
-    case 0x29: { // SH
-        const std::uint64_t address = a + offset;
-        llBit_ = false;
-        if ((address & 1) || !memory.write16(address, static_cast<std::uint16_t>(b))) {
-            raiseException(5, address, true);
+        std::uint64_t physicalAddress = 0;
+        if (!translateAddress(address, true, physicalAddress, instructionAddress))
             return true;
+        bool written = false;
+        switch (opcode) {
+        case 0x28: written = memory.write8(physicalAddress, static_cast<std::uint8_t>(b)); break;
+        case 0x29: written = memory.write16(physicalAddress, static_cast<std::uint16_t>(b)); break;
+        case 0x2B: written = memory.write32(physicalAddress, low32(b)); break;
+        case 0x3F: written = memory.write64(physicalAddress, b); break;
         }
+        if (!written) raiseException(5, address, true);
         return true;
     }
-    case 0x2A: { // SWL (big-endian)
-        const std::uint64_t address = a + offset;
-        llBit_ = false;
-        const std::uint64_t aligned = address & ~3ULL;
-        std::uint32_t memoryWord = 0;
-        if (!memory.read32(aligned, memoryWord)) {
-            raiseException(5, address, true);
-            return true;
-        }
-        const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
-        const unsigned int shift = byteOffset * 8;
-        const std::uint32_t mask = 0xFFFFFFFFU >> shift;
-        const std::uint32_t value = low32(b) >> shift;
-        if (!memory.write32(aligned, (memoryWord & ~mask) | (value & mask))) {
-            raiseException(5, address, true);
-        }
-        return true;
-    }
+    case 0x2A: // SWL (big-endian)
     case 0x2E: { // SWR (big-endian)
         const std::uint64_t address = a + offset;
         llBit_ = false;
-        const std::uint64_t aligned = address & ~3ULL;
+        std::uint64_t physicalAddress = 0;
+        if (!translateAddress(address, true, physicalAddress, instructionAddress))
+            return true;
+        const std::uint64_t aligned = physicalAddress & ~3ULL;
         std::uint32_t memoryWord = 0;
         if (!memory.read32(aligned, memoryWord)) {
             raiseException(5, address, true);
             return true;
         }
         const unsigned int byteOffset = static_cast<unsigned int>(address & 3);
-        const unsigned int shift = (3 - byteOffset) * 8;
-        const std::uint32_t mask = 0xFFFFFFFFU << shift;
-        const std::uint32_t value = low32(b) << shift;
-        if (!memory.write32(aligned, (memoryWord & ~mask) | (value & mask))) {
+        const unsigned int shift = opcode == 0x2A ? byteOffset * 8
+                                                   : (3 - byteOffset) * 8;
+        const std::uint32_t mask = opcode == 0x2A
+            ? (0xFFFFFFFFU >> shift)
+            : (0xFFFFFFFFU << shift);
+        const std::uint32_t value = opcode == 0x2A
+            ? (low32(b) >> shift) : (low32(b) << shift);
+        if (!memory.write32(aligned, (memoryWord & ~mask) | (value & mask)))
             raiseException(5, address, true);
-        }
-        return true;
-    }
-    case 0x2B: { // SW
-        const std::uint64_t address = a + offset;
-        llBit_ = false;
-        std::uint64_t physicalAddress = 0;
-        if (address & 3) {
-            raiseException(5, address, true);
-            return true;
-        }
-        if (!translateAddress(address, true, physicalAddress, instructionAddress))
-            return true;
-        if (!memory.write32(physicalAddress, low32(b))) {
-            raiseException(5, address, true);
-            return true;
-        }
         return true;
     }
     case 0x38: { // SC (Store Conditional, 32-bit)
@@ -783,26 +757,22 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
             raiseException(5, address, true);
             return true;
         }
-        const bool reservationMatches = llBit_ && llAddress_ == address;
+        std::uint64_t physicalAddress = 0;
+        if (!translateAddress(address, true, physicalAddress, instructionAddress)) {
+            llBit_ = false;
+            return true;
+        }
+        const bool reservationMatches = llBit_ && llAddress_ == physicalAddress;
         llBit_ = false;
         if (!reservationMatches) {
             registers_[rt] = 0;
             return true;
         }
-        if (!memory.write32(address, low32(b))) {
+        if (!memory.write32(physicalAddress, low32(b))) {
             raiseException(5, address, true);
             return true;
         }
         registers_[rt] = 1;
-        return true;
-    }
-    case 0x3F: { // SD
-        const std::uint64_t address = a + offset;
-        llBit_ = false;
-        if ((address & 7) || !memory.write64(address, b)) {
-            raiseException(5, address, true);
-            return true;
-        }
         return true;
     }
     default: break;
