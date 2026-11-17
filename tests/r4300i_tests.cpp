@@ -478,7 +478,7 @@ int main()
     memory.words.clear();
     memory.words[base] = tlbwi;
     memory.words[base + 4] = iType(0x23, 1, 2, 0);
-    memory.words[0x20000] = 0x0BADF00DU;
+    memory.words[0x20080] = 0x0BADF00DU;
     cpu.reset();
     cpu.setCp0(R4300i::Status, 0x00400000); // Kernel mode, ERL clear.
     cpu.setCp0(R4300i::Index, 0);
