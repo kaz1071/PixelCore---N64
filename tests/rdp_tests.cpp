@@ -160,7 +160,11 @@ int main()
           "scissor preserves triangle pixels inside its boundary");
 
     // Reset restores the default full-frame scissor rectangle.
+    // Reset also clears the color-image and fill-color registers, so restore
+    // those before checking that the scissor state returned to its defaults.
     clipped.reset();
+    submitClipped((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitClipped((0x37ULL << 56) | 0xAABBCCDDULL);
     submitClipped((0x36ULL << 56) | (28ULL << 12) | 28ULL);
     check(clippedBuffer[(6 * 8 + 6) * 4] == 0xAA,
           "reset restores full-frame scissor bounds");
