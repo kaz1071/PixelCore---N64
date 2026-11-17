@@ -30,4 +30,8 @@ private:
     std::uint8_t colorImageFormat_ = 0;
     std::uint8_t colorImageSize_ = 0;
     std::uint32_t fillColor_ = 0;
+    std::uint32_t scissorLeft_ = 0;
+    std::uint32_t scissorTop_ = 0;
+    std::uint32_t scissorRight_ = 4096;
+    std::uint32_t scissorBottom_ = 4096;
 };
