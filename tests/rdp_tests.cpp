@@ -148,7 +148,7 @@ int main()
     };
     submitClippedTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitClippedTriangle((0x37ULL << 56) | 0x11223344ULL);
-    submitClippedTriangle((0x2DULL << 56) | (4ULL << 44) | (8ULL << 32) |
+    submitClippedTriangle((0x2DULL << 56) | (12ULL << 44) | (8ULL << 32) |
                           (20ULL << 12) | 20ULL); // x=1..5, y=2..5
     submitClippedTriangle(triangleHeader);
     submitClippedTriangle((5ULL << 16) << 32 | 65536U);
