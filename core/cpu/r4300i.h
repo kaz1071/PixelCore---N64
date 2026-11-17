@@ -4,6 +4,14 @@
 #include <cstdint>
 #include <string>
 
+struct R4300iTlbEntry
+{
+    std::uint64_t pageMask = 0;
+    std::uint64_t entryHi = 0;
+    std::uint64_t entryLo0 = 0;
+    std::uint64_t entryLo1 = 0;
+};
+
 class N64Memory
 {
 public:
@@ -65,4 +73,5 @@ private:
     bool currentInstructionInDelaySlot_ = false;
     bool llBit_ = false;
     std::uint64_t llAddress_ = 0;
+    std::array<R4300iTlbEntry, 32> tlb_{};
 };
