@@ -80,7 +80,7 @@ int main()
     memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x10)); // VADD
     passed &= check(rsp.step(memory, error), "RSP executes VADD");
     for (unsigned lane = 0; lane < 8; ++lane)
-        passed &= check(rsp.vectorLane(3, lane) == lane + 11,
+        passed &= check(rsp.vectorLane(3, lane) == (2 * lane) + 11,
                         "VADD adds corresponding vector lanes");
 
     rsp.reset();
@@ -115,7 +115,7 @@ int main()
     passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 32767,
                     "VADD saturates positive signed overflow");
     rsp.setVectorLane(1, 0, 0x8000);
-    rsp.setVectorLane(2, 0, 1);
+    rsp.setVectorLane(2, 0, 0xFFFF); // -1: -32768 + -1 must saturate
     rsp.setPc(0);
     passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 0x8000,
                     "VADD saturates negative signed overflow");
