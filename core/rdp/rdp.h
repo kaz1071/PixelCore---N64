@@ -24,6 +24,13 @@ struct RdpTileState
     std::uint16_t upperLeftT = 0;
     std::uint16_t lowerRightS = 0;
     std::uint16_t lowerRightT = 0;
+    std::uint8_t loadType = 0;
+    std::uint16_t loadStartS = 0;
+    std::uint16_t loadStartT = 0;
+    std::uint16_t loadEndS = 0;
+    std::uint16_t loadEndT = 0;
+    std::uint16_t loadDxt = 0;
+    bool loaded = false;
 };
 
 // RDP command-stream decoder with an initial fill-rectangle rasterizer.
