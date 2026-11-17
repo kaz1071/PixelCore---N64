@@ -5,6 +5,7 @@
 #include <QAction>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QImage>
 #include <QKeySequence>
 #include <QKeyEvent>
 #include <QLabel>
@@ -12,9 +13,64 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QPainter>
+#include <QTimer>
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include <QWidget>
+
+namespace
+{
+constexpr std::uint32_t DisplayHeight = 240;
+}
+
+class FramebufferView final : public QWidget
+{
+public:
+    explicit FramebufferView(QWidget *parent = nullptr) : QWidget(parent)
+    {
+        setMinimumHeight(260);
+        setStyleSheet("background: #080d17; border: 1px solid #263650; border-radius: 12px;");
+    }
+
+    void setFrame(const QImage &frame)
+    {
+        frame_ = frame;
+        message_.clear();
+        update();
+    }
+
+    void setMessage(const QString &message)
+    {
+        frame_ = QImage();
+        message_ = message;
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.fillRect(rect(), QColor("#080d17"));
+        if (!frame_.isNull()) {
+            const QSize fitted = frame_.size().scaled(size(), Qt::KeepAspectRatio);
+            const QRect target((width() - fitted.width()) / 2,
+                               (height() - fitted.height()) / 2,
+                               fitted.width(), fitted.height());
+            painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
+            painter.drawImage(target, frame_);
+            return;
+        }
+
+        painter.setPen(QColor("#b8c6dc"));
+        painter.drawText(rect().adjusted(24, 24, -24, -24),
+                         Qt::AlignCenter | Qt::TextWordWrap, message_);
+    }
+
+private:
+    QImage frame_;
+    QString message_ = "No game loaded\n\nChoose File → Open ROM to select an N64 game.";
+};
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -51,23 +107,9 @@ MainWindow::MainWindow(QWidget *parent)
         "color: #70caff; font-size: 20px; font-weight: 700; letter-spacing: 8px;"
     );
 
-    auto *viewport = new QWidget(central);
-    viewport->setObjectName("gameViewport");
-    viewport->setMinimumHeight(260);
-    viewport->setFocusPolicy(Qt::StrongFocus);
-    viewport->setStyleSheet(
-        "#gameViewport { background: #080d17; border: 1px solid #263650; border-radius: 12px; }"
-    );
-
-    auto *viewportLayout = new QVBoxLayout(viewport);
-    romInfoLabel_ = new QLabel(
-        "No game loaded\n\nChoose File → Open ROM to select an N64 game.",
-        viewport
-    );
-    romInfoLabel_->setAlignment(Qt::AlignCenter);
-    romInfoLabel_->setWordWrap(true);
-    romInfoLabel_->setStyleSheet("color: #b8c6dc; font-size: 16px;");
-    viewportLayout->addWidget(romInfoLabel_);
+    framebufferView_ = new FramebufferView(central);
+    framebufferView_->setObjectName("gameViewport");
+    framebufferView_->setFocusPolicy(Qt::StrongFocus);
 
     auto *openButton = new QPushButton("Open ROM", central);
     openButton->setCursor(Qt::PointingHandCursor);
@@ -84,7 +126,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addWidget(brand);
     layout->addWidget(subtitle);
     layout->addSpacing(12);
-    layout->addWidget(viewport, 1);
+    layout->addWidget(framebufferView_, 1);
 
     auto *inputInfo = new QLabel(
         "Keyboard controller: WASD = analog stick  |  Arrows = D-pad  |  J/K/U = A/B/Z  |  Enter = Start",
@@ -98,7 +140,11 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addStretch();
 
     setCentralWidget(central);
-    viewport->setFocus();
+    framebufferView_->setFocus();
+    frameTimer_ = new QTimer(this);
+    frameTimer_->setTimerType(Qt::PreciseTimer);
+    connect(frameTimer_, &QTimer::timeout, this, &MainWindow::updateFramebuffer);
+    frameTimer_->start(16);
     statusLabel_ = new QLabel("Ready — no ROM loaded", this);
     statusBar()->addWidget(statusLabel_, 1);
 
@@ -241,9 +287,9 @@ void MainWindow::updateRomDisplay()
     const QFileInfo fileInfo(loadedRomPath_);
     const double sizeMiB = static_cast<double>(loadedRomSize_) / (1024.0 * 1024.0);
 
-    romInfoLabel_->setText(
-        QString("ROM recognized!\n\n%1\n%2\n%3\n%4 MiB\n\n"
-                "Normalized ROM data is mapped into the emulator core. Game startup and graphics are not implemented yet.")
+    framebufferView_->setMessage(
+        QString("ROM loaded\\n\\n%1\\n%2\\n%3\\n%4 MiB\\n\\n"
+                "Waiting for the emulated VI to produce a framebuffer.")
             .arg(fileInfo.fileName())
             .arg(loadedRomTitle_.isEmpty() ? "Title: (not set in ROM header)" :
                                            "Title: " + loadedRomTitle_)
@@ -251,5 +297,30 @@ void MainWindow::updateRomDisplay()
             .arg(QString::number(sizeMiB, 'f', 2))
     );
 
-    statusLabel_->setText("ROM recognized — " + fileInfo.fileName());
+    statusLabel_->setText("ROM loaded — waiting for VI video output");
+}
+
+void MainWindow::updateFramebuffer()
+{
+    if (loadedRomPath_.isEmpty())
+        return;
+
+    std::uint32_t width = 0;
+    if (!system_.memory().read32(N64MemoryBus::ViWidth, width) ||
+        width == 0 || width > 640) {
+        framebufferView_->setMessage("ROM loaded\\n\\nWaiting for VI video configuration...");
+        return;
+    }
+
+    std::vector<std::uint32_t> pixels;
+    if (!system_.memory().renderFramebuffer(width, DisplayHeight, pixels)) {
+        framebufferView_->setMessage("ROM loaded\\n\\nWaiting for a valid VI framebuffer...");
+        return;
+    }
+
+    const QImage frame(reinterpret_cast<const uchar *>(pixels.data()),
+                       static_cast<int>(width), static_cast<int>(DisplayHeight),
+                       static_cast<int>(width * sizeof(std::uint32_t)),
+                       QImage::Format_ARGB32);
+    framebufferView_->setFrame(frame.copy());
 }
