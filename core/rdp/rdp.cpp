@@ -78,7 +78,7 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         if (colorImageFormat_ == 0 && colorImageWidth_ != 0 &&
             (colorImageSize_ == 2 || colorImageSize_ == 3))
         {
-            const std::uint32_t clippedLeft = std::min({xStart, scissorLeft_, colorImageWidth_});
+            const std::uint32_t clippedLeft = std::min(std::max(xStart, scissorLeft_), colorImageWidth_);
             const std::uint32_t clippedRight = std::min({xEnd, scissorRight_, colorImageWidth_});
             const std::uint32_t clippedTop = std::max(yStart, scissorTop_);
             const std::uint32_t clippedBottom = std::min(yEnd, scissorBottom_);
