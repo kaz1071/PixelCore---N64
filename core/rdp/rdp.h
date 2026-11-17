@@ -21,6 +21,10 @@ public:
     std::uint32_t otherModesHigh() const;
     std::uint32_t otherModesLow() const;
     std::uint8_t cycleType() const;
+    std::uint32_t blendColor() const;
+    std::uint32_t fogColor() const;
+    std::uint32_t primitiveColor() const;
+    std::uint32_t environmentColor() const;
 
 private:
     std::vector<std::uint64_t> pending_;
@@ -35,6 +39,10 @@ private:
     std::uint32_t fillColor_ = 0;
     std::uint32_t otherModesHigh_ = 0;
     std::uint32_t otherModesLow_ = 0;
+    std::uint32_t blendColor_ = 0;
+    std::uint32_t fogColor_ = 0;
+    std::uint32_t primitiveColor_ = 0;
+    std::uint32_t environmentColor_ = 0;
     std::uint32_t scissorLeft_ = 0;
     std::uint32_t scissorTop_ = 0;
     std::uint32_t scissorRight_ = 4096;
