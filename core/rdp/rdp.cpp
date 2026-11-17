@@ -1,6 +1,7 @@
 #include "core/rdp/rdp.h"
 
 #include <algorithm>
+#include <limits>
 
 void Rdp::reset()
 {
@@ -9,6 +10,10 @@ void Rdp::reset()
     expectedWords_ = 0;
     completedCommands_ = 0;
     lastOpcode_ = 0;
+    textureImageAddress_ = 0;
+    textureImageWidth_ = 0;
+    textureImageSize_ = 0;
+    tmem_.fill(0);
     colorImageAddress_ = 0;
     colorImageWidth_ = 0;
     colorImageFormat_ = 0;
@@ -62,6 +67,12 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
     const std::uint64_t command = lastCommand_[0];
     switch (lastOpcode_)
     {
+    case 0x3D: // SetTextureImage
+        textureImageSize_ = static_cast<std::uint8_t>((command >> 51) & 0x03U);
+        textureImageWidth_ = static_cast<std::uint32_t>((command >> 32) & 0x03FFU) + 1U;
+        textureImageAddress_ = static_cast<std::uint32_t>(command & 0x03FFFFFFU);
+        break;
+
     case 0x3F: // SetColorImage
         colorImageFormat_ = static_cast<std::uint8_t>((command >> 53) & 0x07U);
         colorImageSize_ = static_cast<std::uint8_t>((command >> 51) & 0x03U);
@@ -115,10 +126,71 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         tileState.loadEndS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
         tileState.loadEndT = static_cast<std::uint16_t>(command & 0x0FFFU);
         tileState.loadDxt = 0;
+        tileState.loaded = false;
+
+        if (textureImageWidth_ == 0 || tileState.loadEndS < tileState.loadStartS ||
+            tileState.loadEndT < tileState.loadStartT)
+            break;
+
+        const std::size_t bitsPerTexel = 4U << textureImageSize_;
+        const std::size_t sourceRowBytes =
+            (static_cast<std::size_t>(textureImageWidth_) * bitsPerTexel + 7U) / 8U;
+        const std::size_t rowTexels =
+            (static_cast<std::size_t>(tileState.loadEndS - tileState.loadStartS) >> 2) + 1U;
+        const std::size_t rowCount =
+            (static_cast<std::size_t>(tileState.loadEndT - tileState.loadStartT) >> 2) + 1U;
+        const std::size_t rowBits = rowTexels * bitsPerTexel;
+        const std::size_t rowBytes = (rowBits + 7U) / 8U;
+        const std::size_t destinationStride = tileState.line != 0
+            ? static_cast<std::size_t>(tileState.line) * 8U
+            : ((rowBytes + 7U) & ~std::size_t(7U));
+        const std::size_t destinationBase = static_cast<std::size_t>(tileState.tmem) * 8U;
+        const std::size_t sourceStartS = tileState.loadStartS >> 2;
+        const std::size_t sourceStartT = tileState.loadStartT >> 2;
+
+        for (std::size_t row = 0; row < rowCount; ++row)
+        {
+            const std::size_t sourceRow = sourceStartT + row;
+            if (sourceRow >= (std::numeric_limits<std::size_t>::max() /
+                              std::max<std::size_t>(sourceRowBytes, 1U)))
+                break;
+            const std::uint64_t sourceRowAddress = static_cast<std::uint64_t>(textureImageAddress_) +
+                sourceRow * sourceRowBytes;
+            const std::size_t destinationRow = destinationBase + row * destinationStride;
+            if (destinationRow >= tmem_.size()) break;
+
+            for (std::size_t column = 0; column < rowTexels; ++column)
+            {
+                const std::size_t sourceTexel = sourceStartS + column;
+                const std::uint64_t sourceBit = static_cast<std::uint64_t>(sourceTexel) * bitsPerTexel;
+                const std::uint64_t sourceAddress = sourceRowAddress + sourceBit / 8U;
+                const std::size_t destinationBit = column * bitsPerTexel;
+                if (bitsPerTexel == 4U)
+                {
+                    if (sourceAddress >= rdram.size() || destinationRow + destinationBit / 8U >= tmem_.size()) continue;
+                    const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
+                    const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
+                    const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
+                    const std::size_t destinationAddress = destinationRow + destinationBit / 8U;
+                    tmem_[destinationAddress] = static_cast<std::uint8_t>(
+                        (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
+                        (nibble << destinationShift));
+                }
+                else
+                {
+                    const std::size_t texelBytes = bitsPerTexel / 8U;
+                    const std::uint64_t destinationAddress = destinationRow + destinationBit / 8U;
+                    if (sourceAddress > rdram.size() || texelBytes > rdram.size() - sourceAddress ||
+                        destinationAddress > tmem_.size() || texelBytes > tmem_.size() - destinationAddress)
+                        continue;
+                    for (std::size_t byte = 0; byte < texelBytes; ++byte)
+                        tmem_[destinationAddress + byte] = rdram[sourceAddress + byte];
+                }
+            }
+        }
         tileState.loaded = true;
         break;
     }
-
     case 0x35: // SetTile
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
@@ -392,4 +464,9 @@ const RdpTileState &Rdp::tile(std::size_t index) const
 {
     static const RdpTileState emptyTile{};
     return index < tiles_.size() ? tiles_[index] : emptyTile;
+}
+
+std::uint8_t Rdp::tmemByte(std::size_t index) const
+{
+    return index < tmem_.size() ? tmem_[index] : 0;
 }
