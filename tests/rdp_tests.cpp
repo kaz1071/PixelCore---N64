@@ -65,10 +65,13 @@ int main()
           "SetOtherModes stores its high register bits");
     check(rdp.otherModesLow() == expectedModesLow,
           "SetOtherModes stores its low register bits");
+    check(rdp.cycleType() == ((expectedModesHigh >> 20) & 0x03U),
+          "cycle type is decoded from the OtherModes high register");
 
     rdp.reset();
     check(rdp.otherModesHigh() == 0 && rdp.otherModesLow() == 0,
           "reset clears OtherModes registers");
+    check(rdp.cycleType() == 0, "reset restores one-cycle mode default");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
