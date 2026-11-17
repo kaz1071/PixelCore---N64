@@ -4,13 +4,13 @@
 #include <cstdint>
 #include <vector>
 
-// RDP command-stream framing. Commands are transferred as 64-bit words;
-// rendering operations will be implemented on top of this decoder.
+// RDP command-stream decoder with an initial fill-rectangle rasterizer.
 class Rdp
 {
 public:
     void reset();
     bool pushCommandWord(std::uint64_t word);
+    void executeLastCommand(std::vector<std::uint8_t> &rdram);
 
     static std::size_t commandWordCount(std::uint8_t opcode);
 
@@ -25,4 +25,9 @@ private:
     std::size_t expectedWords_ = 0;
     std::uint64_t completedCommands_ = 0;
     std::uint8_t lastOpcode_ = 0;
+    std::uint32_t colorImageAddress_ = 0;
+    std::uint32_t colorImageWidth_ = 0;
+    std::uint8_t colorImageFormat_ = 0;
+    std::uint8_t colorImageSize_ = 0;
+    std::uint32_t fillColor_ = 0;
 };
