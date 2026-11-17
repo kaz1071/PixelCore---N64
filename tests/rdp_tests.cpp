@@ -77,18 +77,17 @@ int main()
     const std::uint64_t triangleHeader =
         (0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL;
     submit(triangleHeader);
-    submit((1ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XL=1.0, DXLDY=-1
-    submit((1ULL << 16) << 32); // XH=1.0, DXHDY=0
-    submit((5ULL << 16) << 32 | 65536U); // XM=5.0, DXMDY=+1
-    check(framebuffer[(2 * 8 + 1) * 4] == 0xFF,
-          "upper minor edge steps from XH at the top scanline");
-    check(framebuffer[(2 * 8 + 2) * 4] == 0,
-          "upper triangle does not fill beyond its minor edge");
+    submit((5ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XL=5.0, DXLDY=-1
+    submit((1ULL << 16) << 32 | 65536U); // XH=1.0, DXHDY=+1
+    submit((5ULL << 16) << 32 | 3ULL * 65536U); // XM=5.0, DXMDY=+3
+    check(framebuffer[(2 * 8 + 2) * 4] == 0xFF,
+          "upper minor edge steps from XH and fills its span");
+    check(framebuffer[(2 * 8 + 3) * 4] == 0xFF,
+          "upper triangle fills the second pixel in its span");
     check(framebuffer[(4 * 8 + 3) * 4] == 0xFF,
           "lower minor edge steps from XM at the middle scanline");
-    check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
-          framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
-          "edge-only triangle fills an interior pixel");
+    check(framebuffer[(2 * 8 + 6) * 4] == 0,
+          "edge-only triangle leaves pixels outside its edges untouched");
     check(framebuffer[(2 * 8 + 6) * 4] == 0,
           "edge-only triangle leaves pixels outside its edges untouched");
 
@@ -103,9 +102,9 @@ int main()
     submit16((0x3FULL << 56) | (2ULL << 51) | (7ULL << 32));
     submit16((0x37ULL << 56) | 0xF80007C1ULL);
     submit16(triangleHeader);
-    submit16((1ULL << 16) << 32);
-    submit16((1ULL << 16) << 32);
-    submit16((5ULL << 16) << 32);
+    submit16((5ULL << 16) << 32 | static_cast<std::uint32_t>(-65536));
+    submit16((1ULL << 16) << 32 | 65536U);
+    submit16((5ULL << 16) << 32 | 3ULL * 65536U);
     const std::size_t evenPixel = (2 * 8 + 2) * 2;
     const std::size_t oddPixel = (2 * 8 + 3) * 2;
     check(framebuffer16[evenPixel] == 0xF8 &&
