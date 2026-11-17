@@ -15,7 +15,15 @@ void N64System::reset()
 
 bool N64System::step(std::string &error)
 {
-    return cpu_.step(memory_, error);
+    const bool result = cpu_.step(memory_, error);
+    if (result)
+        memory_.advanceViCycles(1);
+    return result;
+}
+
+void N64System::advanceCpuCycles(std::uint32_t cycles)
+{
+    memory_.advanceViCycles(cycles);
 }
 
 bool N64System::stepRsp(std::string &error)
