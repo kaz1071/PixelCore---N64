@@ -25,6 +25,7 @@ void Rdp::reset()
     primitiveDepth_ = 0;
     primitiveDeltaZ_ = 0;
     conversionCoefficients_.fill(0);
+    tiles_.fill(RdpTileState{});
     scissorLeft_ = 0;
     scissorTop_ = 0;
     scissorRight_ = 4096;
@@ -78,6 +79,28 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
     case 0x37: // SetFillColor
         fillColor_ = static_cast<std::uint32_t>(command);
         break;
+
+    case 0x35: // SetTile
+    {
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        RdpTileState &tileState = tiles_[tileIndex];
+        tileState.format = static_cast<std::uint8_t>((command >> 53) & 0x07U);
+        tileState.size = static_cast<std::uint8_t>((command >> 51) & 0x03U);
+        tileState.line = static_cast<std::uint16_t>((command >> 41) & 0x01FFU);
+        tileState.tmem = static_cast<std::uint16_t>((command >> 32) & 0x01FFU);
+        tileState.palette = static_cast<std::uint8_t>((command >> 20) & 0x0FU);
+        const std::uint8_t modeT = static_cast<std::uint8_t>((command >> 18) & 0x03U);
+        const std::uint8_t modeS = static_cast<std::uint8_t>((command >> 8) & 0x03U);
+        tileState.clampT = static_cast<std::uint8_t>((modeT >> 1) & 1U);
+        tileState.mirrorT = static_cast<std::uint8_t>(modeT & 1U);
+        tileState.clampS = static_cast<std::uint8_t>((modeS >> 1) & 1U);
+        tileState.mirrorS = static_cast<std::uint8_t>(modeS & 1U);
+        tileState.maskT = static_cast<std::uint8_t>((command >> 14) & 0x0FU);
+        tileState.shiftT = static_cast<std::uint8_t>((command >> 10) & 0x0FU);
+        tileState.maskS = static_cast<std::uint8_t>((command >> 4) & 0x0FU);
+        tileState.shiftS = static_cast<std::uint8_t>(command & 0x0FU);
+        break;
+    }
 
     case 0x2C: // SetConvert (six signed 9-bit coefficients)
         for (std::size_t i = 0; i < conversionCoefficients_.size(); ++i)
@@ -324,4 +347,10 @@ std::uint16_t Rdp::primitiveDeltaZ() const
 std::int16_t Rdp::conversionCoefficient(std::size_t index) const
 {
     return index < conversionCoefficients_.size() ? conversionCoefficients_[index] : 0;
+}
+
+const RdpTileState &Rdp::tile(std::size_t index) const
+{
+    static const RdpTileState emptyTile{};
+    return index < tiles_.size() ? tiles_[index] : emptyTile;
 }
