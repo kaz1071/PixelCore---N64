@@ -11,6 +11,8 @@ public:
 
     bool read32(std::uint64_t address, std::uint32_t &value) override
     {
+        // The CPU fetches reset code through the KSEG1 physical alias.
+        if (address == 0x1FC00000ULL) address = R4300i::ResetAddress;
         const auto it = words.find(address);
         if (it == words.end()) return false;
         value = it->second;
@@ -473,15 +475,16 @@ int main()
     // Install a 4 KiB TLB page: VPN2 0x00400000, ASID 0x2A,
     // even page PFN 0x20 (physical 0x20000), valid and dirty.
     memory.words.clear();
-    memory.words[base] = iType(0x23, 1, 2, 0);
+    memory.words[base] = tlbwi;
+    memory.words[base + 4] = iType(0x23, 1, 2, 0);
     memory.words[0x20000] = 0x0BADF00DU;
     cpu.reset();
     cpu.setCp0(R4300i::Status, 0x00400000); // Kernel mode, ERL clear.
+    cpu.setCp0(R4300i::Index, 0);
     cpu.setCp0(R4300i::EntryHi, 0x0040002A);
     cpu.setCp0(R4300i::PageMask, 0);
     cpu.setCp0(R4300i::EntryLo0, (0x20ULL << 6) | 0x7ULL);
     cpu.setCp0(R4300i::EntryLo1, (0x21ULL << 6) | 0x7ULL);
-    memory.words[base + 4] = tlbwi;
     passed &= check(cpu.step(memory, error), "install TLB translation entry");
     cpu.setReg(1, 0x00400080);
     passed &= check(cpu.step(memory, error), "TLB-mapped LW executes");
