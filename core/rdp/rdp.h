@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <array>
 #include <vector>
 
 // RDP command-stream decoder with an initial fill-rectangle rasterizer.
@@ -27,6 +28,7 @@ public:
     std::uint32_t environmentColor() const;
     std::uint16_t primitiveDepth() const;
     std::uint16_t primitiveDeltaZ() const;
+    std::int16_t conversionCoefficient(std::size_t index) const;
 
 private:
     std::vector<std::uint64_t> pending_;
@@ -47,6 +49,7 @@ private:
     std::uint32_t environmentColor_ = 0;
     std::uint16_t primitiveDepth_ = 0;
     std::uint16_t primitiveDeltaZ_ = 0;
+    std::array<std::int16_t, 6> conversionCoefficients_{};
     std::uint32_t scissorLeft_ = 0;
     std::uint32_t scissorTop_ = 0;
     std::uint32_t scissorRight_ = 4096;
