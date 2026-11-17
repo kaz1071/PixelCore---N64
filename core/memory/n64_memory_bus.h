@@ -86,6 +86,7 @@ public:
     std::size_t cartridgeSize() const;
     std::size_t bootRomSize() const;
     bool renderFramebuffer(std::uint32_t width, std::uint32_t height, std::vector<std::uint32_t> &pixels) const;
+    void advanceViScanlines(std::uint32_t scanlines);
 
 private:
     static std::uint64_t toPhysicalAddress(std::uint64_t address);
