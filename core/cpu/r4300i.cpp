@@ -473,9 +473,13 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
                 const std::uint64_t queryAsid = cp0Registers_[EntryHi] & 0xFFULL;
                 for (unsigned int i = 0; i < tlb_.size(); ++i) {
                     const auto &entry = tlb_[i];
-                    const std::uint64_t entryVpn = entry.entryHi & ~0x1FFFULL;
+                    // PageMask enlarges the TLB page pair. Ignore the VPN
+                    // bits covered by the mask when comparing virtual pages.
+                    const std::uint64_t vpnMask = ~(entry.pageMask | 0x1FFFULL);
+                    const bool vpnMatches =
+                        (entry.entryHi & vpnMask) == (cp0Registers_[EntryHi] & vpnMask);
                     const bool global = (entry.entryLo0 & 1ULL) && (entry.entryLo1 & 1ULL);
-                    if (entryVpn == queryVpn &&
+                    if (vpnMatches &&
                         (global || (entry.entryHi & 0xFFULL) == queryAsid)) {
                         cp0Registers_[Index] = i;
                         break;
