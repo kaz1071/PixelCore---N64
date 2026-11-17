@@ -156,6 +156,11 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical == MiVersion) { value = 0x02020102U; return true; }
     if (physical == MiInterrupt) { value = miInterrupts_; return true; }
     if (physical == MiInterruptMask) { value = miInterruptMask_; return true; }
+    if (physical >= ViRegisterBase && physical <= ViYScale &&
+        ((physical - ViRegisterBase) & 3U) == 0) {
+        value = viRegisters_[(physical - ViRegisterBase) / 4];
+        return true;
+    }
 
     if (physical >= CartridgeBase &&
         physical - CartridgeBase <= cartridge_.size() &&
@@ -254,6 +259,14 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         }
         return true;
     }
+    if (physical >= ViRegisterBase && physical <= ViYScale &&
+        ((physical - ViRegisterBase) & 3U) == 0) {
+        const std::size_t index = static_cast<std::size_t>((physical - ViRegisterBase) / 4);
+        if (index == 3) viRegisters_[index] = value & 0x3FFU;
+        else if (index == 4) miInterrupts_ &= ~0x08U; // CURRENT write acknowledges VI.
+        else viRegisters_[index] = value;
+        return true;
+    }
     if (physical >= SpDmemBase && physical - SpDmemBase <= SpMemorySize - 4) {
         const std::size_t index = static_cast<std::size_t>(physical - SpDmemBase);
         spDmem_[index] = static_cast<std::uint8_t>(value >> 24);
@@ -297,6 +310,44 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
     return true;
 }
 
+bool N64MemoryBus::renderFramebuffer(std::uint32_t width, std::uint32_t height,
+                                      std::vector<std::uint32_t> &pixels) const
+{
+    if (width == 0 || height == 0 || width > viRegisters_[2]) return false;
+    const std::uint32_t format = viRegisters_[0] & 3U;
+    const std::size_t bytesPerPixel = format == 2 ? 2 : format == 3 ? 4 : 0;
+    if (bytesPerPixel == 0) return false;
+    const std::uint64_t origin = viRegisters_[1] & 0x00FFFFFFU;
+    const std::uint64_t rowBytes = static_cast<std::uint64_t>(width) * bytesPerPixel;
+    const std::uint64_t totalBytes = rowBytes * height;
+    if (origin > rdram_.size() || totalBytes > rdram_.size() - origin) return false;
+    pixels.resize(static_cast<std::size_t>(width) * height);
+    for (std::uint32_t y = 0; y < height; ++y) {
+        for (std::uint32_t x = 0; x < width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>(
+                origin + static_cast<std::uint64_t>(y) * rowBytes +
+                static_cast<std::uint64_t>(x) * bytesPerPixel);
+            std::uint8_t r, g, b, a;
+            if (format == 2) {
+                const std::uint16_t p = static_cast<std::uint16_t>(
+                    (static_cast<std::uint16_t>(rdram_[offset]) << 8) | rdram_[offset + 1]);
+                r = static_cast<std::uint8_t>(((p >> 11) & 31U) * 255U / 31U);
+                g = static_cast<std::uint8_t>(((p >> 6) & 31U) * 255U / 31U);
+                b = static_cast<std::uint8_t>(((p >> 1) & 31U) * 255U / 31U);
+                a = (p & 1U) ? 255 : 0;
+            } else {
+                r = rdram_[offset]; g = rdram_[offset + 1];
+                b = rdram_[offset + 2]; a = rdram_[offset + 3];
+            }
+            pixels[static_cast<std::size_t>(y) * width + x] =
+                (static_cast<std::uint32_t>(a) << 24) |
+                (static_cast<std::uint32_t>(r) << 16) |
+                (static_cast<std::uint32_t>(g) << 8) | b;
+        }
+    }
+    return true;
+}
+
 void N64MemoryBus::loadCartridge(const std::vector<std::uint8_t> &image)
 {
     cartridge_ = image;
@@ -333,6 +384,7 @@ void N64MemoryBus::clearPifRam()
     spStatus_ = 1;
     spSemaphore_ = 0;
     spProgramCounter_ = 0;
+    std::fill(std::begin(viRegisters_), std::end(viRegisters_), 0);
 }
 
 void N64MemoryBus::processPifControl()
