@@ -186,7 +186,7 @@ int main()
                     "configure a four-line VI frame");
     passed &= check(bus.write32(N64MemoryBus::ViInterrupt, 2),
                     "configure VI interrupt scanline");
-    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x20),
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x80),
                     "enable VI interrupt in MI mask");
     bus.advanceViScanlines(1);
     passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 1,
@@ -211,7 +211,7 @@ int main()
                     "VI compare interrupt fires again on the next frame");
     passed &= check(bus.write32(N64MemoryBus::ViCurrent, 0),
                     "acknowledge second VI frame interrupt");
-    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x10),
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x40),
                     "disable VI interrupt in MI mask");
 
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
