@@ -68,10 +68,27 @@ int main()
     check(rdp.cycleType() == ((expectedModesHigh >> 20) & 0x03U),
           "cycle type is decoded from the OtherModes high register");
 
+    // RDP color commands retain their packed RGBA register values.
+    const auto setColor = [&rdp, &commandBuffer](std::uint8_t opcode, std::uint32_t color) {
+        if (rdp.pushCommandWord((static_cast<std::uint64_t>(opcode) << 56) | color))
+            rdp.executeLastCommand(commandBuffer);
+    };
+    setColor(0x38, 0x10203040U);
+    setColor(0x39, 0x50607080U);
+    setColor(0x3A, 0x90A0B0C0U);
+    setColor(0x3B, 0xD0E0F001U);
+    check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
+    check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
+    check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
+    check(rdp.environmentColor() == 0xD0E0F001U, "SetEnvironmentColor stores packed RGBA");
+
     rdp.reset();
     check(rdp.otherModesHigh() == 0 && rdp.otherModesLow() == 0,
           "reset clears OtherModes registers");
     check(rdp.cycleType() == 0, "reset restores one-cycle mode default");
+    check(rdp.blendColor() == 0 && rdp.fogColor() == 0 &&
+          rdp.primitiveColor() == 0 && rdp.environmentColor() == 0,
+          "reset clears all RDP color registers");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
