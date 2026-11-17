@@ -40,6 +40,7 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Initial scalar RSP core with integer arithmetic, HI/LO multiply/divide, branches, delay slots, and DMEM access
 - [x] Initial SP PC, HALT, and BROKE control/status integration
 - [x] Initial VI register block and RGBA5551/RGBA8888 framebuffer extraction
+- [x] Connect VI framebuffer output to the Qt desktop viewport with a 60 Hz refresh timer
 - [ ] Complete hardware register models (MI, SI, PI, VI timing/interrupts, AI, RI)
 - [ ] TLB and complete virtual-memory behavior
 - [ ] Complete RCP (RSP vector unit/COP0, RDP, and accurate device scheduling)
