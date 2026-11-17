@@ -319,6 +319,7 @@ bool N64MemoryBus::renderFramebuffer(std::uint32_t width, std::uint32_t height,
     if (bytesPerPixel == 0) return false;
     const std::uint64_t origin = viRegisters_[1] & 0x00FFFFFFU;
     const std::uint64_t rowBytes = static_cast<std::uint64_t>(width) * bytesPerPixel;
+    if (rowBytes == 0 || height > rdram_.size() / rowBytes) return false;
     const std::uint64_t totalBytes = rowBytes * height;
     if (origin > rdram_.size() || totalBytes > rdram_.size() - origin) return false;
     pixels.resize(static_cast<std::size_t>(width) * height);
@@ -384,7 +385,7 @@ void N64MemoryBus::clearPifRam()
     spStatus_ = 1;
     spSemaphore_ = 0;
     spProgramCounter_ = 0;
-    std::fill(std::begin(viRegisters_), std::end(viRegisters_), 0);
+    std::fill(viRegisters_, viRegisters_ + ViRegisterCount, 0);
 }
 
 void N64MemoryBus::processPifControl()
