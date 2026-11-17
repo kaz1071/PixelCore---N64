@@ -144,6 +144,16 @@ bool N64MemoryBus::read32(std::uint64_t address, std::uint32_t &value)
     if (physical == SpDmaBusy) { value = 0; return true; }
     if (physical == SpSemaphore) { value = spSemaphore_; spSemaphore_ = 1; return true; }
 
+    if (physical == DpStart) { value = dpStart_; return true; }
+    if (physical == DpEnd) { value = dpEnd_; return true; }
+    if (physical == DpCurrent) { value = dpCurrent_; return true; }
+    if (physical == DpStatus) { value = dpStatus_; return true; }
+    if (physical == DpClock) { value = dpClock_; return true; }
+    if (physical == DpBufferBusy || physical == DpPipeBusy || physical == DpTmem) {
+        value = 0;
+        return true;
+    }
+
     if (physical == PiDramAddress) { value = piDramAddress_; return true; }
     if (physical == PiCartAddress) { value = piCartAddress_; return true; }
     if (physical == PiReadLength) { value = piReadLength_; return true; }
@@ -209,6 +219,29 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
     }
     if (physical == SpSemaphore) {
         spSemaphore_ = 0;
+        return true;
+    }
+
+    if (physical == DpStart) {
+        dpStart_ = value & 0x00FFFFF8U;
+        if (dpCurrent_ == 0 || dpCurrent_ == dpEnd_)
+            dpCurrent_ = dpStart_;
+        return true;
+    }
+    if (physical == DpEnd) {
+        dpEnd_ = value & 0x00FFFFF8U;
+        processRdpCommands();
+        return true;
+    }
+    if (physical == DpStatus) {
+        // DPC_STATUS uses paired clear/set command bits for control flags.
+        if (value & 0x00000001U) dpStatus_ &= ~0x00000001U; // clear XBUS DMA
+        if (value & 0x00000002U) dpStatus_ |=  0x00000001U; // set XBUS DMA
+        if (value & 0x00000004U) dpStatus_ &= ~0x00000002U; // clear FREEZE
+        if (value & 0x00000008U) dpStatus_ |=  0x00000002U; // set FREEZE
+        if (value & 0x00000010U) dpStatus_ &= ~0x00000004U; // clear FLUSH
+        if (value & 0x00000020U) dpStatus_ |=  0x00000004U; // set FLUSH
+        if (value & 0x00000040U) miInterrupts_ &= ~0x20U; // clear DP interrupt
         return true;
     }
     if (physical == PiDramAddress) {
@@ -418,11 +451,43 @@ void N64MemoryBus::clearPifRam()
     spProgramCounter_ = 0;
     std::fill(viRegisters_, viRegisters_ + ViRegisterCount, 0);
     viCycleRemainder_ = 0;
+    rdp_.reset();
+    dpStart_ = dpEnd_ = dpCurrent_ = dpClock_ = dpStatus_ = 0;
 }
 
 void N64MemoryBus::processPifControl()
 {
     pif_.processJoybus(pifRam_);
+}
+
+void N64MemoryBus::processRdpCommands()
+{
+    // DPC command buffers reside in RDRAM and contain big-endian 64-bit words.
+    if (dpCurrent_ > rdram_.size() || dpEnd_ > rdram_.size() ||
+        dpEnd_ < dpCurrent_)
+        return;
+
+    dpStatus_ |= 0x00000040U; // command processor busy
+    while (dpCurrent_ <= dpEnd_ && dpEnd_ - dpCurrent_ >= 8U)
+    {
+        const std::size_t offset = dpCurrent_;
+        const std::uint64_t word =
+            (static_cast<std::uint64_t>(rdram_[offset]) << 56) |
+            (static_cast<std::uint64_t>(rdram_[offset + 1]) << 48) |
+            (static_cast<std::uint64_t>(rdram_[offset + 2]) << 40) |
+            (static_cast<std::uint64_t>(rdram_[offset + 3]) << 32) |
+            (static_cast<std::uint64_t>(rdram_[offset + 4]) << 24) |
+            (static_cast<std::uint64_t>(rdram_[offset + 5]) << 16) |
+            (static_cast<std::uint64_t>(rdram_[offset + 6]) << 8) |
+             static_cast<std::uint64_t>(rdram_[offset + 7]);
+
+        rdp_.pushCommandWord(word);
+        dpCurrent_ += 8;
+        ++dpClock_;
+    }
+    dpStatus_ &= ~0x00000040U;
+    if (dpCurrent_ >= dpEnd_)
+        miInterrupts_ |= 0x20U;
 }
 
 bool N64MemoryBus::transferRdramToPif()
@@ -598,6 +663,8 @@ bool N64MemoryBus::interruptPending() const
 
 Pif &N64MemoryBus::pif() { return pif_; }
 const Pif &N64MemoryBus::pif() const { return pif_; }
+Rdp &N64MemoryBus::rdp() { return rdp_; }
+const Rdp &N64MemoryBus::rdp() const { return rdp_; }
 
 std::size_t N64MemoryBus::cartridgeSize() const { return cartridge_.size(); }
 std::size_t N64MemoryBus::bootRomSize() const { return bootRom_.size(); }
