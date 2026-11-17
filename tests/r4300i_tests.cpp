@@ -489,7 +489,7 @@ int main()
     passed &= check(cpu.step(memory, error), "install TLB translation entry");
     cpu.setReg(1, 0x00400080);
     passed &= check(cpu.step(memory, error), "TLB-mapped LW executes");
-    passed &= check(cpu.reg(2) == 0xFFFFFFFF0BADF00DULL,
+    passed &= check(cpu.reg(2) == 0x0BADF00DULL,
                     "TLB-mapped LW reads translated physical page");
 
     if (!passed) return 1;
