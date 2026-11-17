@@ -14,6 +14,10 @@ void Rdp::reset()
     colorImageFormat_ = 0;
     colorImageSize_ = 0;
     fillColor_ = 0;
+    scissorLeft_ = 0;
+    scissorTop_ = 0;
+    scissorRight_ = 4096;
+    scissorBottom_ = 4096;
 }
 
 std::size_t Rdp::commandWordCount(std::uint8_t opcode)
@@ -53,6 +57,13 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         colorImageAddress_ = static_cast<std::uint32_t>(command & 0x03FFFFFFU);
         break;
 
+    case 0x2D: // SetScissor (10.2 fixed-point coordinates)
+        scissorLeft_ = (static_cast<std::uint32_t>((command >> 44) & 0x0FFFU) + 3U) >> 2;
+        scissorTop_ = (static_cast<std::uint32_t>((command >> 32) & 0x0FFFU) + 3U) >> 2;
+        scissorRight_ = static_cast<std::uint32_t>((command >> 12) & 0x0FFFU) >> 2;
+        scissorBottom_ = static_cast<std::uint32_t>(command & 0x0FFFU) >> 2;
+        break;
+
     case 0x37: // SetFillColor
         fillColor_ = static_cast<std::uint32_t>(command);
         break;
@@ -67,9 +78,12 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         if (colorImageFormat_ == 0 && colorImageWidth_ != 0 &&
             (colorImageSize_ == 2 || colorImageSize_ == 3))
         {
-            for (std::uint32_t y = yStart; y < yEnd; ++y)
-                for (std::uint32_t x = std::min(xStart, colorImageWidth_);
-                     x < std::min(xEnd, colorImageWidth_); ++x)
+            const std::uint32_t clippedLeft = std::min({xStart, scissorLeft_, colorImageWidth_});
+            const std::uint32_t clippedRight = std::min({xEnd, scissorRight_, colorImageWidth_});
+            const std::uint32_t clippedTop = std::max(yStart, scissorTop_);
+            const std::uint32_t clippedBottom = std::min(yEnd, scissorBottom_);
+            for (std::uint32_t y = clippedTop; y < clippedBottom; ++y)
+                for (std::uint32_t x = clippedLeft; x < clippedRight; ++x)
                 {
                     const std::uint64_t offset = static_cast<std::uint64_t>(colorImageAddress_) +
                         (static_cast<std::uint64_t>(y) * colorImageWidth_ + x) * bytesPerPixel;
@@ -120,9 +134,9 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         const std::int64_t dxhdy = lowSigned(w2);
         const std::int64_t xm = highSigned(w3);
         const std::int64_t dxmdy = lowSigned(w3);
-        const int firstY = std::max(0, yh >> 2);
+        const int firstY = static_cast<int>(std::max<std::uint32_t>(yh >> 2, scissorTop_));
         const int middleY = std::max(0, ym >> 2);
-        const int lastY = std::min(4096, (yl + 3) >> 2);
+        const int lastY = static_cast<int>(std::min<std::uint32_t>((yl + 3) >> 2, scissorBottom_));
         const std::size_t bpp = colorImageSize_ == 2 ? 2U : 4U;
 
         for (int y = firstY; y < lastY; ++y)
@@ -134,8 +148,8 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
             const std::int64_t minor = lowerHalf
                 ? xm + dxldy * (y - middleY)
                 : xh + dxmdy * (y - (yh >> 2));
-            const int left = static_cast<int>(std::max<std::int64_t>(0, std::min(major, minor) >> 16));
-            const int right = static_cast<int>(std::min<std::int64_t>(colorImageWidth_,
+            const int left = static_cast<int>(std::max<std::int64_t>(scissorLeft_, std::min(major, minor) >> 16));
+            const int right = static_cast<int>(std::min<std::int64_t>(std::min(colorImageWidth_, scissorRight_),
                 std::max(major, minor) >> 16));
             for (int x = left; x < right; ++x)
             {
