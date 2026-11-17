@@ -91,6 +91,34 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         break;
     }
 
+    case 0x33: // LoadBlock
+    {
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        RdpTileState &tileState = tiles_[tileIndex];
+        tileState.loadType = 1;
+        tileState.loadStartS = static_cast<std::uint16_t>((command >> 44) & 0x0FFFU);
+        tileState.loadStartT = static_cast<std::uint16_t>((command >> 32) & 0x0FFFU);
+        tileState.loadEndS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
+        tileState.loadEndT = 0;
+        tileState.loadDxt = static_cast<std::uint16_t>(command & 0x0FFFU);
+        tileState.loaded = true;
+        break;
+    }
+
+    case 0x34: // LoadTile
+    {
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        RdpTileState &tileState = tiles_[tileIndex];
+        tileState.loadType = 2;
+        tileState.loadStartS = static_cast<std::uint16_t>((command >> 44) & 0x0FFFU);
+        tileState.loadStartT = static_cast<std::uint16_t>((command >> 32) & 0x0FFFU);
+        tileState.loadEndS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
+        tileState.loadEndT = static_cast<std::uint16_t>(command & 0x0FFFU);
+        tileState.loadDxt = 0;
+        tileState.loaded = true;
+        break;
+    }
+
     case 0x35: // SetTile
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
