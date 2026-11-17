@@ -310,6 +310,24 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
     return true;
 }
 
+void N64MemoryBus::advanceViScanlines(std::uint32_t scanlines)
+{
+    // VI_V_SYNC specifies the number of scanlines in a frame. A zero value
+    // is treated as the NTSC default until software programs the register.
+    const std::uint32_t frameLines = viRegisters_[6] == 0 ? 525U : viRegisters_[6];
+    std::uint32_t current = viRegisters_[4] % frameLines;
+    const std::uint32_t compare = viRegisters_[3] & 0x3FFU;
+
+    while (scanlines-- != 0)
+    {
+        current = (current + 1U) % frameLines;
+        if (current == compare)
+            miInterrupts_ |= 0x08U;
+    }
+
+    viRegisters_[4] = current;
+}
+
 bool N64MemoryBus::renderFramebuffer(std::uint32_t width, std::uint32_t height,
                                       std::vector<std::uint32_t> &pixels) const
 {
