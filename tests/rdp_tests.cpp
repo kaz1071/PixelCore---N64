@@ -77,9 +77,13 @@ int main()
     const std::uint64_t triangleHeader =
         (0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL;
     submit(triangleHeader);
-    submit((1ULL << 16) << 32); // XL=1.0, DXLDY=0
+    submit((1ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XL=1.0, DXLDY=-1
     submit((1ULL << 16) << 32); // XH=1.0, DXHDY=0
-    submit((5ULL << 16) << 32); // XM=5.0, DXMDY=0
+    submit((5ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XM=5.0, DXMDY=-1
+    check(framebuffer[(2 * 8 + 5) * 4] == 0xFF,
+          "upper triangle edge steps backward from the middle scanline");
+    check(framebuffer[(4 * 8 + 4) * 4] == 0xFF,
+          "lower triangle edge steps forward from the middle scanline");
     check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
           framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
           "edge-only triangle fills an interior pixel");
