@@ -150,6 +150,28 @@ int main()
           rdp.tile(3).loadDxt == 0, "LoadTile decodes all four bounds");
     check(!rdp.tile(2).loaded, "texture loads do not modify other tiles");
 
+    // LoadTile copies source texels from RDRAM into the selected TMEM tile.
+    Rdp textureLoad;
+    std::vector<std::uint8_t> textureRdram(0x30, 0);
+    for (std::size_t i = 0; i < 8; ++i)
+        textureRdram[0x10 + i] = static_cast<std::uint8_t>(0xA0U + i);
+    const auto submitTexture = [&textureLoad, &textureRdram](std::uint64_t word) {
+        if (textureLoad.pushCommandWord(word)) textureLoad.executeLastCommand(textureRdram);
+    };
+    submitTexture((0x3DULL << 56) | (1ULL << 51) | (3ULL << 32) | 0x10ULL);
+    submitTexture((0x35ULL << 56) | (1ULL << 41) | (1ULL << 32));
+    submitTexture((0x34ULL << 56) | (0ULL << 44) | (0ULL << 32) |
+                  (0ULL << 24) | (12ULL << 12) | 4ULL);
+    check(textureLoad.tile(0).loaded, "LoadTile completes a valid RDRAM-to-TMEM transfer");
+    check(textureLoad.tmemByte(8) == 0xA0 && textureLoad.tmemByte(9) == 0xA1 &&
+          textureLoad.tmemByte(10) == 0xA2 && textureLoad.tmemByte(11) == 0xA3,
+          "LoadTile copies the first source row into the tile TMEM base");
+    check(textureLoad.tmemByte(16) == 0xA4 && textureLoad.tmemByte(17) == 0xA5 &&
+          textureLoad.tmemByte(18) == 0xA6 && textureLoad.tmemByte(19) == 0xA7,
+          "LoadTile copies subsequent rows using the tile line stride");
+    check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(20) == 0,
+          "LoadTile leaves bytes outside the requested tile rows untouched");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
