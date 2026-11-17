@@ -95,6 +95,44 @@ int main()
         passed &= check(rsp.vectorLane(3, lane) == lane + 17,
                         "VSUB broadcasts selected source lane");
 
+    // VADDC and VSUBC preserve per-lane carry/borrow for the next arithmetic op.
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, 1);
+        rsp.setVectorLane(2, lane, 1);
+    }
+    rsp.setVectorLane(2, 0, 0xFFFF);
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x14)); // VADDC
+    memory.write32(N64MemoryBus::SpImemBase + 4, vectorType(0, 2, 1, 4, 0x10)); // VADD
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 0 &&
+                    rsp.vectorLane(3, 1) == 2,
+                    "VADDC stores the low 16 bits of each unsigned sum");
+    rsp.setVectorLane(1, 0, 5);
+    rsp.setVectorLane(2, 0, 2);
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(4, 0) == 8 &&
+                    rsp.vectorLane(4, 1) == 2,
+                    "VADDC carry-out feeds the matching VADD lane only");
+
+    rsp.reset();
+    for (unsigned lane = 0; lane < 8; ++lane)
+    {
+        rsp.setVectorLane(1, lane, 5);
+        rsp.setVectorLane(2, lane, 2);
+    }
+    rsp.setVectorLane(1, 0, 0);
+    rsp.setVectorLane(2, 0, 1);
+    memory.write32(N64MemoryBus::SpImemBase, vectorType(0, 2, 1, 3, 0x15)); // VSUBC
+    memory.write32(N64MemoryBus::SpImemBase + 4, vectorType(0, 2, 1, 4, 0x11)); // VSUB
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(3, 0) == 0xFFFF &&
+                    rsp.vectorLane(3, 1) == 3,
+                    "VSUBC stores the low 16 bits of each unsigned difference");
+    rsp.setVectorLane(1, 0, 5);
+    rsp.setVectorLane(2, 0, 2);
+    passed &= check(rsp.step(memory, error) && rsp.vectorLane(4, 0) == 2 &&
+                    rsp.vectorLane(4, 1) == 3,
+                    "VSUBC borrow-out feeds the matching VSUB lane only");
+
     rsp.reset();
     rsp.setVectorLane(1, 0, 0xF0F0);
     rsp.setVectorLane(2, 0, 0x0FF0);
