@@ -12,7 +12,8 @@ public:
     bool read32(std::uint64_t address, std::uint32_t &value) override
     {
         // The CPU fetches reset code through the KSEG1 physical alias.
-        if (address == 0x1FC00000ULL) address = R4300i::ResetAddress;
+        if (address >= 0x1FC00000ULL && address < 0x1FC01000ULL)
+            address = R4300i::ResetAddress + (address - 0x1FC00000ULL);
         const auto it = words.find(address);
         if (it == words.end()) return false;
         value = it->second;
