@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <string>
+#include <string>\n#include <vector>
 
 namespace
 {
@@ -57,6 +57,27 @@ int main()
     check(rdp.pushCommandWord(3), "triangle completes after four words");
     check(rdp.lastOpcode() == 0x08 && rdp.lastWordCount() == 4,
           "triangle packet framing is retained");
+
+    // Exercise the first edge-only triangle path using a 32-bit color image.
+    Rdp raster;
+    std::vector<std::uint8_t> framebuffer(8 * 8 * 4, 0);
+    const auto submit = [&raster, &framebuffer](std::uint64_t word) {
+        if (raster.pushCommandWord(word))
+            raster.executeLastCommand(framebuffer);
+    };
+    submit((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submit((0x37ULL << 56) | 0xFF0000FFULL);
+    const std::uint64_t triangleHeader =
+        (0x08ULL << 56) | (4ULL << 32) | (4ULL << 16) | 20ULL;
+    submit(triangleHeader);
+    submit((1ULL << 48) | 0ULL); // xh=1, dxh/dy=0
+    submit((5ULL << 48) | 0ULL); // xm=5, dxm/dy=0
+    submit((1ULL << 48) | 0xFFFF0000ULL); // xl=1, dxl/dy=-1
+    check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
+          framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
+          "edge-only triangle fills an interior pixel");
+    check(framebuffer[(2 * 8 + 6) * 4] == 0,
+          "edge-only triangle leaves pixels outside its edges untouched");
 
     if (failures != 0)
     {
