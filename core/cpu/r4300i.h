@@ -62,6 +62,9 @@ private:
                  N64Memory &memory, std::string &error);
     void raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
                         bool hasBadAddress = false);
+    bool translateAddress(std::uint64_t virtualAddress, bool isStore,
+                          std::uint64_t &physicalAddress,
+                          std::uint64_t instructionAddress);
 
     std::array<std::uint64_t, 32> registers_{};
     std::array<std::uint64_t, 32> cp0Registers_{};
