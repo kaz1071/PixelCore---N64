@@ -401,8 +401,8 @@ int main()
     cpu.setCp0(R4300i::Index, 5);
     cpu.setCp0(R4300i::PageMask, 0);
     cpu.setCp0(R4300i::EntryHi, 0x0045602A);
-    cpu.setCp0(R4300i::EntryLo0, 0x12345);
-    cpu.setCp0(R4300i::EntryLo1, 0x23457);
+    cpu.setCp0(R4300i::EntryLo0, 0x12344);
+    cpu.setCp0(R4300i::EntryLo1, 0x23456);
     memory.words.clear();
     memory.words[base] = tlbwi;
     passed &= check(cpu.step(memory, error), "TLBWI executes");
@@ -410,8 +410,8 @@ int main()
     memory.words[base + 4] = tlbr;
     passed &= check(cpu.step(memory, error), "TLBR executes");
     passed &= check(cpu.cp0(R4300i::EntryHi) == 0x0045602A &&
-                    cpu.cp0(R4300i::EntryLo0) == 0x12345 &&
-                    cpu.cp0(R4300i::EntryLo1) == 0x23457,
+                    cpu.cp0(R4300i::EntryLo0) == 0x12344 &&
+                    cpu.cp0(R4300i::EntryLo1) == 0x23456,
                     "TLBR restores indexed TLB entry into CP0 registers");
 
     memory.words[base + 8] = tlbp;
