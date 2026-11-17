@@ -10,6 +10,8 @@
 
 class QLabel;
 class QKeyEvent;
+class QTimer;
+class FramebufferView;
 
 class MainWindow final : public QMainWindow
 {
@@ -26,9 +28,11 @@ private:
     void openRom();
     void updateControllerInput();
     void updateRomDisplay();
+    void updateFramebuffer();
 
     QLabel *statusLabel_ = nullptr;
-    QLabel *romInfoLabel_ = nullptr;
+    FramebufferView *framebufferView_ = nullptr;
+    QTimer *frameTimer_ = nullptr;
     QString loadedRomPath_;
     QString loadedRomTitle_;
     QString loadedRomFormat_;
