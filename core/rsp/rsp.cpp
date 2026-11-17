@@ -180,6 +180,18 @@ bool Rsp::execute(std::uint32_t instruction, N64Memory &memory,
 
         switch (function)
         {
+        case 0x13: // VABS: absolute value of vt, with sign selected by vs
+            for (unsigned lane = 0; lane < 8; ++lane)
+            {
+                const std::int32_t sign = static_cast<std::int16_t>(left[lane]);
+                const std::int32_t value = static_cast<std::int16_t>(source[lane]);
+                const std::int32_t result = sign < 0 ? -value
+                    : (sign > 0 ? value : 0);
+                const std::int32_t saturated = result > 32767 ? 32767
+                    : (result < -32768 ? -32768 : result);
+                vectorRegisters_[vd][lane] = static_cast<std::uint16_t>(saturated);
+            }
+            break;
         case 0x14: // VADDC: unsigned add, recording per-lane carry-out in VCO
         {
             std::uint16_t carries = 0;
