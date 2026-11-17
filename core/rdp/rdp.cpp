@@ -22,6 +22,7 @@ void Rdp::reset()
     environmentColor_ = 0;
     primitiveDepth_ = 0;
     primitiveDeltaZ_ = 0;
+    conversionCoefficients_.fill(0);
     scissorLeft_ = 0;
     scissorTop_ = 0;
     scissorRight_ = 4096;
@@ -74,6 +75,16 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
 
     case 0x37: // SetFillColor
         fillColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x2C: // SetConvert (six signed 9-bit coefficients)
+        for (std::size_t i = 0; i < conversionCoefficients_.size(); ++i)
+        {
+            const unsigned shift = static_cast<unsigned>((5U - i) * 9U);
+            const std::uint16_t raw = static_cast<std::uint16_t>((command >> shift) & 0x1FFU);
+            conversionCoefficients_[i] = static_cast<std::int16_t>(
+                (raw & 0x100U) ? static_cast<int>(raw) - 0x200 : raw);
+        }
         break;
 
     case 0x2E: // SetPrimDepth
@@ -294,4 +305,9 @@ std::uint16_t Rdp::primitiveDepth() const
 std::uint16_t Rdp::primitiveDeltaZ() const
 {
     return primitiveDeltaZ_;
+}
+
+std::int16_t Rdp::conversionCoefficient(std::size_t index) const
+{
+    return index < conversionCoefficients_.size() ? conversionCoefficients_[index] : 0;
 }
