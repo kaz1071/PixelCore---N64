@@ -172,6 +172,15 @@ int main()
                                 static_cast<std::uint32_t>(N64MemoryBus::RdramSize - 2)) &&
                     !bus.renderFramebuffer(2, 1, frame), "VI rejects out-of-bounds framebuffer");
 
+    passed &= check(bus.write32(N64MemoryBus::ViControl, 0),
+                    "unsupported VI pixel format is rejected");
+    passed &= check(!bus.renderFramebuffer(1, 1, frame),
+                    "VI does not render when pixel format is disabled");
+    passed &= check(bus.write32(N64MemoryBus::ViControl, 2) &&
+                    bus.write32(N64MemoryBus::ViOrigin, 0x1000) &&
+                    bus.write32(N64MemoryBus::ViWidth, 2),
+                    "restore VI registers for following tests");
+
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
                     "set PI destination RDRAM address");
