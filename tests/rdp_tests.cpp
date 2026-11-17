@@ -115,6 +115,17 @@ int main()
           decodedTile.maskT == 0xA && decodedTile.shiftT == 5, "SetTile decodes T wrapping and shift fields");
     check(decodedTile.clampS == 1 && decodedTile.mirrorS == 0 &&
           decodedTile.maskS == 0xC && decodedTile.shiftS == 7, "SetTile decodes S wrapping and shift fields");
+
+    const std::uint64_t setTileSize = (0x32ULL << 56) | (3ULL << 24) |
+        (0x123ULL << 44) | (0x234ULL << 32) | (0x345ULL << 12) | 0x456ULL;
+    check(rdp.pushCommandWord(setTileSize), "SetTileSize completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.tile(3).upperLeftS == 0x123 && rdp.tile(3).upperLeftT == 0x234,
+          "SetTileSize decodes upper-left S/T coordinates");
+    check(rdp.tile(3).lowerRightS == 0x345 && rdp.tile(3).lowerRightT == 0x456,
+          "SetTileSize decodes lower-right S/T coordinates");
+    check(rdp.tile(0).upperLeftS == 0 && rdp.tile(0).lowerRightT == 0,
+          "SetTileSize updates only the selected tile");
     check(rdp.tile(0).format == 0 && rdp.tile(8).format == 0,
           "SetTile leaves other tiles untouched and invalid reads return defaults");
 
@@ -136,7 +147,9 @@ int main()
           "reset clears primitive depth registers");
     check(rdp.conversionCoefficient(0) == 0 && rdp.conversionCoefficient(5) == 0,
           "reset clears conversion coefficients");
-    check(rdp.tile(3).format == 0 && rdp.tile(3).line == 0, "reset clears tile descriptors");
+    check(rdp.tile(3).format == 0 && rdp.tile(3).line == 0 &&
+          rdp.tile(3).upperLeftS == 0 && rdp.tile(3).lowerRightT == 0,
+          "reset clears tile descriptors and bounds");
     check(rdp.primitiveMinLevel() == 0 && rdp.primitiveLodFraction() == 0,
           "reset clears primitive color LOD parameters");
     check(rdp.completedCommands() == 0, "reset clears command count");
