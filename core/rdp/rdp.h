@@ -20,6 +20,7 @@ public:
     const std::vector<std::uint64_t> &lastCommand() const;
     std::uint32_t otherModesHigh() const;
     std::uint32_t otherModesLow() const;
+    std::uint8_t cycleType() const;
 
 private:
     std::vector<std::uint64_t> pending_;
