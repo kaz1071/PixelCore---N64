@@ -115,6 +115,8 @@ if(BUILD_TESTING)
         core/rsp/rsp.cpp
         core/rsp/rsp.h
         core/memory/n64_memory_bus.cpp
+        core/rdp/rdp.cpp
+        core/rdp/rdp.h
         core/memory/n64_memory_bus.h
         core/pif/pif.cpp
         core/pif/pif.h
@@ -155,6 +157,8 @@ if(BUILD_TESTING)
         core/rsp/rsp.cpp
         core/rsp/rsp.h
         core/memory/n64_memory_bus.cpp
+        core/rdp/rdp.cpp
+        core/rdp/rdp.h
         core/memory/n64_memory_bus.h
         core/pif/pif.cpp
         core/pif/pif.h
