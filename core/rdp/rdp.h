@@ -20,6 +20,10 @@ struct RdpTileState
     std::uint8_t mirrorS = 0;
     std::uint8_t maskS = 0;
     std::uint8_t shiftS = 0;
+    std::uint16_t upperLeftS = 0;
+    std::uint16_t upperLeftT = 0;
+    std::uint16_t lowerRightS = 0;
+    std::uint16_t lowerRightT = 0;
 };
 
 // RDP command-stream decoder with an initial fill-rectangle rasterizer.
