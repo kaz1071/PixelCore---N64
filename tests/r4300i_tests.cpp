@@ -439,6 +439,20 @@ int main()
     passed &= check(cpu.cp0(R4300i::Index) == 6,
                     "TLBP matches global entry regardless of ASID");
 
+    // PageMask allows a TLB entry to cover a larger virtual page pair.
+    cpu.setCp0(R4300i::EntryHi, 0x0080002A);
+    cpu.setCp0(R4300i::PageMask, 0x00006000); // 16 KiB pages
+    cpu.setCp0(R4300i::EntryLo0, 0x34564);
+    cpu.setCp0(R4300i::EntryLo1, 0x45676);
+    cpu.setCp0(R4300i::Index, 7);
+    memory.words[base + 24] = tlbwi;
+    passed &= check(cpu.step(memory, error), "write large-page TLB entry");
+    cpu.setCp0(R4300i::EntryHi, 0x0080602A); // Same 16 KiB page pair
+    memory.words[base + 28] = tlbp;
+    passed &= check(cpu.step(memory, error), "probe large-page TLB entry");
+    passed &= check(cpu.cp0(R4300i::Index) == 7,
+                    "TLBP honors PageMask when matching larger pages");
+
     if (!passed) return 1;
     std::cout << "All R4300i CPU tests passed.\n";
     return 0;
