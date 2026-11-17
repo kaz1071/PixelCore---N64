@@ -181,6 +181,39 @@ int main()
                     bus.write32(N64MemoryBus::ViWidth, 2),
                     "restore VI registers for following tests");
 
+    // VI scanline counter, frame wrap, and MI interrupt behaviour.
+    passed &= check(bus.write32(N64MemoryBus::ViVSync, 4),
+                    "configure a four-line VI frame");
+    passed &= check(bus.write32(N64MemoryBus::ViInterrupt, 2),
+                    "configure VI interrupt scanline");
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x20),
+                    "enable VI interrupt in MI mask");
+    bus.advanceViScanlines(1);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 1,
+                    "VI current register advances one scanline");
+    passed &= check((bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x08U) == 0),
+                    "VI interrupt stays clear before compare scanline");
+    bus.advanceViScanlines(1);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 2,
+                    "VI current reaches programmed compare scanline");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x08U) != 0,
+                    "VI compare raises MI VI interrupt");
+    passed &= check(bus.interruptPending(), "enabled VI interrupt reaches CPU interrupt line");
+    passed &= check(bus.write32(N64MemoryBus::ViCurrent, 0),
+                    "writing VI current acknowledges the interrupt");
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x08U) == 0,
+                    "VI acknowledgement clears MI VI interrupt");
+    bus.advanceViScanlines(2);
+    passed &= check(bus.read32(N64MemoryBus::ViCurrent, word) && word == 0,
+                    "VI current wraps at VI_V_SYNC");
+    bus.advanceViScanlines(2);
+    passed &= check(bus.read32(N64MemoryBus::MiInterrupt, word) && (word & 0x08U) != 0,
+                    "VI compare interrupt fires again on the next frame");
+    passed &= check(bus.write32(N64MemoryBus::ViCurrent, 0),
+                    "acknowledge second VI frame interrupt");
+    passed &= check(bus.write32(N64MemoryBus::MiInterruptMask, 0x10),
+                    "disable VI interrupt in MI mask");
+
     // PI DMA copies cartridge ROM into RDRAM and can copy RDRAM into save RAM.
     passed &= check(bus.write32(N64MemoryBus::PiDramAddress, 0x800),
                     "set PI destination RDRAM address");
