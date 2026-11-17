@@ -58,6 +58,76 @@ bool N64Memory::write64(std::uint64_t address, std::uint64_t value)
 
 bool N64Memory::interruptPending() const { return false; }
 
+bool R4300i::translateAddress(std::uint64_t virtualAddress, bool isStore,
+                              std::uint64_t &physicalAddress,
+                              std::uint64_t instructionAddress)
+{
+    const std::uint32_t address = static_cast<std::uint32_t>(virtualAddress);
+    const std::uint64_t status = cp0Registers_[Status];
+    const unsigned int mode = static_cast<unsigned int>((status >> 3) & 0x3);
+    const bool kernelMode = (status & 0x6) != 0 || mode == 0;
+    const bool errorLevel = (status & 0x4) != 0;
+
+    // The R4300i's ERL mode provides a direct-mapped kuseg window. This is
+    // also useful immediately after reset, before the OS installs its TLB.
+    if (errorLevel && address < 0x80000000U) {
+        physicalAddress = address & 0x1FFFFFFFU;
+        return true;
+    }
+
+    if (address >= 0x80000000U && address < 0xC0000000U) {
+        if (!kernelMode) {
+            raiseException(isStore ? 5 : 4, instructionAddress, true);
+            cp0Registers_[BadVAddr] = virtualAddress;
+            return false;
+        }
+        physicalAddress = address & 0x1FFFFFFFU;
+        return true;
+    }
+
+    // KUSEG and KSEG2/3 are translated through the 32-entry TLB.
+    for (const auto &entry : tlb_) {
+        const std::uint64_t pageMask = entry.pageMask & 0x01FFE000ULL;
+        const std::uint64_t pairMask = pageMask | 0x1FFFULL;
+        const std::uint64_t vpnMask = ~pairMask;
+        if ((entry.entryHi & vpnMask) !=
+            (static_cast<std::uint64_t>(address) & vpnMask))
+            continue;
+
+        const bool global = (entry.entryLo0 & 1ULL) && (entry.entryLo1 & 1ULL);
+        const std::uint64_t asid = cp0Registers_[EntryHi] & 0xFFULL;
+        if (!global && (entry.entryHi & 0xFFULL) != asid)
+            continue;
+
+        const std::uint64_t pageSize = (pairMask + 1) / 2;
+        const bool oddPage = (address & pageSize) != 0;
+        const std::uint64_t entryLo = oddPage ? entry.entryLo1 : entry.entryLo0;
+        if ((entryLo & 2ULL) == 0) {
+            cp0Registers_[EntryHi] = (entry.entryHi & ~0xFFULL) | asid;
+            raiseException(isStore ? 3 : 2, instructionAddress);
+            cp0Registers_[BadVAddr] = virtualAddress;
+            return false;
+        }
+        if (isStore && (entryLo & 4ULL) == 0) {
+            raiseException(3, instructionAddress);
+            cp0Registers_[BadVAddr] = virtualAddress;
+            return false;
+        }
+
+        const std::uint64_t offsetMask = pageSize - 1;
+        const std::uint64_t physicalBase =
+            ((entryLo >> 6) << 12) & ~offsetMask;
+        physicalAddress = physicalBase | (address & offsetMask);
+        return true;
+    }
+
+    cp0Registers_[EntryHi] = (static_cast<std::uint64_t>(address) & ~0x1FFFULL) |
+                             (cp0Registers_[EntryHi] & 0xFFULL);
+    raiseException(isStore ? 3 : 2, instructionAddress);
+    cp0Registers_[BadVAddr] = virtualAddress;
+    return false;
+}
+
 namespace {
 std::int64_t signExtend16(std::uint16_t value)
 {
@@ -162,9 +232,22 @@ bool R4300i::step(N64Memory &memory, std::string &error)
     std::uint32_t instruction = 0;
     const std::uint64_t instructionAddress = pc_;
 
-    if (!memory.read32(instructionAddress, instruction)) {
+    std::uint64_t physicalInstructionAddress = 0;
+    if ((instructionAddress & 3) != 0) {
         currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
-        raiseException(4, instructionAddress, true); // Address Error on instruction fetch.
+        raiseException(4, instructionAddress, true);
+        error.clear();
+        return true;
+    }
+    if (!translateAddress(instructionAddress, false, physicalInstructionAddress,
+                          instructionAddress)) {
+        currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
+        error.clear();
+        return true;
+    }
+    if (!memory.read32(physicalInstructionAddress, instruction)) {
+        currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
+        raiseException(4, instructionAddress, true);
         error.clear();
         return true;
     }
@@ -496,8 +579,15 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         break;
     case 0x30: { // LL (Load Linked, 32-bit)
         const std::uint64_t address = a + offset;
+        std::uint64_t physicalAddress = 0;
         std::uint32_t value = 0;
-        if ((address & 3) || !memory.read32(address, value)) {
+        if ((address & 3)) {
+            raiseException(4, address, true);
+            return true;
+        }
+        if (!translateAddress(address, false, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.read32(physicalAddress, value)) {
             raiseException(4, address, true);
             return true;
         }
@@ -668,7 +758,14 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
     case 0x2B: { // SW
         const std::uint64_t address = a + offset;
         llBit_ = false;
-        if ((address & 3) || !memory.write32(address, low32(b))) {
+        std::uint64_t physicalAddress = 0;
+        if (address & 3) {
+            raiseException(5, address, true);
+            return true;
+        }
+        if (!translateAddress(address, true, physicalAddress, instructionAddress))
+            return true;
+        if (!memory.write32(physicalAddress, low32(b))) {
             raiseException(5, address, true);
             return true;
         }
