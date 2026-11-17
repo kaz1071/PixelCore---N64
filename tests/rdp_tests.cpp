@@ -77,6 +77,10 @@ int main()
     setColor(0x39, 0x50607080U);
     setColor(0x3A, 0x90A0B0C0U);
     setColor(0x3B, 0xD0E0F001U);
+    check(rdp.pushCommandWord((0x3AULL << 56) | (0x35ULL << 40) |
+                              (0x79ULL << 32) | 0x90A0B0C0ULL),
+          "SetPrimitiveColor with LOD fields completes");
+    rdp.executeLastCommand(commandBuffer);
     check(rdp.pushCommandWord((0x2EULL << 56) | (0xABCDULL << 16) | 0x1234ULL),
           "SetPrimDepth completes as a single-word command");
     rdp.executeLastCommand(commandBuffer);
@@ -100,6 +104,8 @@ int main()
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
+    check(rdp.primitiveMinLevel() == 0x35U, "SetPrimitiveColor decodes minimum LOD level");
+    check(rdp.primitiveLodFraction() == 0x79U, "SetPrimitiveColor decodes primitive LOD fraction");
     check(rdp.environmentColor() == 0xD0E0F001U, "SetEnvironmentColor stores packed RGBA");
 
     rdp.reset();
@@ -113,6 +119,8 @@ int main()
           "reset clears primitive depth registers");
     check(rdp.conversionCoefficient(0) == 0 && rdp.conversionCoefficient(5) == 0,
           "reset clears conversion coefficients");
+    check(rdp.primitiveMinLevel() == 0 && rdp.primitiveLodFraction() == 0,
+          "reset clears primitive color LOD parameters");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
