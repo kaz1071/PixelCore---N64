@@ -82,6 +82,21 @@ int main()
     rdp.executeLastCommand(commandBuffer);
     check(rdp.primitiveDepth() == 0xABCDU, "SetPrimDepth stores the depth value");
     check(rdp.primitiveDeltaZ() == 0x1234U, "SetPrimDepth stores the delta-Z value");
+
+    // SetConvert packs six signed 9-bit coefficients from K0 through K5.
+    const std::uint64_t convertCommand = (0x2CULL << 56) |
+        (0x001ULL << 45) | (0x1FFULL << 36) | (0x100ULL << 27) |
+        (0x0FFULL << 18) | (0x155ULL << 9) | 0x0AAULL;
+    check(rdp.pushCommandWord(convertCommand), "SetConvert completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.conversionCoefficient(0) == 1, "SetConvert decodes positive K0");
+    check(rdp.conversionCoefficient(1) == -1, "SetConvert sign-extends negative K1");
+    check(rdp.conversionCoefficient(2) == -256, "SetConvert sign-extends minimum K2");
+    check(rdp.conversionCoefficient(3) == 255, "SetConvert decodes maximum positive K3");
+    check(rdp.conversionCoefficient(4) == -171, "SetConvert sign-extends K4");
+    check(rdp.conversionCoefficient(5) == 170, "SetConvert decodes K5");
+    check(rdp.conversionCoefficient(6) == 0, "out-of-range conversion coefficient reads as zero");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
@@ -96,6 +111,8 @@ int main()
           "reset clears all RDP color registers");
     check(rdp.primitiveDepth() == 0 && rdp.primitiveDeltaZ() == 0,
           "reset clears primitive depth registers");
+    check(rdp.conversionCoefficient(0) == 0 && rdp.conversionCoefficient(5) == 0,
+          "reset clears conversion coefficients");
     check(rdp.completedCommands() == 0, "reset clears command count");
     check(rdp.lastWordCount() == 0, "reset clears previous command");
 
