@@ -20,6 +20,8 @@ void Rdp::reset()
     fogColor_ = 0;
     primitiveColor_ = 0;
     environmentColor_ = 0;
+    primitiveDepth_ = 0;
+    primitiveDeltaZ_ = 0;
     scissorLeft_ = 0;
     scissorTop_ = 0;
     scissorRight_ = 4096;
@@ -72,6 +74,11 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
 
     case 0x37: // SetFillColor
         fillColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x2E: // SetPrimDepth
+        primitiveDepth_ = static_cast<std::uint16_t>((command >> 16) & 0xFFFFU);
+        primitiveDeltaZ_ = static_cast<std::uint16_t>(command & 0xFFFFU);
         break;
 
     case 0x2F: // SetOtherModes
@@ -277,4 +284,14 @@ std::uint32_t Rdp::primitiveColor() const
 std::uint32_t Rdp::environmentColor() const
 {
     return environmentColor_;
+}
+
+std::uint16_t Rdp::primitiveDepth() const
+{
+    return primitiveDepth_;
+}
+
+std::uint16_t Rdp::primitiveDeltaZ() const
+{
+    return primitiveDeltaZ_;
 }
