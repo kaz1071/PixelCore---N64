@@ -139,6 +139,32 @@ int main()
     check(clippedBuffer[(4 * 8 + 2) * 4] == 0,
           "scissor clips pixels at its exclusive bottom boundary");
 
+    // Triangle spans obey the same scissor rectangle as fill rectangles.
+    Rdp clippedTriangle;
+    std::vector<std::uint8_t> clippedTriangleBuffer(8 * 8 * 4, 0);
+    const auto submitClippedTriangle = [&clippedTriangle, &clippedTriangleBuffer](std::uint64_t word) {
+        if (clippedTriangle.pushCommandWord(word))
+            clippedTriangle.executeLastCommand(clippedTriangleBuffer);
+    };
+    submitClippedTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitClippedTriangle((0x37ULL << 56) | 0x11223344ULL);
+    submitClippedTriangle((0x2DULL << 56) | (4ULL << 44) | (8ULL << 32) |
+                          (20ULL << 12) | 20ULL); // x=1..5, y=2..5
+    submitClippedTriangle(triangleHeader);
+    submitClippedTriangle((5ULL << 16) << 32 | 65536U);
+    submitClippedTriangle((1ULL << 16) << 32 | 65536U);
+    submitClippedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    check(clippedTriangleBuffer[(2 * 8 + 2) * 4] == 0,
+          "scissor clips triangle pixels left of its boundary");
+    check(clippedTriangleBuffer[(4 * 8 + 4) * 4] == 0x11,
+          "scissor preserves triangle pixels inside its boundary");
+
+    // Reset restores the default full-frame scissor rectangle.
+    clipped.reset();
+    submitClipped((0x36ULL << 56) | (28ULL << 12) | 28ULL);
+    check(clippedBuffer[(6 * 8 + 6) * 4] == 0xAA,
+          "reset restores full-frame scissor bounds");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
