@@ -82,7 +82,7 @@ int main()
     submit((5ULL << 16) << 32 | static_cast<std::uint32_t>(-65536)); // XM=5.0, DXMDY=-1
     check(framebuffer[(2 * 8 + 5) * 4] == 0xFF,
           "upper triangle edge steps backward from the middle scanline");
-    check(framebuffer[(4 * 8 + 4) * 4] == 0xFF,
+    check(framebuffer[(4 * 8 + 3) * 4] == 0xFF,
           "lower triangle edge steps forward from the middle scanline");
     check(framebuffer[(2 * 8 + 2) * 4] == 0xFF &&
           framebuffer[(2 * 8 + 2) * 4 + 1] == 0,
