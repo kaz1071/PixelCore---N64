@@ -993,7 +993,7 @@ int main()
         if (clippedTextureRectangle.pushCommandWord(word))
             clippedTextureRectangle.executeLastCommand(clippedTextureMemory);
     };
-    submitClippedTexture((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32));
+    submitClippedTexture((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitClippedTexture((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitClippedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitClippedTexture((0x34ULL << 56) | (4ULL << 12) | 4ULL);
