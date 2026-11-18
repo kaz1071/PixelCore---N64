@@ -1281,6 +1281,48 @@ int main()
     check(shadedDepthWord != 0xFFFCU,
           "ShadeDepthTriangle reads its Z block after the shade coefficients");
 
+    // Transparent and decal Z modes may write color, but must preserve
+    // the existing depth value even when Z-update is enabled.
+    const auto renderSpecialZMode = [](std::uint32_t modes, std::uint32_t initialDepth) {
+        Rdp rdp;
+        std::vector<std::uint8_t> memory(8 * 8 * 4 + 8 * 8 * 2, 0);
+        const std::uint16_t initialWord = static_cast<std::uint16_t>(
+            Rdp::compressDepth(initialDepth) << 2U);
+        for (std::size_t i = 256; i < memory.size(); i += 2)
+        {
+            memory[i] = static_cast<std::uint8_t>(initialWord >> 8U);
+            memory[i + 1] = static_cast<std::uint8_t>(initialWord);
+        }
+        const auto submit = [&rdp, &memory](std::uint64_t word) {
+            if (rdp.pushCommandWord(word))
+                rdp.executeLastCommand(memory);
+        };
+        submit((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+        submit((0x3EULL << 56) | 256ULL);
+        submit((0x2FULL << 56) | modes);
+        submit((0x2EULL << 56) | (0x1000ULL << 16) | 1ULL);
+        submit((0x37ULL << 56) | 0xFF0000FFULL);
+        submit((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+        submit((5ULL << 16) << 32 | 65536U);
+        submit((1ULL << 16) << 32 | 65536U);
+        submit((5ULL << 16) << 32 | 3ULL * 65536U);
+        const std::size_t pixel = (2 * 8 + 2) * 4;
+        const std::size_t zAddress = 256 + (2 * 8 + 2) * 2;
+        const std::uint16_t finalDepth = static_cast<std::uint16_t>(
+            (static_cast<std::uint16_t>(memory[zAddress]) << 8U) | memory[zAddress + 1]);
+        return std::pair<std::uint8_t, std::uint16_t>{memory[pixel], finalDepth};
+    };
+    const auto transparentMode = renderSpecialZMode(0x830U, 0x10000U);
+    check(transparentMode.first == 0xFF &&
+          transparentMode.second == static_cast<std::uint16_t>(
+              Rdp::compressDepth(0x10000U) << 2U),
+          "transparent Z mode writes nearer color without updating depth");
+    const auto decalMode = renderSpecialZMode(0xC30U, 0x8000U);
+    check(decalMode.first == 0xFF &&
+          decalMode.second == static_cast<std::uint16_t>(
+              Rdp::compressDepth(0x8000U) << 2U),
+          "decal Z mode accepts coplanar color without updating depth");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
