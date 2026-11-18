@@ -134,8 +134,8 @@ int main()
         (0x222ULL << 32) | (3ULL << 24) | (0x333ULL << 12) | 0x444ULL;
     check(rdp.pushCommandWord(loadBlock), "LoadBlock completes as a single-word command");
     rdp.executeLastCommand(commandBuffer);
-    check(rdp.tile(3).loaded && rdp.tile(3).loadType == 1,
-          "LoadBlock marks the selected tile loaded with block mode");
+    check(!rdp.tile(3).loaded && rdp.tile(3).loadType == 1,
+          "LoadBlock records block mode but stays unloaded without a source image");
     check(rdp.tile(3).loadStartS == 0x111 && rdp.tile(3).loadStartT == 0x222 &&
           rdp.tile(3).loadEndS == 0x333 && rdp.tile(3).loadEndT == 0 &&
           rdp.tile(3).loadDxt == 0x444, "LoadBlock decodes coordinates and DXT");
