@@ -57,6 +57,8 @@ public:
     std::uint8_t primitiveMinLevel() const;
     std::uint8_t primitiveLodFraction() const;
     std::uint32_t environmentColor() const;
+    std::uint64_t combineMux0() const;
+    std::uint64_t combineMux1() const;
     std::uint16_t primitiveDepth() const;
     std::uint16_t primitiveDeltaZ() const;
     std::int16_t conversionCoefficient(std::size_t index) const;
@@ -96,6 +98,8 @@ private:
     std::uint8_t primitiveMinLevel_ = 0;
     std::uint8_t primitiveLodFraction_ = 0;
     std::uint32_t environmentColor_ = 0;
+    std::uint64_t combineMux0_ = 0;
+    std::uint64_t combineMux1_ = 0;
     std::uint16_t primitiveDepth_ = 0;
     std::uint16_t primitiveDeltaZ_ = 0;
     std::array<std::int16_t, 6> conversionCoefficients_{};
