@@ -152,6 +152,31 @@ int main()
     check(rdp.primitiveDepth() == 0xABCDU, "SetPrimDepth stores the depth value");
     check(rdp.primitiveDeltaZ() == 0x1234U, "SetPrimDepth stores the delta-Z value");
 
+    // The RDP's 18-bit depth is stored as a 3-bit exponent and 11-bit mantissa.
+    check(Rdp::compressDepth(0x00000U) == 0x0000U,
+          "depth compression encodes the near-plane zero");
+    check(Rdp::compressDepth(0x20000U) == 0x0800U,
+          "depth compression advances to exponent one at its boundary");
+    check(Rdp::compressDepth(0x3F800U) == 0x3800U,
+          "depth compression encodes the far exponent boundary");
+    check(Rdp::decompressDepth(0x0000U) == 0x00000U,
+          "depth decompression restores zero");
+    check(Rdp::decompressDepth(0x0800U) == 0x20000U,
+          "depth decompression restores exponent-one boundary");
+    check(Rdp::decompressDepth(0x3800U) == 0x3F800U,
+          "depth decompression restores the far exponent boundary");
+    std::uint32_t previousDecodedDepth = 0;
+    bool depthCodecMonotonic = true;
+    for (std::uint32_t depth = 0; depth <= 0x3FFFFU; depth += 257U)
+    {
+        const std::uint32_t decoded = Rdp::decompressDepth(Rdp::compressDepth(depth));
+        if (decoded < previousDecodedDepth || decoded > depth)
+            depthCodecMonotonic = false;
+        previousDecodedDepth = decoded;
+    }
+    check(depthCodecMonotonic,
+          "depth compression remains monotonic and never decodes beyond the source depth");
+
     check(rdp.pushCommandWord((0x3EULL << 56) | 0x00123456ULL),
           "SetDepthImage completes as a single-word command");
     rdp.executeLastCommand(commandBuffer);
