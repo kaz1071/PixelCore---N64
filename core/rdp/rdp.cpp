@@ -635,19 +635,19 @@ case 0x33: // LoadBlock
                         const std::uint32_t primitive = primitiveColor_;
                         const std::uint32_t environment = environmentColor_;
                         const std::uint32_t shadeColor = interpolatedShade;
-                        const unsigned aSel = static_cast<unsigned>((combineMux0_ >> 37) & 0x0FU);
-                        const unsigned cSel = static_cast<unsigned>((combineMux0_ >> 32) & 0x1FU);
-                        const unsigned bSel = static_cast<unsigned>((combineMux1_ >> 24) & 0x0FU);
-                        const unsigned dSel = static_cast<unsigned>((combineMux1_ >> 6) & 0x07U);
-                        const unsigned aaSel = static_cast<unsigned>((combineMux0_ >> 29) & 0x07U);
-                        const unsigned acSel = static_cast<unsigned>((combineMux0_ >> 26) & 0x07U);
-                        const unsigned abSel = static_cast<unsigned>((combineMux1_ >> 3) & 0x07U);
-                        const unsigned adSel = static_cast<unsigned>(combineMux1_ & 0x07U);
+                        // First-cycle mux fields from the documented SetCombine layout.
+                        const unsigned aSel = static_cast<unsigned>((combineMux0_ >> 52) & 0x0FU);
+                        const unsigned cSel = static_cast<unsigned>((combineMux0_ >> 47) & 0x1FU);
+                        const unsigned aaSel = static_cast<unsigned>((combineMux0_ >> 44) & 0x07U);
+                        const unsigned acSel = static_cast<unsigned>((combineMux0_ >> 41) & 0x07U);
+                        const unsigned bSel = static_cast<unsigned>((combineMux1_ >> 28) & 0x0FU);
+                        const unsigned dSel = static_cast<unsigned>((combineMux1_ >> 15) & 0x07U);
+                        const unsigned abSel = static_cast<unsigned>((combineMux1_ >> 12) & 0x07U);
+                        const unsigned adSel = static_cast<unsigned>((combineMux1_ >> 9) & 0x07U);
                         const auto colorSource = [&](unsigned selector, unsigned channel) -> int {
                             switch (selector)
                             {
-                            case 0: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
-                            case 1: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
+                            case 0: case 1: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
                             case 3: return static_cast<int>((primitive >> (24U - channel * 8U)) & 0xFFU);
                             case 4: return static_cast<int>((shadeColor >> (24U - channel * 8U)) & 0xFFU);
                             case 5: return static_cast<int>((environment >> (24U - channel * 8U)) & 0xFFU);
@@ -663,6 +663,7 @@ case 0x33: // LoadBlock
                             case 4: return static_cast<int>(shadeColor & 0xFFU);
                             case 5: return static_cast<int>(environment & 0xFFU);
                             case 6: return primitiveLodFraction_;
+                            case 7: return primitiveLodFraction_;
                             default: return 0;
                             }
                         };
