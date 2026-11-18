@@ -797,6 +797,25 @@ int main()
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
           "TextureTriangle samples a texture texel into the triangle framebuffer");
 
+    // A non-zero SetCombine mux selects the primitive color for textured pixels.
+    submitTexturedTriangle((0x3AULL << 56) | (255ULL << 32) | 0x20A040FFULL);
+    submitTexturedTriangle((0x3CULL << 56) | (3ULL << 37) | (6ULL << 32) |
+                            (3ULL << 29) | (6ULL << 26));
+    submitTexturedTriangle((3ULL << 6) | 3ULL);
+    submitTexturedTriangle((0x0AULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitTexturedTriangle((5ULL << 16) << 32 | 65536U);
+    submitTexturedTriangle((1ULL << 16) << 32 | 65536U);
+    submitTexturedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitTexturedTriangle(0ULL);
+    submitTexturedTriangle((65536ULL << 32));
+    submitTexturedTriangle(65536ULL);
+    for (int i = 0; i < 5; ++i) submitTexturedTriangle(0ULL);
+    check(texturedTriangleMemory[(2 * 8 + 2) * 4] == 0x20 &&
+          texturedTriangleMemory[(2 * 8 + 2) * 4 + 1] == 0xA0 &&
+          texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0x40 &&
+          texturedTriangleMemory[(2 * 8 + 2) * 4 + 3] == 0xFF,
+          "textured triangle color combiner selects primitive RGBA");
+
     // Shaded textured triangles place the texture coefficient block after eight shade words.
     Rdp shadedTexturedTriangle;
     std::vector<std::uint8_t> shadedTextureMemory(0x300, 0);
