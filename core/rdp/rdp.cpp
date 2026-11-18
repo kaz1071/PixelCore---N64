@@ -193,7 +193,8 @@ case 0x33: // LoadBlock
             const std::uint64_t sourceAddress = sourceRowAddress + sourceBit / 8U;
             if (bitsPerTexel == 4U)
             {
-                const std::size_t destinationAddress = destinationBase + destinationBit / 8U;
+                const std::size_t destinationAddress = destinationBase +
+                    ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
                 if (sourceAddress < rdram.size() && destinationAddress < tmem_.size())
                 {
                     const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
@@ -207,7 +208,8 @@ case 0x33: // LoadBlock
             else
             {
                 const std::size_t texelBytes = bitsPerTexel / 8U;
-                const std::uint64_t destinationAddress = destinationBase + destinationBit / 8U;
+                const std::uint64_t destinationAddress = destinationBase +
+                    ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
                 if (sourceAddress <= rdram.size() && texelBytes <= rdram.size() - sourceAddress &&
                     destinationAddress <= tmem_.size() && texelBytes <= tmem_.size() - destinationAddress)
                     for (std::size_t byte = 0; byte < texelBytes; ++byte)
