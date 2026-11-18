@@ -1384,7 +1384,7 @@ int main()
     };
     check(renderDepthCase(0x34U, 0x1020U, 1U, 0x8000U) == 0,
           "opaque Z mode rejects a fragment behind stored depth");
-    check(renderDepthCase(0xC34U, 0x1020U, 1024U, 0x8000U) == 0xCC,
+    check(renderDepthCase(0x434U, 0x1020U, 1024U, 0x8000U) == 0xCC,
           "interpenetrating Z mode accepts fragments inside DeltaZ tolerance");
     check(renderDepthCase(0xC34U, 0x1100U, 16U, 0x8000U) == 0,
           "decal Z mode rejects fragments outside DeltaZ tolerance");
