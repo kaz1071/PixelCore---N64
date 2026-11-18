@@ -261,7 +261,7 @@ int main()
     };
     check(sampleConvertedTexture(2, 3, 2, 0x80, 0x40) == 0x80808040U,
           "IA16 expands intensity and preserves 8-bit alpha");
-    check(sampleConvertedTexture(1, 3, 1, 0xA5, 0) == 0xAAAAAAAAU,
+    check(sampleConvertedTexture(1, 3, 1, 0xA5, 0) == 0xAAAAAA55U,
           "IA8 expands 4-bit intensity and alpha channels");
     check(sampleConvertedTexture(0, 3, 0, 0xD0, 0) == 0xDBDBDBFFU,
           "IA4 expands its 3-bit intensity and 1-bit alpha");
