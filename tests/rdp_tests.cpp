@@ -199,6 +199,14 @@ int main()
           "LoadBlock copies the requested 16-bit texels into sequential TMEM bytes");
     check(blockLoad.tmemByte(15) == 0 && blockLoad.tmemByte(24) == 0,
           "LoadBlock preserves TMEM bytes outside the transferred range");
+    check(blockLoad.textureTexel(0, 0, 0) == 0x1234U &&
+          blockLoad.textureTexel(0, 1, 0) == 0x5678U &&
+          blockLoad.textureTexel(0, 2, 0) == 0x9ABCU &&
+          blockLoad.textureTexel(0, 3, 0) == 0xDEF0U,
+          "texture sampling reads big-endian 16-bit texels from the loaded tile");
+    check(blockLoad.textureTexel(0, 0, 1) == 0 &&
+          blockLoad.textureTexel(8, 0, 0) == 0,
+          "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
