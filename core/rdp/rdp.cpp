@@ -942,7 +942,7 @@ std::uint8_t Rdp::tmemByte(std::size_t index) const
     return index < tmem_.size() ? tmem_[index] : 0;
 }
 
-std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const
+std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::int64_t s, std::int64_t t) const
 {
     if (tileIndex >= tiles_.size())
         return 0;
@@ -1056,7 +1056,7 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
 }
 
 
-std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const
+std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::int64_t s, std::int64_t t) const
 {
     if (tileIndex >= tiles_.size())
         return 0;
@@ -1181,7 +1181,7 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
     return 0;
 }
 
-std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
+std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::int64_t s, std::int64_t t,
                                        std::uint8_t fractionS, std::uint8_t fractionT) const
 {
     if (fractionS > 31U || fractionT > 31U)
@@ -1210,7 +1210,7 @@ std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std
 }
 
 
-std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::size_t s, std::size_t t,
+std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::int64_t s, std::int64_t t,
                                        std::uint8_t fractionS, std::uint8_t fractionT) const
 {
     if (fractionS > 31U || fractionT > 31U)
