@@ -731,6 +731,29 @@ int main()
           framebuffer16[(2 * 8 + 7) * 2 + 1] == 0xC1,
           "RGBA16 triangle follows the upper minor edge slope");
 
+    // Triangle fill mode uses the same linear pixel parity when an
+    // odd-width framebuffer makes successive scanlines start on opposite halves.
+    Rdp oddWidthTriangle;
+    std::vector<std::uint8_t> oddWidthTriangleMemory(3 * 8 * 2, 0);
+    const auto submitOddWidthTriangle = [&oddWidthTriangle, &oddWidthTriangleMemory](std::uint64_t word) {
+        if (oddWidthTriangle.pushCommandWord(word))
+            oddWidthTriangle.executeLastCommand(oddWidthTriangleMemory);
+    };
+    submitOddWidthTriangle((0x3FULL << 56) | (2ULL << 51) | (2ULL << 32));
+    submitOddWidthTriangle((0x37ULL << 56) | 0xF80007C1ULL);
+    submitOddWidthTriangle(triangleHeader);
+    submitOddWidthTriangle((5ULL << 16) << 32 | 65536U);
+    submitOddWidthTriangle((1ULL << 16) << 32 | 65536U);
+    submitOddWidthTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    const std::size_t oddWidthUpper = (1 * 3 + 2) * 2;
+    const std::size_t oddWidthLower = (2 * 3 + 2) * 2;
+    check(oddWidthTriangleMemory[oddWidthUpper] == 0x07 &&
+          oddWidthTriangleMemory[oddWidthUpper + 1] == 0xC1,
+          "RGBA16 triangle selects fill halfword using linear parity on odd-width rows");
+    check(oddWidthTriangleMemory[oddWidthLower] == 0xF8 &&
+          oddWidthTriangleMemory[oddWidthLower + 1] == 0x00,
+          "RGBA16 triangle switches fill halfword at the next odd-width scanline");
+
     // RGBA16 fill-color halves alternate across the linear framebuffer,
     // including when an odd-width row changes the next row's starting half.
     Rdp oddWidthFill;
