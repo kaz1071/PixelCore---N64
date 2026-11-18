@@ -1352,6 +1352,45 @@ int main()
     check(hiddenDeltaMemory[(2 * 8 + 2) * 4] == 0xBB,
           "decal comparison uses the hidden low bits of stored DeltaZ");
 
+    // Exercise the rejecting sides of each depth mode, plus the
+    // interpenetrating mode's DeltaZ tolerance.
+    const auto renderDepthCase = [](std::uint32_t modes, std::uint16_t primitiveZ,
+                                    std::uint16_t primitiveDelta, std::uint32_t storedZ) {
+        Rdp rdp;
+        std::vector<std::uint8_t> memory(8 * 8 * 4 + 8 * 8 * 2, 0);
+        const std::uint16_t storedWord = static_cast<std::uint16_t>(
+            Rdp::compressDepth(storedZ) << 2U);
+        for (std::size_t i = 256; i < memory.size(); i += 2)
+        {
+            memory[i] = static_cast<std::uint8_t>(storedWord >> 8U);
+            memory[i + 1] = static_cast<std::uint8_t>(storedWord);
+        }
+        const auto submit = [&rdp, &memory](std::uint64_t word) {
+            if (rdp.pushCommandWord(word))
+                rdp.executeLastCommand(memory);
+        };
+        submit((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+        submit((0x3EULL << 56) | 256ULL);
+        submit((0x2FULL << 56) | modes);
+        submit((0x2EULL << 56) | (static_cast<std::uint64_t>(primitiveZ) << 16U) |
+               primitiveDelta);
+        submit((0x37ULL << 56) | 0xCC0000FFULL);
+        submit((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+        submit((5ULL << 16) << 32 | 65536U);
+        submit((1ULL << 16) << 32 | 65536U);
+        submit((5ULL << 16) << 32 | 3ULL * 65536U);
+        const std::size_t pixel = (2 * 8 + 2) * 4;
+        return memory[pixel];
+    };
+    check(renderDepthCase(0x830U, 0x1000U, 1U, 0x8000U) == 0,
+          "opaque Z mode rejects a fragment behind stored depth");
+    check(renderDepthCase(0xC30U, 0x1020U, 1024U, 0x8000U) == 0xCC,
+          "interpenetrating Z mode accepts fragments inside DeltaZ tolerance");
+    check(renderDepthCase(0xC30U, 0x1100U, 16U, 0x8000U) == 0,
+          "decal Z mode rejects fragments outside DeltaZ tolerance");
+    check(renderDepthCase(0x830U, 0x1000U, 1U, 0x8000U) == 0,
+          "transparent Z mode rejects fragments at equal depth");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
