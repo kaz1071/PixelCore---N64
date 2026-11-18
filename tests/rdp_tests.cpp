@@ -1444,6 +1444,26 @@ int main()
     check(scissorMemory[(3 * 8 + 2) * 4] == 0,
           "triangle rejects pixels below the scissor rectangle");
 
+    // Reset must discard rasterizer state, including a previously narrowed scissor.
+    Rdp resetScissor;
+    std::vector<std::uint8_t> resetMemory(8 * 8 * 4, 0);
+    const auto submitReset = [&resetScissor, &resetMemory](std::uint64_t word) {
+        if (resetScissor.pushCommandWord(word))
+            resetScissor.executeLastCommand(resetMemory);
+    };
+    submitReset((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitReset((0x2DULL << 56) | (8ULL << 44) | (8ULL << 32) |
+                (12ULL << 12) | 12ULL);
+    resetScissor.reset();
+    submitReset((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitReset((0x37ULL << 56) | 0xAB0000FFULL);
+    submitReset((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitReset((5ULL << 16) << 32 | 65536U);
+    submitReset((1ULL << 16) << 32 | 65536U);
+    submitReset((5ULL << 16) << 32 | 3ULL * 65536U);
+    check(resetMemory[(2 * 8 + 1) * 4] == 0xAB,
+          "RDP reset restores the default full-width scissor rectangle");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
