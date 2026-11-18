@@ -689,6 +689,38 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
         return (intensity << 24) | (intensity << 16) | (intensity << 8) | alpha;
     };
 
+    // YUV16 stores two luminance samples with shared U/V chroma:
+    // [U, Y0] [V, Y1]. The conversion coefficients are signed s1.7.
+    if (tileState.format == 1U)
+    {
+        if (tileState.size != 2U)
+            return 0;
+
+        const std::size_t pairS = s & ~static_cast<std::size_t>(1U);
+        const std::uint32_t first = textureTexel(tileIndex, pairS, t);
+        const std::uint32_t second = textureTexel(tileIndex, pairS + 1U, t);
+        const std::int32_t u = static_cast<std::int32_t>((first >> 8) & 0xFFU) - 128;
+        const std::int32_t v = static_cast<std::int32_t>((second >> 8) & 0xFFU) - 128;
+        const std::int32_t y = static_cast<std::int32_t>(
+            (s & 1U) != 0 ? (second & 0xFFU) : (first & 0xFFU));
+
+        const auto convertChannel = [y](std::int16_t firstCoefficient,
+                                         std::int16_t secondCoefficient,
+                                         std::int32_t firstChroma,
+                                         std::int32_t secondChroma) {
+            const std::int32_t value = y +
+                ((static_cast<std::int32_t>(firstCoefficient) * firstChroma) >> 7) +
+                ((static_cast<std::int32_t>(secondCoefficient) * secondChroma) >> 7);
+            return static_cast<std::uint32_t>(std::clamp(value, 0, 255));
+        };
+
+        const std::uint32_t red = convertChannel(conversionCoefficients_[0], 0, v, 0);
+        const std::uint32_t green = convertChannel(
+            conversionCoefficients_[1], conversionCoefficients_[2], u, v);
+        const std::uint32_t blue = convertChannel(conversionCoefficients_[3], 0, u, 0);
+        return (red << 24) | (green << 16) | (blue << 8) | 0xFFU;
+    }
+
     // RGBA: 16-bit is 5/5/5/1; 32-bit is already RGBA8888.
     if (tileState.format == 0U)
     {
