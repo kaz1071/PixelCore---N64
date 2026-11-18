@@ -560,6 +560,8 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
     if (base > tmem_.size() || rowOffset > tmem_.size() - base)
         return 0;
 
+    if (s > std::numeric_limits<std::size_t>::max() / bitsPerTexel)
+        return 0;
     const std::size_t texelBit = s * bitsPerTexel;
     if (texelBit / 8U > tmem_.size() - base - rowOffset)
         return 0;
