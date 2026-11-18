@@ -268,6 +268,24 @@ int main()
           blockLoad.textureTexel(8, 0, 0) == 0,
           "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
+    // LoadBlock must reject a truncated source run without retaining its
+    // valid prefix in TMEM.
+    Rdp rejectedBlockLoad;
+    std::vector<std::uint8_t> rejectedBlockRdram(0x13, 0);
+    rejectedBlockRdram[0x10] = 0x12;
+    rejectedBlockRdram[0x11] = 0x34;
+    const auto submitRejectedBlock = [&rejectedBlockLoad, &rejectedBlockRdram](std::uint64_t word) {
+        if (rejectedBlockLoad.pushCommandWord(word))
+            rejectedBlockLoad.executeLastCommand(rejectedBlockRdram);
+    };
+    submitRejectedBlock((0x3DULL << 56) | (2ULL << 51) | (1ULL << 32) | 0x10ULL);
+    submitRejectedBlock((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41));
+    submitRejectedBlock((0x33ULL << 56) | (4ULL << 12)); // two 16-bit texels
+    check(!rejectedBlockLoad.tile(0).loaded,
+          "LoadBlock rejects a source run truncated in the middle of a texel");
+    check(rejectedBlockLoad.tmemByte(0) == 0 && rejectedBlockLoad.tmemByte(1) == 0,
+          "rejected LoadBlock leaves TMEM unchanged instead of copying a valid prefix");
+
     // LoadBlock's DXT can wrap the TMEM destination row before the source
     // image row ends. Odd destination rows use the alternate 32-bit word half.
     Rdp oddBlockLoad;
