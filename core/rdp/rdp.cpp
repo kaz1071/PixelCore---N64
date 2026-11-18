@@ -1093,7 +1093,7 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
     }
 
     return 0;
-
+}
 
 std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
                                        std::uint8_t fractionS, std::uint8_t fractionT) const
