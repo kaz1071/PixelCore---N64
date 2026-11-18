@@ -278,16 +278,59 @@ case 0x33: // LoadBlock
         const std::size_t sourceStartS = tileState.loadStartS >> 2;
         const std::size_t sourceStartT = tileState.loadStartT >> 2;
 
+        // Validate every source and destination texel before changing TMEM.
+        // LoadTile is atomic: an out-of-range rectangle must not leave a
+        // partially copied tile behind or be reported as loaded.
+        if (sourceStartS >= textureImageWidth_ ||
+            rowTexels > textureImageWidth_ - sourceStartS ||
+            destinationBase > tmem_.size() || destinationStride == 0)
+            break;
+
+        bool validTransfer = true;
+        for (std::size_t row = 0; row < rowCount && validTransfer; ++row)
+        {
+            const std::size_t sourceRow = sourceStartT + row;
+            if (sourceRow > (std::numeric_limits<std::uint64_t>::max() -
+                             textureImageAddress_) / sourceRowBytes ||
+                row > (std::numeric_limits<std::size_t>::max() - destinationBase) /
+                          destinationStride)
+            {
+                validTransfer = false;
+                break;
+            }
+
+            const std::uint64_t sourceRowAddress =
+                static_cast<std::uint64_t>(textureImageAddress_) + sourceRow * sourceRowBytes;
+            const std::size_t destinationRow = destinationBase + row * destinationStride;
+            for (std::size_t column = 0; column < rowTexels; ++column)
+            {
+                const std::uint64_t sourceBit =
+                    static_cast<std::uint64_t>(sourceStartS + column) * bitsPerTexel;
+                const std::uint64_t sourceAddress = sourceRowAddress + sourceBit / 8U;
+                const std::size_t destinationBit = column * bitsPerTexel;
+                const std::size_t destinationAddress = destinationRow +
+                    ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
+                const std::size_t sourceBytes = bitsPerTexel == 4U ? 1U : bitsPerTexel / 8U;
+                const std::size_t destinationBytes = bitsPerTexel == 4U ? 1U : bitsPerTexel / 8U;
+                if (sourceAddress > rdram.size() ||
+                    sourceBytes > rdram.size() - sourceAddress ||
+                    destinationAddress > tmem_.size() ||
+                    destinationBytes > tmem_.size() - destinationAddress)
+                {
+                    validTransfer = false;
+                    break;
+                }
+            }
+        }
+        if (!validTransfer)
+            break;
+
         for (std::size_t row = 0; row < rowCount; ++row)
         {
             const std::size_t sourceRow = sourceStartT + row;
-            if (sourceRow >= (std::numeric_limits<std::size_t>::max() /
-                              std::max<std::size_t>(sourceRowBytes, 1U)))
-                break;
-            const std::uint64_t sourceRowAddress = static_cast<std::uint64_t>(textureImageAddress_) +
-                sourceRow * sourceRowBytes;
+            const std::uint64_t sourceRowAddress =
+                static_cast<std::uint64_t>(textureImageAddress_) + sourceRow * sourceRowBytes;
             const std::size_t destinationRow = destinationBase + row * destinationStride;
-            if (destinationRow >= tmem_.size()) break;
 
             for (std::size_t column = 0; column < rowTexels; ++column)
             {
@@ -297,25 +340,20 @@ case 0x33: // LoadBlock
                 const std::size_t destinationBit = column * bitsPerTexel;
                 if (bitsPerTexel == 4U)
                 {
-                    if (sourceAddress >= rdram.size() || destinationRow + destinationBit / 8U >= tmem_.size()) continue;
                     const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
                     const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
                     const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
                     const std::size_t destinationAddress = destinationRow +
                         ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
-                    if (destinationAddress < tmem_.size())
-                        tmem_[destinationAddress] = static_cast<std::uint8_t>(
-                            (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
-                            (nibble << destinationShift));
+                    tmem_[destinationAddress] = static_cast<std::uint8_t>(
+                        (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
+                        (nibble << destinationShift));
                 }
                 else
                 {
                     const std::size_t texelBytes = bitsPerTexel / 8U;
-                    const std::uint64_t destinationAddress = destinationRow +
+                    const std::size_t destinationAddress = destinationRow +
                         ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
-                    if (sourceAddress > rdram.size() || texelBytes > rdram.size() - sourceAddress ||
-                        destinationAddress > tmem_.size() || texelBytes > tmem_.size() - destinationAddress)
-                        continue;
                     for (std::size_t byte = 0; byte < texelBytes; ++byte)
                         tmem_[destinationAddress + byte] = rdram[sourceAddress + byte];
                 }
