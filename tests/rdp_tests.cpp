@@ -333,6 +333,39 @@ int main()
     check(ci4Texture.textureRgba(0, 0, 0) == 0x0000FFFFU,
           "CI4 sampling adds the tile palette bank before resolving its TLUT entry");
 
+    // Failed TLUT transfers must be atomic and leave the tile unloaded.
+    Rdp truncatedTlut;
+    std::vector<std::uint8_t> shortPalette(0x21, 0);
+    shortPalette[0x20] = 0xF8; // Only half of the 16-bit palette entry is present.
+    const auto submitTruncated = [&truncatedTlut, &shortPalette](std::uint64_t word) {
+        if (truncatedTlut.pushCommandWord(word))
+            truncatedTlut.executeLastCommand(shortPalette);
+    };
+    submitTruncated((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitTruncated((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (0x100ULL << 32));
+    submitTruncated((0x30ULL << 56));
+    check(!truncatedTlut.tile(0).loaded,
+          "LoadTLUT rejects a palette entry truncated by the RDRAM boundary");
+    check(truncatedTlut.tmemByte(0x800) == 0 && truncatedTlut.tmemByte(0x801) == 0,
+          "failed LoadTLUT does not partially write a palette entry");
+
+    Rdp overflowingTlut;
+    std::vector<std::uint8_t> twoEntries(0x40, 0);
+    const auto submitOverflowing = [&overflowingTlut, &twoEntries](std::uint64_t word) {
+        if (overflowingTlut.pushCommandWord(word))
+            overflowingTlut.executeLastCommand(twoEntries);
+    };
+    submitOverflowing((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitOverflowing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                      (0x1FFULL << 32));
+    submitOverflowing((0x30ULL << 56) | (4ULL << 12)); // Two entries exceed the TMEM end.
+    check(!overflowingTlut.tile(0).loaded,
+          "LoadTLUT rejects a transfer that would exceed TMEM");
+    check(overflowingTlut.tmemByte(0xFF8) == 0 &&
+          overflowingTlut.tmemByte(0xFFF) == 0,
+          "out-of-range LoadTLUT leaves the final TMEM bytes untouched");
+
     // IA16 TLUT mode interprets each palette entry as intensity followed by alpha.
     Rdp iaTlutTexture;
     std::vector<std::uint8_t> iaTlutMemory(0x80, 0);
