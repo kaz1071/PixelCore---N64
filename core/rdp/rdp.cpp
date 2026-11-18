@@ -378,6 +378,78 @@ case 0x33: // LoadBlock
         environmentColor_ = static_cast<std::uint32_t>(command);
         break;
 
+    case 0x24: // TextureRectangle
+    case 0x25: // TextureRectangleFlip
+    {
+        if (lastCommand_.size() != 2 || colorImageFormat_ != 0 ||
+            colorImageWidth_ == 0 || (colorImageSize_ != 2 && colorImageSize_ != 3))
+            break;
+
+        const std::uint64_t parameters = lastCommand_[1];
+        const std::uint32_t xStart = static_cast<std::uint32_t>((command >> 44) & 0x0FFFU) >> 2;
+        const std::uint32_t yStart = static_cast<std::uint32_t>((command >> 32) & 0x0FFFU) >> 2;
+        const std::uint32_t xEnd = static_cast<std::uint32_t>((command >> 12) & 0x0FFFU) >> 2;
+        const std::uint32_t yEnd = static_cast<std::uint32_t>(command & 0x0FFFU) >> 2;
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        const std::int32_t startS = static_cast<std::int16_t>(parameters >> 48);
+        const std::int32_t startT = static_cast<std::int16_t>(parameters >> 32);
+        const std::int32_t deltaS = static_cast<std::int16_t>(parameters >> 16);
+        const std::int32_t deltaT = static_cast<std::int16_t>(parameters);
+        const bool flipped = lastOpcode_ == 0x25;
+        const std::size_t bytesPerPixel = colorImageSize_ == 2 ? 2U : 4U;
+        const std::uint32_t left = std::min(std::max(xStart, scissorLeft_), colorImageWidth_);
+        const std::uint32_t right = std::min({xEnd, scissorRight_, colorImageWidth_});
+        const std::uint32_t top = std::max(yStart, scissorTop_);
+        const std::uint32_t bottom = std::min(yEnd, scissorBottom_);
+
+        for (std::uint32_t y = top; y < bottom; ++y)
+        {
+            for (std::uint32_t x = left; x < right; ++x)
+            {
+                const std::int64_t offsetX = static_cast<std::int64_t>(x - xStart);
+                const std::int64_t offsetY = static_cast<std::int64_t>(y - yStart);
+                const std::int64_t fixedS = static_cast<std::int64_t>(startS) +
+                    (flipped ? offsetY * deltaS : offsetX * deltaS);
+                const std::int64_t fixedT = static_cast<std::int64_t>(startT) +
+                    (flipped ? offsetX * deltaT : offsetY * deltaT);
+                const auto floorDiv32 = [](std::int64_t value) {
+                    return value >= 0 ? value / 32 : -((-value + 31) / 32);
+                };
+                const std::int64_t integerS = floorDiv32(fixedS);
+                const std::int64_t integerT = floorDiv32(fixedT);
+                const std::uint8_t fractionS = static_cast<std::uint8_t>(fixedS - integerS * 32);
+                const std::uint8_t fractionT = static_cast<std::uint8_t>(fixedT - integerT * 32);
+                const std::uint32_t color = textureRgbaFiltered(
+                    tileIndex, static_cast<std::size_t>(std::max<std::int64_t>(0, integerS)),
+                    static_cast<std::size_t>(std::max<std::int64_t>(0, integerT)),
+                    fractionS, fractionT);
+                const std::uint64_t address = static_cast<std::uint64_t>(colorImageAddress_) +
+                    (static_cast<std::uint64_t>(y) * colorImageWidth_ + x) * bytesPerPixel;
+                if (address > rdram.size() || bytesPerPixel > rdram.size() - address)
+                    continue;
+
+                if (bytesPerPixel == 4U)
+                {
+                    rdram[address] = static_cast<std::uint8_t>(color >> 24);
+                    rdram[address + 1U] = static_cast<std::uint8_t>(color >> 16);
+                    rdram[address + 2U] = static_cast<std::uint8_t>(color >> 8);
+                    rdram[address + 3U] = static_cast<std::uint8_t>(color);
+                }
+                else
+                {
+                    const std::uint16_t packed = static_cast<std::uint16_t>(
+                        (((color >> 27) & 0x1FU) << 11) |
+                        (((color >> 19) & 0x1FU) << 6) |
+                        (((color >> 11) & 0x1FU) << 1) |
+                        ((color & 0xFFU) >= 128U ? 1U : 0U));
+                    rdram[address] = static_cast<std::uint8_t>(packed >> 8);
+                    rdram[address + 1U] = static_cast<std::uint8_t>(packed);
+                }
+            }
+        }
+        break;
+    }
+
     case 0x36: // FillRectangle
     {
         const std::uint32_t xStart = static_cast<std::uint32_t>((command >> 44) & 0x0FFFU) >> 2;
