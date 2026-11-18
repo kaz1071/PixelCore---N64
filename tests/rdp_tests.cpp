@@ -701,7 +701,7 @@ int main()
     submitTextureRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     // 2x2 rectangle, S/T start at zero, one texel per pixel.
     submitTextureRectangle((0x24ULL << 56) | (8ULL << 12) | 8ULL);
-    submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (32ULL << 16) | 32ULL);
+    submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (1024ULL << 16) | 1024ULL);
     check(textureRectangleMemory[0] == 0xFF && textureRectangleMemory[1] == 0x00 &&
           textureRectangleMemory[2] == 0x00 && textureRectangleMemory[3] == 0xFF,
           "TextureRectangle samples the top-left source texel into RGBA32 framebuffer");
@@ -714,6 +714,40 @@ int main()
     check(textureRectangleMemory[12] == 0xFF && textureRectangleMemory[13] == 0xFF &&
           textureRectangleMemory[14] == 0xFF && textureRectangleMemory[15] == 0xFF,
           "TextureRectangle samples the bottom-right source texel");
+
+    // The flipped form swaps the horizontal and vertical texture derivatives.
+    Rdp flippedTextureRectangle;
+    std::vector<std::uint8_t> flippedMemory(0x200, 0);
+    flippedMemory[0x20] = 0xFF; flippedMemory[0x21] = 0x00;
+    flippedMemory[0x22] = 0x00; flippedMemory[0x23] = 0xFF;
+    flippedMemory[0x24] = 0x00; flippedMemory[0x25] = 0xFF;
+    flippedMemory[0x26] = 0x00; flippedMemory[0x27] = 0xFF;
+    flippedMemory[0x28] = 0x00; flippedMemory[0x29] = 0x00;
+    flippedMemory[0x2A] = 0xFF; flippedMemory[0x2B] = 0xFF;
+    flippedMemory[0x2C] = 0xFF; flippedMemory[0x2D] = 0xFF;
+    flippedMemory[0x2E] = 0xFF; flippedMemory[0x2F] = 0xFF;
+    const auto submitFlipped = [&flippedTextureRectangle, &flippedMemory](std::uint64_t word) {
+        if (flippedTextureRectangle.pushCommandWord(word))
+            flippedTextureRectangle.executeLastCommand(flippedMemory);
+    };
+    submitFlipped((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitFlipped((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitFlipped((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitFlipped((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFlipped((0x25ULL << 56) | (8ULL << 12) | 8ULL);
+    submitFlipped((1024ULL << 16) | 1024ULL);
+    check(flippedMemory[0] == 0xFF && flippedMemory[1] == 0x00 &&
+          flippedMemory[2] == 0x00 && flippedMemory[3] == 0xFF,
+          "TextureRectangleFlip keeps the top-left source texel");
+    check(flippedMemory[4] == 0x00 && flippedMemory[5] == 0x00 &&
+          flippedMemory[6] == 0xFF && flippedMemory[7] == 0xFF,
+          "TextureRectangleFlip advances T across screen X");
+    check(flippedMemory[8] == 0x00 && flippedMemory[9] == 0xFF &&
+          flippedMemory[10] == 0x00 && flippedMemory[11] == 0xFF,
+          "TextureRectangleFlip advances S across screen Y");
+    check(flippedMemory[12] == 0xFF && flippedMemory[13] == 0xFF &&
+          flippedMemory[14] == 0xFF && flippedMemory[15] == 0xFF,
+          "TextureRectangleFlip samples the bottom-right source texel");
 
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
