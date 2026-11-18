@@ -1324,6 +1324,34 @@ int main()
               Rdp::compressDepth(0x8000U) << 2U),
           "decal Z mode accepts coplanar color without updating depth");
 
+    // The two hidden DeltaZ bits must survive an RDP depth write.
+    // An exponent of 10 is split across the visible word and hidden bits;
+    // a later decal 512 depth units away must still be considered coplanar.
+    Rdp hiddenDeltaZ;
+    std::vector<std::uint8_t> hiddenDeltaMemory(8 * 8 * 4 + 8 * 8 * 2, 0);
+    const auto submitHiddenDelta = [&hiddenDeltaZ, &hiddenDeltaMemory](std::uint64_t word) {
+        if (hiddenDeltaZ.pushCommandWord(word))
+            hiddenDeltaZ.executeLastCommand(hiddenDeltaMemory);
+    };
+    submitHiddenDelta((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitHiddenDelta((0x3EULL << 56) | 256ULL);
+    submitHiddenDelta((0x2FULL << 56) | 0x30ULL); // compare and update, primitive Z source
+    submitHiddenDelta((0x2EULL << 56) | (0x1000ULL << 16) | 1024ULL);
+    submitHiddenDelta((0x37ULL << 56) | 0xAA0000FFULL);
+    submitHiddenDelta((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitHiddenDelta((5ULL << 16) << 32 | 65536U);
+    submitHiddenDelta((1ULL << 16) << 32 | 65536U);
+    submitHiddenDelta((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitHiddenDelta((0x2FULL << 56) | 0xC30ULL); // decal compare, no Z update
+    submitHiddenDelta((0x2EULL << 56) | (0x1040ULL << 16) | 1ULL); // Z differs by 512
+    submitHiddenDelta((0x37ULL << 56) | 0xBB0000FFULL);
+    submitHiddenDelta((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitHiddenDelta((5ULL << 16) << 32 | 65536U);
+    submitHiddenDelta((1ULL << 16) << 32 | 65536U);
+    submitHiddenDelta((5ULL << 16) << 32 | 3ULL * 65536U);
+    check(hiddenDeltaMemory[(2 * 8 + 2) * 4] == 0xBB,
+          "decal comparison uses the hidden low bits of stored DeltaZ");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
