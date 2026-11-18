@@ -804,7 +804,10 @@ int main()
     submitShadedTexture((5ULL << 16) << 32 | 65536U);
     submitShadedTexture((1ULL << 16) << 32 | 65536U);
     submitShadedTexture((5ULL << 16) << 32 | 3ULL * 65536U);
-    for (int i = 0; i < 8; ++i) submitShadedTexture(0ULL);
+    // Initial RGBA shade is opaque white in 16.16 fixed point; derivatives are zero.
+    submitShadedTexture((255ULL << 16) << 32 | (255ULL << 16));
+    submitShadedTexture((255ULL << 16) << 32 | (255ULL << 16));
+    for (int i = 0; i < 6; ++i) submitShadedTexture(0ULL);
     submitShadedTexture(0ULL); // S=0, T=0
     submitShadedTexture((65536ULL << 32)); // dS/dX = 1 texel
     submitShadedTexture(65536ULL); // dT/dY = 1 texel
