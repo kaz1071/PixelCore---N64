@@ -152,6 +152,12 @@ int main()
     check(rdp.primitiveDepth() == 0xABCDU, "SetPrimDepth stores the depth value");
     check(rdp.primitiveDeltaZ() == 0x1234U, "SetPrimDepth stores the delta-Z value");
 
+    check(rdp.pushCommandWord((0x3EULL << 56) | 0x00123456ULL),
+          "SetDepthImage completes as a single-word command");
+    rdp.executeLastCommand(commandBuffer);
+    check(rdp.depthImageAddress() == 0x00123456U,
+          "SetDepthImage stores the 26-bit depth buffer address");
+
     // SetConvert packs six signed 9-bit coefficients from K0 through K5.
     const std::uint64_t convertCommand = (0x2CULL << 56) |
         (0x001ULL << 45) | (0x1FFULL << 36) | (0x100ULL << 27) |
