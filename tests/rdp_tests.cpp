@@ -225,7 +225,7 @@ int main()
           "texture sampling clamps S coordinates to the final tile texel");
 
     submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
-                         (2ULL << 32) | (1ULL << 1));
+                         (2ULL << 32) | 1ULL);
     check(blockLoad.textureTexel(0, 4, 0) == 0x9ABCU,
           "texture sampling applies right shifts to S coordinates");
 
