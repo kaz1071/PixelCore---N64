@@ -102,6 +102,47 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         break;
     }
 
+    case 0x30: // LoadTLUT
+    {
+        const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
+        RdpTileState &tileState = tiles_[tileIndex];
+        tileState.loadType = 3;
+        tileState.loadStartS = static_cast<std::uint16_t>((command >> 44) & 0x0FFFU);
+        tileState.loadStartT = static_cast<std::uint16_t>((command >> 32) & 0x0FFFU);
+        tileState.loadEndS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
+        tileState.loadEndT = tileState.loadStartT;
+        tileState.loadDxt = 0;
+        tileState.loaded = false;
+
+        if (textureImageWidth_ == 0 || tileState.loadEndS < tileState.loadStartS ||
+            textureImageSize_ != 2U)
+            break;
+
+        const std::size_t entryCount =
+            (static_cast<std::size_t>(tileState.loadEndS - tileState.loadStartS) >> 2) + 1U;
+        const std::size_t sourceStart = static_cast<std::size_t>(tileState.loadStartS >> 2);
+        const std::size_t destinationBase = static_cast<std::size_t>(tileState.tmem) * 8U;
+        for (std::size_t entry = 0; entry < entryCount; ++entry)
+        {
+            const std::uint64_t sourceAddress = static_cast<std::uint64_t>(textureImageAddress_) +
+                (sourceStart + entry) * 2U;
+            const std::size_t destinationAddress = destinationBase + entry * 8U;
+            if (sourceAddress > rdram.size() || 2U > rdram.size() - sourceAddress ||
+                destinationAddress > tmem_.size() || 8U > tmem_.size() - destinationAddress)
+                continue;
+            const std::uint8_t high = rdram[sourceAddress];
+            const std::uint8_t low = rdram[sourceAddress + 1U];
+            // The RDP duplicates each palette entry into four 16-bit TMEM banks.
+            for (std::size_t bank = 0; bank < 4; ++bank)
+            {
+                tmem_[destinationAddress + bank * 2U] = high;
+                tmem_[destinationAddress + bank * 2U + 1U] = low;
+            }
+        }
+        tileState.loaded = true;
+        break;
+    }
+
     case 0x33: // LoadBlock
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
@@ -652,6 +693,36 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
         };
         return (expand5(red) << 24) | (expand5(green) << 16) |
                (expand5(blue) << 8) | (alpha ? 0xFFU : 0U);
+    }
+
+    // Color-indexed texels use the upper TMEM half as a replicated TLUT.
+    if (tileState.format == 2U)
+    {
+        if ((otherModesLow_ & (1U << 15)) == 0 ||
+            (tileState.size != 0U && tileState.size != 1U))
+            return 0;
+        const std::size_t paletteIndex = tileState.size == 0U
+            ? (static_cast<std::size_t>(tileState.palette) << 4) | (texel & 0x0FU)
+            : (texel & 0xFFU);
+        const std::size_t paletteAddress = 0x800U + paletteIndex * 8U;
+        if (paletteAddress + 1U >= tmem_.size())
+            return 0;
+        const std::uint32_t entry =
+            (static_cast<std::uint32_t>(tmem_[paletteAddress]) << 8) |
+            tmem_[paletteAddress + 1U];
+        if ((otherModesLow_ & (1U << 14)) != 0)
+        {
+            const std::uint32_t intensity = (entry >> 8) & 0xFFU;
+            return packIntensityAlpha(intensity, entry & 0xFFU);
+        }
+        const std::uint32_t red = (entry >> 11) & 0x1FU;
+        const std::uint32_t green = (entry >> 6) & 0x1FU;
+        const std::uint32_t blue = (entry >> 1) & 0x1FU;
+        const auto expand5 = [](std::uint32_t channel) {
+            return (channel << 3) | (channel >> 2);
+        };
+        return (expand5(red) << 24) | (expand5(green) << 16) |
+               (expand5(blue) << 8) | ((entry & 1U) ? 0xFFU : 0U);
     }
 
     // IA: 4-bit uses I3A1, 8-bit uses I4A4, and 16-bit uses I8A8.
