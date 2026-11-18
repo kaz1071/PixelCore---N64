@@ -1065,6 +1065,27 @@ int main()
           shadedTriangleMemory[shadedTrianglePixel + 3] == 0xFF,
           "ShadeTriangle writes interpolated RGBA without texture sampling");
 
+    // The same shaded triangle must be converted to RGB5551/RGB565-style
+    // packed output when the color image is 16 bits per pixel.
+    Rdp shadedTriangle16;
+    std::vector<std::uint8_t> shadedTriangle16Memory(8 * 8 * 2, 0);
+    const auto submitShadedTriangle16 = [&shadedTriangle16, &shadedTriangle16Memory](std::uint64_t word) {
+        if (shadedTriangle16.pushCommandWord(word))
+            shadedTriangle16.executeLastCommand(shadedTriangle16Memory);
+    };
+    submitShadedTriangle16((0x3FULL << 56) | (2ULL << 51) | (7ULL << 32));
+    submitShadedTriangle16((0x09ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitShadedTriangle16((5ULL << 16) << 32 | 65536U);
+    submitShadedTriangle16((1ULL << 16) << 32 | 65536U);
+    submitShadedTriangle16((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitShadedTriangle16((128ULL << 16) << 32 | (64ULL << 16));
+    submitShadedTriangle16((192ULL << 16) << 32 | (255ULL << 16));
+    for (int i = 0; i < 6; ++i) submitShadedTriangle16(0ULL);
+    const std::size_t shadedTriangle16Pixel = (2 * 8 + 2) * 2;
+    check(shadedTriangle16Memory[shadedTriangle16Pixel] == 0x82 &&
+          shadedTriangle16Memory[shadedTriangle16Pixel + 1] == 0x18,
+          "ShadeTriangle packs interpolated color into a 16-bit color image");
+
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
     std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
