@@ -227,7 +227,10 @@ int main()
     submitOddBlock((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41));
     submitOddBlock((0x33ULL << 56) | (28ULL << 12) | 0x200ULL);
     check(oddBlockLoad.tmemByte(0) == 0x30 && oddBlockLoad.tmemByte(7) == 0x37 &&
-          oddBlockLoad.tmemByte(12) == 0x38 && oddBlockLoad.tmemByte(19) == 0x3F,
+          oddBlockLoad.tmemByte(12) == 0x38 && oddBlockLoad.tmemByte(13) == 0x39 &&
+          oddBlockLoad.tmemByte(14) == 0x3A && oddBlockLoad.tmemByte(15) == 0x3B &&
+          oddBlockLoad.tmemByte(8) == 0x3C && oddBlockLoad.tmemByte(9) == 0x3D &&
+          oddBlockLoad.tmemByte(10) == 0x3E && oddBlockLoad.tmemByte(11) == 0x3F,
           "LoadBlock applies DXT row advancement and odd-row TMEM word swapping");
     check(oddBlockLoad.textureTexel(0, 0, 1) == 0x3839U &&
           oddBlockLoad.textureTexel(0, 1, 1) == 0x3A3BU,
