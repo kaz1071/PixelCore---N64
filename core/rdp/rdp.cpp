@@ -192,6 +192,58 @@ case 0x33: // LoadBlock
             ? static_cast<std::size_t>(tileState.line) * 64U
             : ((texelCount * bitsPerTexel + 63U) & ~std::size_t(63U));
 
+        // Validate the complete linear source run and every DXT-selected
+        // TMEM destination before writing. A truncated LoadBlock is rejected
+        // atomically rather than leaving a partially initialized tile.
+        bool validTransfer = true;
+        {
+            std::size_t checkDestinationBit = 0;
+            std::size_t checkRow = 0;
+            std::size_t checkDxtAccumulator = 0;
+            for (std::size_t texel = 0; texel < texelCount; ++texel)
+            {
+                const std::size_t sourceLinearTexel =
+                    sourceStartT * textureImageWidth_ + sourceStartS + texel;
+                const std::size_t sourceRow = sourceLinearTexel / textureImageWidth_;
+                const std::size_t sourceTexel = sourceLinearTexel % textureImageWidth_;
+                const std::uint64_t sourceRowAddress =
+                    static_cast<std::uint64_t>(textureImageAddress_) + sourceRow * sourceRowBytes;
+                const std::uint64_t sourceBit =
+                    static_cast<std::uint64_t>(sourceTexel) * bitsPerTexel;
+                const std::uint64_t sourceAddress = sourceRowAddress + sourceBit / 8U;
+                const std::size_t destinationAddress = destinationBase +
+                    ((checkDestinationBit / 8U) ^ ((checkRow & 1U) != 0U ? 4U : 0U));
+                const std::size_t texelBytes = bitsPerTexel == 4U ? 1U : bitsPerTexel / 8U;
+                if (sourceAddress > rdram.size() ||
+                    texelBytes > rdram.size() - sourceAddress ||
+                    destinationAddress > tmem_.size() ||
+                    texelBytes > tmem_.size() - destinationAddress)
+                {
+                    validTransfer = false;
+                    break;
+                }
+
+                checkDestinationBit += bitsPerTexel;
+                if ((checkDestinationBit & 63U) == 0U)
+                {
+                    checkDxtAccumulator += tileState.loadDxt;
+                    const std::size_t dxtRow = checkDxtAccumulator >> 11;
+                    if (dxtRow > checkRow)
+                    {
+                        checkRow = dxtRow;
+                        if (checkRow > std::numeric_limits<std::size_t>::max() / rowStrideBits)
+                        {
+                            validTransfer = false;
+                            break;
+                        }
+                        checkDestinationBit = checkRow * rowStrideBits;
+                    }
+                }
+            }
+        }
+        if (!validTransfer)
+            break;
+
         for (std::size_t texel = 0; texel < texelCount; ++texel)
         {
             const std::size_t sourceLinearTexel =
@@ -206,32 +258,23 @@ case 0x33: // LoadBlock
             {
                 const std::size_t destinationAddress = destinationBase +
                     ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
-                if (sourceAddress < rdram.size() && destinationAddress < tmem_.size())
-                {
-                    const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
-                    const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
-                    const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
-                    tmem_[destinationAddress] = static_cast<std::uint8_t>(
-                        (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
-                        (nibble << destinationShift));
-                }
+                const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
+                const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
+                const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
+                tmem_[destinationAddress] = static_cast<std::uint8_t>(
+                    (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
+                    (nibble << destinationShift));
             }
             else
             {
                 const std::size_t texelBytes = bitsPerTexel / 8U;
-                const std::uint64_t destinationAddress = destinationBase +
+                const std::size_t destinationAddress = destinationBase +
                     ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
-                if (sourceAddress <= rdram.size() && texelBytes <= rdram.size() - sourceAddress &&
-                    destinationAddress <= tmem_.size() && texelBytes <= tmem_.size() - destinationAddress)
-                    for (std::size_t byte = 0; byte < texelBytes; ++byte)
-                        tmem_[destinationAddress + byte] = rdram[sourceAddress + byte];
+                for (std::size_t byte = 0; byte < texelBytes; ++byte)
+                    tmem_[destinationAddress + byte] = rdram[sourceAddress + byte];
             }
 
             destinationBit += bitsPerTexel;
-
-            // DXT is accumulated once per completed 64-bit source word,
-            // not once per texel. Its 1.11 fractional carry selects the
-            // destination row and therefore the odd-row word swap.
             if ((destinationBit & 63U) == 0U)
             {
                 dxtAccumulator += tileState.loadDxt;
