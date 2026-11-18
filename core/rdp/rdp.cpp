@@ -622,6 +622,70 @@ case 0x33: // LoadBlock
                         const std::uint32_t alpha = ((color & 0xFFU) * (shade & 0xFFU) + 127U) / 255U;
                         color = (red << 24) | (green << 16) | (blue << 8) | alpha;
                     }
+
+                    // A configured SetCombine mux evaluates the second cycle's
+                    // color equation: (A - B) * C + D. With an untouched zero
+                    // mux, retain the initial texture-pass behavior.
+                    if (combineMux0_ != 0 || combineMux1_ != 0)
+                    {
+                        const std::uint32_t texture = color;
+                        const std::uint32_t primitive = primitiveColor_;
+                        const std::uint32_t environment = environmentColor_;
+                        const std::uint32_t shadeColor = shaded ? color : 0xFFFFFFFFU;
+                        const unsigned aSel = static_cast<unsigned>((combineMux0_ >> 37) & 0x0FU);
+                        const unsigned cSel = static_cast<unsigned>((combineMux0_ >> 32) & 0x1FU);
+                        const unsigned bSel = static_cast<unsigned>((combineMux1_ >> 24) & 0x0FU);
+                        const unsigned dSel = static_cast<unsigned>((combineMux1_ >> 6) & 0x07U);
+                        const unsigned aaSel = static_cast<unsigned>((combineMux0_ >> 29) & 0x07U);
+                        const unsigned acSel = static_cast<unsigned>((combineMux0_ >> 26) & 0x07U);
+                        const unsigned abSel = static_cast<unsigned>((combineMux1_ >> 3) & 0x07U);
+                        const unsigned adSel = static_cast<unsigned>(combineMux1_ & 0x07U);
+                        const auto colorSource = [&](unsigned selector, unsigned channel) -> int {
+                            switch (selector)
+                            {
+                            case 0: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
+                            case 1: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
+                            case 3: return static_cast<int>((primitive >> (24U - channel * 8U)) & 0xFFU);
+                            case 4: return static_cast<int>((shadeColor >> (24U - channel * 8U)) & 0xFFU);
+                            case 5: return static_cast<int>((environment >> (24U - channel * 8U)) & 0xFFU);
+                            case 6: return 255;
+                            default: return 0;
+                            }
+                        };
+                        const auto alphaSource = [&](unsigned selector) -> int {
+                            switch (selector)
+                            {
+                            case 0: case 1: return static_cast<int>(texture & 0xFFU);
+                            case 3: return static_cast<int>(primitive & 0xFFU);
+                            case 4: return static_cast<int>(shadeColor & 0xFFU);
+                            case 5: return static_cast<int>(environment & 0xFFU);
+                            case 6: return primitiveLodFraction_;
+                            default: return 0;
+                            }
+                        };
+                        std::uint32_t combined = 0;
+                        for (unsigned channel = 0; channel < 3; ++channel)
+                        {
+                            const int a = colorSource(aSel, channel);
+                            const int b = colorSource(bSel, channel);
+                            const int factor = cSel == 6U ? 255 :
+                                cSel == 7U ? static_cast<int>(texture & 0xFFU) :
+                                cSel == 8U ? static_cast<int>(texture & 0xFFU) :
+                                cSel == 10U ? static_cast<int>(primitive & 0xFFU) :
+                                cSel == 11U ? static_cast<int>(shadeColor & 0xFFU) :
+                                cSel == 12U ? static_cast<int>(environment & 0xFFU) :
+                                colorSource(cSel, channel);
+                            const int d = colorSource(dSel, channel);
+                            const int value = std::clamp(((a - b) * factor + 127) / 255 + d, 0, 255);
+                            combined |= static_cast<std::uint32_t>(value) << (24U - channel * 8U);
+                        }
+                        const int alphaA = alphaSource(aaSel);
+                        const int alphaB = alphaSource(abSel);
+                        const int alphaFactor = alphaSource(acSel);
+                        const int alphaD = alphaSource(adSel);
+                        const int alpha = std::clamp(((alphaA - alphaB) * alphaFactor + 127) / 255 + alphaD, 0, 255);
+                        color = combined | static_cast<std::uint32_t>(alpha);
+                    }
                 }
                 if (bpp == 4)
                 {
