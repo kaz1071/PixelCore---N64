@@ -542,6 +542,11 @@ std::uint8_t Rdp::cycleType() const
     return static_cast<std::uint8_t>((otherModesHigh_ >> 20) & 0x03U);
 }
 
+std::uint8_t Rdp::textureFilterMode() const
+{
+    return static_cast<std::uint8_t>((otherModesHigh_ >> 12) & 0x03U);
+}
+
 std::uint32_t Rdp::blendColor() const
 {
     return blendColor_;
@@ -854,6 +859,42 @@ std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std
         result |= ((weighted + 512U) >> 10U) << shift;
     }
     return result;
+}
+
+
+std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::size_t s, std::size_t t,
+                                       std::uint8_t fractionS, std::uint8_t fractionT) const
+{
+    if (fractionS > 31U || fractionT > 31U)
+        return 0;
+
+    const std::uint8_t filter = textureFilterMode();
+    if (filter == 2U)
+        return textureRgbaBilinear(tileIndex, s, t, fractionS, fractionT);
+
+    if (filter == 3U)
+    {
+        const std::uint32_t samples[4] = {
+            textureRgba(tileIndex, s, t),
+            textureRgba(tileIndex, s + 1U, t),
+            textureRgba(tileIndex, s, t + 1U),
+            textureRgba(tileIndex, s + 1U, t + 1U)
+        };
+        std::uint32_t result = 0;
+        for (unsigned shift = 0; shift <= 24U; shift += 8U)
+        {
+            const std::uint32_t sum =
+                ((samples[0] >> shift) & 0xFFU) +
+                ((samples[1] >> shift) & 0xFFU) +
+                ((samples[2] >> shift) & 0xFFU) +
+                ((samples[3] >> shift) & 0xFFU);
+            result |= ((sum + 2U) >> 2U) << shift;
+        }
+        return result;
+    }
+
+    // Point filtering (and the reserved mode) selects the integer texel.
+    return textureRgba(tileIndex, s, t);
 }
 
 }
