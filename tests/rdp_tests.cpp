@@ -680,6 +680,41 @@ int main()
           framebuffer16[(2 * 8 + 7) * 2 + 1] == 0xC1,
           "RGBA16 triangle follows the upper minor edge slope");
 
+    // TextureRectangle loads RGBA32 texels through the selected tile and writes the framebuffer.
+    Rdp textureRectangle;
+    std::vector<std::uint8_t> textureRectangleMemory(0x200, 0);
+    textureRectangleMemory[0x20] = 0xFF; textureRectangleMemory[0x21] = 0x00;
+    textureRectangleMemory[0x22] = 0x00; textureRectangleMemory[0x23] = 0xFF;
+    textureRectangleMemory[0x24] = 0x00; textureRectangleMemory[0x25] = 0xFF;
+    textureRectangleMemory[0x26] = 0x00; textureRectangleMemory[0x27] = 0xFF;
+    textureRectangleMemory[0x28] = 0x00; textureRectangleMemory[0x29] = 0x00;
+    textureRectangleMemory[0x2A] = 0xFF; textureRectangleMemory[0x2B] = 0xFF;
+    textureRectangleMemory[0x2C] = 0xFF; textureRectangleMemory[0x2D] = 0xFF;
+    textureRectangleMemory[0x2E] = 0xFF; textureRectangleMemory[0x2F] = 0xFF;
+    const auto submitTextureRectangle = [&textureRectangle, &textureRectangleMemory](std::uint64_t word) {
+        if (textureRectangle.pushCommandWord(word))
+            textureRectangle.executeLastCommand(textureRectangleMemory);
+    };
+    submitTextureRectangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitTextureRectangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitTextureRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitTextureRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    // 2x2 rectangle, S/T start at zero, one texel per pixel.
+    submitTextureRectangle((0x24ULL << 56) | (4ULL << 12) | 4ULL);
+    submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (32ULL << 16) | 32ULL);
+    check(textureRectangleMemory[0] == 0xFF && textureRectangleMemory[1] == 0x00 &&
+          textureRectangleMemory[2] == 0x00 && textureRectangleMemory[3] == 0xFF,
+          "TextureRectangle samples the top-left source texel into RGBA32 framebuffer");
+    check(textureRectangleMemory[4] == 0x00 && textureRectangleMemory[5] == 0xFF &&
+          textureRectangleMemory[6] == 0x00 && textureRectangleMemory[7] == 0xFF,
+          "TextureRectangle advances S for the next horizontal pixel");
+    check(textureRectangleMemory[8] == 0x00 && textureRectangleMemory[9] == 0x00 &&
+          textureRectangleMemory[10] == 0xFF && textureRectangleMemory[11] == 0xFF,
+          "TextureRectangle advances T for the next scanline");
+    check(textureRectangleMemory[12] == 0xFF && textureRectangleMemory[13] == 0xFF &&
+          textureRectangleMemory[14] == 0xFF && textureRectangleMemory[15] == 0xFF,
+          "TextureRectangle samples the bottom-right source texel");
+
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
     std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
