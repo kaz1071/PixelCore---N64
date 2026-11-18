@@ -1393,6 +1393,31 @@ int main()
     check(renderDepthCase(0x834U, 0x1000U, 1U, 0x8000U) == 0,
           "transparent Z mode rejects fragments at equal depth");
 
+    // Disabling depth comparison must not disable depth updates.
+    Rdp updateWithoutCompare;
+    std::vector<std::uint8_t> updateMemory(8 * 8 * 4 + 8 * 8 * 2, 0);
+    const auto submitUpdate = [&updateWithoutCompare, &updateMemory](std::uint64_t word) {
+        if (updateWithoutCompare.pushCommandWord(word))
+            updateWithoutCompare.executeLastCommand(updateMemory);
+    };
+    submitUpdate((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitUpdate((0x3EULL << 56) | 256ULL);
+    submitUpdate((0x2FULL << 56) | 0x24U); // update enabled, compare disabled, primitive Z
+    submitUpdate((0x2EULL << 56) | (0x1020ULL << 16) | 1ULL);
+    submitUpdate((0x37ULL << 56) | 0xDD0000FFULL);
+    submitUpdate((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitUpdate((5ULL << 16) << 32 | 65536U);
+    submitUpdate((1ULL << 16) << 32 | 65536U);
+    submitUpdate((5ULL << 16) << 32 | 3ULL * 65536U);
+    const std::size_t updatePixel = (2 * 8 + 2) * 4;
+    const std::size_t updateZAddress = 256 + (2 * 8 + 2) * 2;
+    const std::uint16_t updatedDepthWord = static_cast<std::uint16_t>(
+        (static_cast<std::uint16_t>(updateMemory[updateZAddress]) << 8U) |
+        updateMemory[updateZAddress + 1U]);
+    check(updateMemory[updatePixel] == 0xDD &&
+          (updatedDepthWord >> 2U) == Rdp::compressDepth(0x8100U),
+          "depth update works when depth comparison is disabled");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
