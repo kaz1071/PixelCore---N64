@@ -828,6 +828,38 @@ case 0x33: // LoadBlock
                         color |= component << (24U - static_cast<unsigned>(channel) * 8U);
                     }
                 }
+                // Primitive-depth mode is available even for triangles that
+                // do not carry interpolated Z coefficients. Pixel-depth mode
+                // is left untouched until the triangle Z block is decoded.
+                const bool primitiveDepthSource = (otherModesLow_ & (1U << 2U)) != 0;
+                const bool depthCompareEnabled = (otherModesLow_ & (1U << 4U)) != 0;
+                const bool depthUpdateEnabled = (otherModesLow_ & (1U << 5U)) != 0;
+                const std::uint64_t depthOffset = static_cast<std::uint64_t>(depthImageAddress_) +
+                    (static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) * 2U;
+                const bool depthAddressValid = depthOffset <= rdram.size() &&
+                    2U <= rdram.size() - depthOffset;
+                const std::uint32_t pixelDepth = static_cast<std::uint32_t>(primitiveDepth_ & 0x7FFFU) << 3U;
+                if ((depthCompareEnabled || depthUpdateEnabled) && primitiveDepthSource)
+                {
+                    if (!depthAddressValid)
+                        continue;
+                    const std::uint16_t storedWord = static_cast<std::uint16_t>(
+                        (static_cast<std::uint16_t>(rdram[depthOffset]) << 8U) |
+                        rdram[depthOffset + 1U]);
+                    const std::uint16_t storedEncoded = storedWord >> 2U;
+                    const std::uint32_t storedDepth = decompressDepth(storedEncoded);
+                    if (depthCompareEnabled && pixelDepth > storedDepth)
+                        continue;
+                    if (depthUpdateEnabled)
+                    {
+                        const std::uint16_t encoded = compressDepth(pixelDepth);
+                        const std::uint16_t depthWord = static_cast<std::uint16_t>(
+                            (encoded << 2U) | ((primitiveDeltaZ_ >> 14U) & 0x03U));
+                        rdram[depthOffset] = static_cast<std::uint8_t>(depthWord >> 8U);
+                        rdram[depthOffset + 1U] = static_cast<std::uint8_t>(depthWord);
+                    }
+                }
+
                 if (bpp == 4)
                 {
                     rdram[offset] = static_cast<std::uint8_t>(color >> 24);
