@@ -239,6 +239,30 @@ int main()
           oddBlockLoad.textureTexel(0, 1, 1) == 0x3A3BU,
           "texture sampling reads DXT-wrapped odd LoadBlock rows from the continuing source row");
 
+    // 32-bit texels on odd rows must follow the same half-word swap
+    // during both the load and the later texture read.
+    Rdp oddRgba32Load;
+    std::vector<std::uint8_t> oddRgba32Rdram(0x50, 0);
+    const std::array<std::uint8_t, 16> rgba32Rows = {
+        0x10, 0x11, 0x12, 0x13, 0x20, 0x21, 0x22, 0x23,
+        0x30, 0x31, 0x32, 0x33, 0x40, 0x41, 0x42, 0x43
+    };
+    for (std::size_t i = 0; i < rgba32Rows.size(); ++i)
+        oddRgba32Rdram[0x20 + i] = rgba32Rows[i];
+    const auto submitOddRgba32 = [&oddRgba32Load, &oddRgba32Rdram](std::uint64_t word) {
+        if (oddRgba32Load.pushCommandWord(word))
+            oddRgba32Load.executeLastCommand(oddRgba32Rdram);
+    };
+    submitOddRgba32((0x3DULL << 56) | (3ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitOddRgba32((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitOddRgba32((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    check(oddRgba32Load.textureTexel(0, 0, 0) == 0x10111213U &&
+          oddRgba32Load.textureTexel(0, 1, 0) == 0x20212223U,
+          "32-bit texture sampling reads the first LoadTile row");
+    check(oddRgba32Load.textureTexel(0, 0, 1) == 0x30313233U &&
+          oddRgba32Load.textureTexel(0, 1, 1) == 0x40414243U,
+          "32-bit texture sampling reads both odd-row texels after TMEM half swapping");
+
     // A half-row DXT increment must carry after two 64-bit words, and
     // LoadBlock continues at the next source image row after eight 16-bit texels.
     Rdp fractionalDxtLoad;
