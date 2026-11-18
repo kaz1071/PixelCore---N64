@@ -240,6 +240,31 @@ int main()
     check(rgba32.textureRgba(8, 0, 0) == 0,
           "RGBA texture conversion rejects invalid tile indexes");
 
+    // YUV16 stores U/Y and V/Y pairs and uses the signed SetConvert coefficients.
+    Rdp yuvTexture;
+    std::vector<std::uint8_t> yuvMemory(0x40, 0);
+    yuvMemory[0x20] = 160; // U shared by both pixels.
+    yuvMemory[0x21] = 128; // Y0.
+    yuvMemory[0x22] = 96;  // V shared by both pixels.
+    yuvMemory[0x23] = 200; // Y1.
+    const auto submitYuv = [&yuvTexture, &yuvMemory](std::uint64_t word) {
+        if (yuvTexture.pushCommandWord(word))
+            yuvTexture.executeLastCommand(yuvMemory);
+    };
+    submitYuv((0x3DULL << 56) | (1ULL << 32) | (2ULL << 51) | 0x20ULL);
+    submitYuv((0x35ULL << 56) | (1ULL << 53) | (2ULL << 51) | (1ULL << 41));
+    submitYuv((0x33ULL << 56) | (4ULL << 12)); // Load the two YUV texels.
+    const std::uint64_t setYuvCoefficients = (0x2CULL << 56) |
+        (175ULL << 45) |
+        (static_cast<std::uint64_t>(static_cast<std::uint16_t>(-43) & 0x1FFU) << 36) |
+        (static_cast<std::uint64_t>(static_cast<std::uint16_t>(-89) & 0x1FFU) << 27) |
+        (222ULL << 18);
+    submitYuv(setYuvCoefficients);
+    check(yuvTexture.textureRgba(0, 0, 0) == 0x548BB7FFU,
+          "YUV16 converts the first luminance sample using shared U/V chroma and signed coefficients");
+    check(yuvTexture.textureRgba(0, 1, 0) == 0x9CD3FFFFU,
+          "YUV16 converts the second luminance sample using the same chroma pair");
+
     // IA and intensity texture formats expand to opaque grayscale/RGBA values.
     const auto sampleConvertedTexture = [](std::uint8_t imageSize, std::uint8_t format,
                                             std::uint8_t tileSize, std::uint8_t firstByte,
