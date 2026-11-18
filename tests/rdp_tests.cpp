@@ -297,7 +297,7 @@ int main()
     submitCi((0x3DULL << 56) | (1ULL << 51) | (7ULL << 32) | 0x40ULL);
     submitCi((0x35ULL << 56) | (2ULL << 53) | (1ULL << 51) | (1ULL << 41));
     submitCi((0x33ULL << 56)); // Load CI8 index zero into lower TMEM.
-    submitCi((0x2FULL << 56) | 0x00008000ULL); // Enable RGBA16 TLUT mode.
+    submitCi((0x2FULL << 56) | (0x8000ULL << 32)); // Enable RGBA16 TLUT mode (high bit 15).
     check(ciTexture.textureRgba(0, 0, 0) == 0xFF0000FFU,
           "CI8 sampling resolves its index through the enabled RGBA16 TLUT");
     submitCi((0x2FULL << 56)); // Disable TLUT lookup.
