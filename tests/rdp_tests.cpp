@@ -253,7 +253,7 @@ int main()
         if (oddRgba32Load.pushCommandWord(word))
             oddRgba32Load.executeLastCommand(oddRgba32Rdram);
     };
-    submitOddRgba32((0x3DULL << 56) | (3ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitOddRgba32((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitOddRgba32((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitOddRgba32((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     check(oddRgba32Load.textureTexel(0, 0, 0) == 0x10111213U &&
