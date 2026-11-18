@@ -236,6 +236,27 @@ int main()
           oddBlockLoad.textureTexel(0, 1, 1) == 0x3E3FU,
           "texture sampling reads DXT-wrapped odd LoadBlock rows");
 
+    // A half-row DXT increment must carry after two 64-bit words, and
+    // LoadBlock continues at the next source image row after eight 16-bit texels.
+    Rdp fractionalDxtLoad;
+    std::vector<std::uint8_t> fractionalDxtRdram(0x60, 0);
+    for (std::size_t i = 0; i < 32; ++i)
+        fractionalDxtRdram[0x20 + i] = static_cast<std::uint8_t>(0x40U + i);
+    const auto submitFractionalDxt = [&fractionalDxtLoad, &fractionalDxtRdram](std::uint64_t word) {
+        if (fractionalDxtLoad.pushCommandWord(word))
+            fractionalDxtLoad.executeLastCommand(fractionalDxtRdram);
+    };
+    submitFractionalDxt((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitFractionalDxt((0x35ULL << 56) | (2ULL << 51) | (2ULL << 41));
+    submitFractionalDxt((0x33ULL << 56) | (60ULL << 12) | 0x400ULL);
+    check(fractionalDxtLoad.tmemByte(0) == 0x40 &&
+          fractionalDxtLoad.tmemByte(14) == 0x4E &&
+          fractionalDxtLoad.tmemByte(20) == 0x50 &&
+          fractionalDxtLoad.tmemByte(22) == 0x52 &&
+          fractionalDxtLoad.tmemByte(16) == 0x54 &&
+          fractionalDxtLoad.tmemByte(18) == 0x56,
+          "LoadBlock accumulates fractional DXT per 64-bit word across source rows");
+
     // RGBA texture conversion expands 5-bit channels and preserves the RGBA16 alpha bit.
     Rdp rgba16;
     std::vector<std::uint8_t> rgba16Rdram(0x30, 0);
