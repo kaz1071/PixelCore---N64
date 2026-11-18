@@ -61,6 +61,8 @@ public:
     std::int16_t conversionCoefficient(std::size_t index) const;
     const RdpTileState &tile(std::size_t index) const;
     std::uint8_t tmemByte(std::size_t index) const;
+    // Returns a raw big-endian texel value from a loaded tile, or zero when unavailable.
+    std::uint32_t textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const;
 
 private:
     std::vector<std::uint64_t> pending_;
