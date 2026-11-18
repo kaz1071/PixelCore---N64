@@ -909,6 +909,38 @@ int main()
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
           "TextureTriangle samples a texture texel into the triangle framebuffer");
 
+    // Exercise negative fixed-point S coordinates through the full triangle
+    // rasterizer. A one-bit tile mask should wrap S=-1 to the second texel.
+    Rdp negativeCoordinateTriangle;
+    std::vector<std::uint8_t> negativeTriangleMemory(0x300, 0);
+    const auto submitNegativeTriangle = [&negativeCoordinateTriangle, &negativeTriangleMemory](std::uint64_t word) {
+        if (negativeCoordinateTriangle.pushCommandWord(word))
+            negativeCoordinateTriangle.executeLastCommand(negativeTriangleMemory);
+    };
+    negativeTriangleMemory[0x20] = 0xFF; negativeTriangleMemory[0x21] = 0x00;
+    negativeTriangleMemory[0x22] = 0x00; negativeTriangleMemory[0x23] = 0xFF;
+    negativeTriangleMemory[0x24] = 0x00; negativeTriangleMemory[0x25] = 0xFF;
+    negativeTriangleMemory[0x26] = 0x00; negativeTriangleMemory[0x27] = 0xFF;
+    negativeTriangleMemory[0x28] = 0x00; negativeTriangleMemory[0x29] = 0x00;
+    negativeTriangleMemory[0x2A] = 0xFF; negativeTriangleMemory[0x2B] = 0xFF;
+    negativeTriangleMemory[0x2C] = 0xFF; negativeTriangleMemory[0x2D] = 0xFF;
+    negativeTriangleMemory[0x2E] = 0xFF; negativeTriangleMemory[0x2F] = 0xFF;
+    submitNegativeTriangle((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32) | 7ULL);
+    submitNegativeTriangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitNegativeTriangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41) | (1ULL << 4));
+    submitNegativeTriangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitNegativeTriangle((0x0AULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitNegativeTriangle((5ULL << 16) << 32 | 65536U);
+    submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
+    submitNegativeTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-65536)) << 32);
+    for (int i = 0; i < 7; ++i) submitNegativeTriangle(0ULL);
+    const std::size_t negativeTrianglePixel = (2 * 8 + 2) * 4;
+    check(negativeTriangleMemory[negativeTrianglePixel] == 0x00 &&
+          negativeTriangleMemory[negativeTrianglePixel + 1] == 0xFF &&
+          negativeTriangleMemory[negativeTrianglePixel + 2] == 0x00,
+          "TextureTriangle wraps negative S through the tile mask");
+
     // A non-zero SetCombine mux selects the primitive color for textured pixels.
     submitTexturedTriangle((0x3AULL << 56) | (255ULL << 32) | 0x20A040FFULL);
     submitTexturedTriangle((0x3CULL << 56) | (3ULL << 52) | (10ULL << 47) |
