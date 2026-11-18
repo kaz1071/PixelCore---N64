@@ -593,6 +593,8 @@ case 0x33: // LoadBlock
                     if (integerS < 0 || integerT < 0) continue;
                     color = textureRgbaFiltered(textureTile, static_cast<std::size_t>(integerS),
                                                  static_cast<std::size_t>(integerT), fractionS, fractionT);
+                    const std::uint32_t textureColor = color;
+                    std::uint32_t interpolatedShade = 0xFFFFFFFFU;
                     if (shaded)
                     {
                         // Shade coefficients are RG, BA pairs in 16.16 fixed point.
@@ -616,6 +618,7 @@ case 0x33: // LoadBlock
                                 std::clamp<std::int64_t>(fixed >> 16, 0, 255));
                             shade |= component << (24U - static_cast<unsigned>(channel) * 8U);
                         }
+                        interpolatedShade = shade;
                         const std::uint32_t red = (((color >> 24) & 0xFFU) * ((shade >> 24) & 0xFFU) + 127U) / 255U;
                         const std::uint32_t green = (((color >> 16) & 0xFFU) * ((shade >> 16) & 0xFFU) + 127U) / 255U;
                         const std::uint32_t blue = (((color >> 8) & 0xFFU) * ((shade >> 8) & 0xFFU) + 127U) / 255U;
@@ -628,10 +631,10 @@ case 0x33: // LoadBlock
                     // mux, retain the initial texture-pass behavior.
                     if (combineMux0_ != 0 || combineMux1_ != 0)
                     {
-                        const std::uint32_t texture = color;
+                        const std::uint32_t texture = textureColor;
                         const std::uint32_t primitive = primitiveColor_;
                         const std::uint32_t environment = environmentColor_;
-                        const std::uint32_t shadeColor = shaded ? color : 0xFFFFFFFFU;
+                        const std::uint32_t shadeColor = interpolatedShade;
                         const unsigned aSel = static_cast<unsigned>((combineMux0_ >> 37) & 0x0FU);
                         const unsigned cSel = static_cast<unsigned>((combineMux0_ >> 32) & 0x1FU);
                         const unsigned bSel = static_cast<unsigned>((combineMux1_ >> 24) & 0x0FU);
