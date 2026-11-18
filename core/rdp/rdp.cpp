@@ -181,7 +181,10 @@ case 0x33: // LoadBlock
         const std::size_t destinationBase = static_cast<std::size_t>(tileState.tmem) * 8U;
         std::size_t destinationBit = 0;
         std::size_t row = 0;
-        std::size_t rowTexels = 0;
+        std::size_t dxtAccumulator = 0;
+        const std::size_t rowStrideBits = tileState.line != 0
+            ? static_cast<std::size_t>(tileState.line) * 64U
+            : ((texelCount * bitsPerTexel + 63U) & ~std::size_t(63U));
 
         for (std::size_t texel = 0; texel < texelCount; ++texel)
         {
@@ -219,18 +222,19 @@ case 0x33: // LoadBlock
             }
 
             destinationBit += bitsPerTexel;
-            ++rowTexels;
-            // DXT is the 1.11 fixed-point increment of the TMEM word address.
-            // Crossing a 64-bit word boundary advances the destination row.
-            const std::size_t dxtAccumulator = (texel + 1U) * tileState.loadDxt;
-            const std::size_t dxtRow = dxtAccumulator >> 11;
-            if (dxtRow > row)
+
+            // DXT is accumulated once per completed 64-bit source word,
+            // not once per texel. Its 1.11 fractional carry selects the
+            // destination row and therefore the odd-row word swap.
+            if ((destinationBit & 63U) == 0U)
             {
-                row = dxtRow;
-                rowTexels = 0;
-                destinationBit = row * (tileState.line != 0
-                    ? static_cast<std::size_t>(tileState.line) * 64U
-                    : ((texelCount * bitsPerTexel + 63U) & ~std::size_t(63U)));
+                dxtAccumulator += tileState.loadDxt;
+                const std::size_t dxtRow = dxtAccumulator >> 11;
+                if (dxtRow > row)
+                {
+                    row = dxtRow;
+                    destinationBit = row * rowStrideBits;
+                }
             }
         }
         tileState.loaded = true;
