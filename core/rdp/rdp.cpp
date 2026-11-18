@@ -685,7 +685,7 @@ case 0x33: // LoadBlock
                         }
                         const int alphaA = alphaSource(aaSel);
                         const int alphaB = alphaSource(abSel);
-                        const int alphaFactor = alphaSource(acSel);
+                        const int alphaFactor = alphaFactorSource(acSel);
                         const int alphaD = alphaSource(adSel);
                         const int alpha = std::clamp(((alphaA - alphaB) * alphaFactor + 127) / 255 + alphaD, 0, 255);
                         color = combined | static_cast<std::uint32_t>(alpha);
