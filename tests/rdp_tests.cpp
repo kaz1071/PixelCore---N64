@@ -208,6 +208,26 @@ int main()
           blockLoad.textureTexel(8, 0, 0) == 0,
           "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
+    // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
+    const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
+        if (blockLoad.pushCommandWord(word)) blockLoad.executeLastCommand(blockRdram);
+    };
+    submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                         (2ULL << 32) | (1ULL << 8) | (2ULL << 4));
+    check(blockLoad.textureTexel(0, 4, 0) == 0xDEF0U &&
+          blockLoad.textureTexel(0, 5, 0) == 0x9ABCU,
+          "texture sampling wraps masked S coordinates and mirrors alternate periods");
+
+    submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                         (2ULL << 32) | (2ULL << 9) | (2ULL << 4));
+    check(blockLoad.textureTexel(0, 4, 0) == 0xDEF0U,
+          "texture sampling clamps S coordinates to the final tile texel");
+
+    submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                         (2ULL << 32) | (1ULL << 1));
+    check(blockLoad.textureTexel(0, 2, 0) == 0x9ABCU,
+          "texture sampling applies right shifts to S coordinates");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
