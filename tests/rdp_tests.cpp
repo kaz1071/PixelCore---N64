@@ -208,6 +208,38 @@ int main()
           blockLoad.textureTexel(8, 0, 0) == 0,
           "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
+    // RGBA texture conversion expands 5-bit channels and preserves the RGBA16 alpha bit.
+    Rdp rgba16;
+    std::vector<std::uint8_t> rgba16Rdram(0x30, 0);
+    rgba16Rdram[0x20] = 0xF8;
+    rgba16Rdram[0x21] = 0x01; // RGBA16: full red, alpha set.
+    const auto submitRgba16 = [&rgba16, &rgba16Rdram](std::uint64_t word) {
+        if (rgba16.pushCommandWord(word)) rgba16.executeLastCommand(rgba16Rdram);
+    };
+    submitRgba16((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitRgba16((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41));
+    submitRgba16((0x33ULL << 56));
+    check(rgba16.textureRgba(0, 0, 0) == 0xFF0000FFU,
+          "RGBA16 texture conversion expands channels and maps the alpha bit to 8-bit alpha");
+
+    // RGBA32 texture values are already in RGBA8888 channel order.
+    Rdp rgba32;
+    std::vector<std::uint8_t> rgba32Rdram(0x40, 0);
+    rgba32Rdram[0x20] = 0x12;
+    rgba32Rdram[0x21] = 0x34;
+    rgba32Rdram[0x22] = 0x56;
+    rgba32Rdram[0x23] = 0x78;
+    const auto submitRgba32 = [&rgba32, &rgba32Rdram](std::uint64_t word) {
+        if (rgba32.pushCommandWord(word)) rgba32.executeLastCommand(rgba32Rdram);
+    };
+    submitRgba32((0x3DULL << 56) | (3ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitRgba32((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitRgba32((0x33ULL << 56));
+    check(rgba32.textureRgba(0, 0, 0) == 0x12345678U,
+          "RGBA32 texture conversion preserves all four source channels");
+    check(rgba32.textureRgba(8, 0, 0) == 0,
+          "RGBA texture conversion rejects invalid tile indexes");
+
     // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
     submitBlock((0x32ULL << 56) | (12ULL << 12));
     const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
