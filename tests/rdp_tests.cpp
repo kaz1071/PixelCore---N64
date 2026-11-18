@@ -178,7 +178,7 @@ int main()
           textureLoad.textureTexel(0, 2, 1) == 0xA6U &&
           textureLoad.textureTexel(0, 3, 1) == 0xA7U,
           "texture sampling reverses the odd-row TMEM word swap");
-    check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(20) == 0,
+    check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(24) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
 
     // LoadBlock streams a linear run of source texels into the selected TMEM tile.
