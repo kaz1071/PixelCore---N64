@@ -176,6 +176,30 @@ int main()
     check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(20) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
 
+    // LoadBlock streams a linear run of source texels into the selected TMEM tile.
+    Rdp blockLoad;
+    std::vector<std::uint8_t> blockRdram(0x40, 0);
+    blockRdram[0x20] = 0x12; blockRdram[0x21] = 0x34;
+    blockRdram[0x22] = 0x56; blockRdram[0x23] = 0x78;
+    blockRdram[0x24] = 0x9A; blockRdram[0x25] = 0xBC;
+    blockRdram[0x26] = 0xDE; blockRdram[0x27] = 0xF0;
+    const auto submitBlock = [&blockLoad, &blockRdram](std::uint64_t word) {
+        if (blockLoad.pushCommandWord(word)) blockLoad.executeLastCommand(blockRdram);
+    };
+    submitBlock((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitBlock((0x35ULL << 56) | (1ULL << 41) | (2ULL << 32));
+    submitBlock((0x33ULL << 56) | (0ULL << 44) | (0ULL << 32) |
+                (0ULL << 24) | (12ULL << 12));
+    check(blockLoad.tile(0).loaded && blockLoad.tile(0).loadType == 1,
+          "LoadBlock marks the tile loaded after copying source data");
+    check(blockLoad.tmemByte(16) == 0x12 && blockLoad.tmemByte(17) == 0x34 &&
+          blockLoad.tmemByte(18) == 0x56 && blockLoad.tmemByte(19) == 0x78 &&
+          blockLoad.tmemByte(20) == 0x9A && blockLoad.tmemByte(21) == 0xBC &&
+          blockLoad.tmemByte(22) == 0xDE && blockLoad.tmemByte(23) == 0xF0,
+          "LoadBlock copies the requested 16-bit texels into sequential TMEM bytes");
+    check(blockLoad.tmemByte(15) == 0 && blockLoad.tmemByte(24) == 0,
+          "LoadBlock preserves TMEM bytes outside the transferred range");
+
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
     check(rdp.blendColor() == 0x50607080U, "SetBlendColor stores packed RGBA");
     check(rdp.primitiveColor() == 0x90A0B0C0U, "SetPrimitiveColor stores packed RGBA");
