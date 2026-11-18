@@ -185,8 +185,10 @@ case 0x33: // LoadBlock
 
         for (std::size_t texel = 0; texel < texelCount; ++texel)
         {
-            const std::size_t sourceTexel = sourceStartS + texel;
-            const std::size_t sourceRow = sourceStartT + row;
+            const std::size_t sourceLinearTexel =
+                sourceStartT * textureImageWidth_ + sourceStartS + texel;
+            const std::size_t sourceRow = sourceLinearTexel / textureImageWidth_;
+            const std::size_t sourceTexel = sourceLinearTexel % textureImageWidth_;
             const std::uint64_t sourceRowAddress = static_cast<std::uint64_t>(textureImageAddress_) +
                 sourceRow * sourceRowBytes;
             const std::uint64_t sourceBit = static_cast<std::uint64_t>(sourceTexel) * bitsPerTexel;
