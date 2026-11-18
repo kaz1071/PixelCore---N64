@@ -263,6 +263,30 @@ int main()
           oddRgba32Load.textureTexel(0, 1, 1) == 0x40414243U,
           "32-bit texture sampling reads both odd-row texels after TMEM half swapping");
 
+    // Bilinear sampling interpolates RGBA channels with 5-bit fractions.
+    Rdp bilinearTexture;
+    std::vector<std::uint8_t> bilinearRdram(0x40, 0);
+    const std::array<std::uint8_t, 16> bilinearPixels = {
+        0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0xFF,
+        0xFF, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF
+    };
+    for (std::size_t i = 0; i < bilinearPixels.size(); ++i)
+        bilinearRdram[0x20 + i] = bilinearPixels[i];
+    const auto submitBilinear = [&bilinearTexture, &bilinearRdram](std::uint64_t word) {
+        if (bilinearTexture.pushCommandWord(word))
+            bilinearTexture.executeLastCommand(bilinearRdram);
+    };
+    submitBilinear((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitBilinear((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitBilinear((0x32ULL << 56) | (4ULL << 12) | 4ULL);
+    submitBilinear((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    check(bilinearTexture.textureRgbaBilinear(0, 0, 0, 0, 0) == 0x000000FFU,
+          "bilinear texture sampling returns the top-left texel at zero fractions");
+    check(bilinearTexture.textureRgbaBilinear(0, 0, 0, 16, 16) == 0x404040FFU,
+          "bilinear texture sampling averages four RGBA texels at half fractions");
+    check(bilinearTexture.textureRgbaBilinear(0, 0, 0, 32, 0) == 0,
+          "bilinear texture sampling rejects fractions outside the five-bit range");
+
     // A half-row DXT increment must carry after two 64-bit words, and
     // LoadBlock continues at the next source image row after eight 16-bit texels.
     Rdp fractionalDxtLoad;
