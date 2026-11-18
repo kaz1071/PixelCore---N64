@@ -517,8 +517,7 @@ case 0x33: // LoadBlock
                 const std::uint8_t fractionS = static_cast<std::uint8_t>(fixedS - integerS * 32);
                 const std::uint8_t fractionT = static_cast<std::uint8_t>(fixedT - integerT * 32);
                 const std::uint32_t color = textureRgbaFiltered(
-                    tileIndex, static_cast<std::size_t>(std::max<std::int64_t>(0, integerS)),
-                    static_cast<std::size_t>(std::max<std::int64_t>(0, integerT)),
+                    tileIndex, integerS, integerT,
                     fractionS, fractionT);
                 const std::uint64_t address = static_cast<std::uint64_t>(colorImageAddress_) +
                     (static_cast<std::uint64_t>(y) * colorImageWidth_ + x) * bytesPerPixel;
@@ -670,9 +669,7 @@ case 0x33: // LoadBlock
                         (fixedS - integerS * (1LL << 16)) >> 11);
                     const std::uint8_t fractionT = static_cast<std::uint8_t>(
                         (fixedT - integerT * (1LL << 16)) >> 11);
-                    if (integerS < 0 || integerT < 0) continue;
-                    color = textureRgbaFiltered(textureTile, static_cast<std::size_t>(integerS),
-                                                 static_cast<std::size_t>(integerT), fractionS, fractionT);
+                    color = textureRgbaFiltered(textureTile, integerS, integerT, fractionS, fractionT);
                     const std::uint32_t textureColor = color;
                     std::uint32_t interpolatedShade = 0xFFFFFFFFU;
                     if (shaded)
@@ -954,30 +951,36 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
     if (!tileState.loaded || tileState.size > 3)
         return 0;
 
-    const auto addressCoordinate = [](std::size_t coordinate, std::uint8_t shift,
+    const auto addressCoordinate = [](std::int64_t coordinate, std::uint8_t shift,
                                       std::uint8_t mask, std::uint8_t mirror,
                                       std::uint8_t clamp, std::size_t extent) {
+        const auto floorDivide = [](std::int64_t value, std::int64_t divisor) {
+            return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
+        };
         if (shift <= 10U)
-            coordinate >>= shift;
+            coordinate = floorDivide(coordinate, std::int64_t(1) << shift);
         else
         {
             const unsigned leftShift = 16U - shift;
-            if (coordinate > (std::numeric_limits<std::size_t>::max() >> leftShift))
-                coordinate = std::numeric_limits<std::size_t>::max();
+            if (coordinate > (std::numeric_limits<std::int64_t>::max() >> leftShift))
+                coordinate = std::numeric_limits<std::int64_t>::max();
+            else if (coordinate < (std::numeric_limits<std::int64_t>::min() >> leftShift))
+                coordinate = std::numeric_limits<std::int64_t>::min();
             else
-                coordinate <<= leftShift;
+                coordinate *= std::int64_t(1) << leftShift;
         }
 
         if (clamp != 0U)
-            return std::min(coordinate, extent == 0 ? std::size_t(0) : extent - 1U);
+            return static_cast<std::int64_t>(std::clamp<std::int64_t>(
+                coordinate, 0, extent == 0 ? 0 : static_cast<std::int64_t>(extent - 1U)));
 
         if (mask != 0U)
         {
-            const std::size_t period = std::size_t(1) << mask;
-            const std::size_t block = coordinate / period;
-            coordinate %= period;
-            if (mirror != 0U && (block & 1U) != 0U)
-                coordinate = period - 1U - coordinate;
+            const std::int64_t period = std::int64_t(1) << mask;
+            const std::int64_t block = floorDivide(coordinate, period);
+            coordinate -= block * period;
+            if (mirror != 0U && (block & 1LL) != 0)
+                coordinate = period - 1 - coordinate;
         }
         return coordinate;
     };
@@ -992,6 +995,9 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
                            tileState.mirrorS, tileState.clampS, tileWidth);
     t = addressCoordinate(t, tileState.shiftT, tileState.maskT,
                            tileState.mirrorT, tileState.clampT, tileHeight);
+
+    if (s < 0 || t < 0)
+        return 0;
 
     const std::size_t bitsPerTexel = 4U << tileState.size;
     const std::size_t base = static_cast<std::size_t>(tileState.tmem) * 8U;
