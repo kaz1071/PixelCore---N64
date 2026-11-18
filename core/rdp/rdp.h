@@ -50,6 +50,7 @@ public:
     std::uint32_t otherModesHigh() const;
     std::uint32_t otherModesLow() const;
     std::uint8_t cycleType() const;
+    std::uint8_t textureFilterMode() const;
     std::uint32_t blendColor() const;
     std::uint32_t fogColor() const;
     std::uint32_t primitiveColor() const;
@@ -67,6 +68,9 @@ public:
     std::uint32_t textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const;
     // Bilinearly interpolates four RGBA texels using 5-bit fractional S/T coordinates.
     std::uint32_t textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
+                                      std::uint8_t fractionS, std::uint8_t fractionT) const;
+    // Selects point, bilinear, or four-texel average filtering from SetOtherModes.
+    std::uint32_t textureRgbaFiltered(std::size_t tileIndex, std::size_t s, std::size_t t,
                                       std::uint8_t fractionS, std::uint8_t fractionT) const;
 
 private:
