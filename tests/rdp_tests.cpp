@@ -933,7 +933,7 @@ int main()
     submitNegativeTriangle((5ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
-    submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-65536)) << 32);
+    submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-131072)) << 32);
     for (int i = 0; i < 7; ++i) submitNegativeTriangle(0ULL);
     const std::size_t negativeTrianglePixel = (2 * 8 + 2) * 4;
     check(negativeTriangleMemory[negativeTrianglePixel] == 0x00 &&
