@@ -603,6 +603,22 @@ int main()
     check(rdp.primitiveLodFraction() == 0x79U, "SetPrimitiveColor decodes primitive LOD fraction");
     check(rdp.environmentColor() == 0xD0E0F001U, "SetEnvironmentColor stores packed RGBA");
 
+    // SetCombine is a two-word packet and preserves both mux payloads.
+    Rdp combineRegisters;
+    std::vector<std::uint8_t> combineMemory(16, 0);
+    check(!combineRegisters.pushCommandWord((0x3CULL << 56) | 0x00123456789ABCDEULL),
+          "SetCombine waits for its second 64-bit word");
+    check(combineRegisters.pushCommandWord(0xFEDCBA9876543210ULL),
+          "SetCombine completes after two 64-bit words");
+    combineRegisters.executeLastCommand(combineMemory);
+    check(combineRegisters.combineMux0() == 0x00123456789ABCDEULL,
+          "SetCombine stores the first mux word");
+    check(combineRegisters.combineMux1() == 0xFEDCBA9876543210ULL,
+          "SetCombine stores the second mux word");
+    combineRegisters.reset();
+    check(combineRegisters.combineMux0() == 0 && combineRegisters.combineMux1() == 0,
+          "reset clears SetCombine mux registers");
+
     rdp.reset();
     check(rdp.otherModesHigh() == 0 && rdp.otherModesLow() == 0,
           "reset clears OtherModes registers");
