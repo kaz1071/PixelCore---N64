@@ -960,6 +960,8 @@ int main()
     submitNegativeTriangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitNegativeTriangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41) | (1ULL << 4));
     submitNegativeTriangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    check(negativeCoordinateTriangle.textureTexel(0, -1, 0) == 0x00FF00FFU,
+          "negative-S triangle setup loads the wrapped green texel");
     submitNegativeTriangle((0x0AULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
     submitNegativeTriangle((5ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
