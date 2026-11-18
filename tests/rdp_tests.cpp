@@ -781,6 +781,39 @@ int main()
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
           "TextureTriangle samples a texture texel into the triangle framebuffer");
 
+    // Shaded textured triangles place the texture coefficient block after eight shade words.
+    Rdp shadedTexturedTriangle;
+    std::vector<std::uint8_t> shadedTextureMemory(0x300, 0);
+    const auto submitShadedTexture = [&shadedTexturedTriangle, &shadedTextureMemory](std::uint64_t word) {
+        if (shadedTexturedTriangle.pushCommandWord(word))
+            shadedTexturedTriangle.executeLastCommand(shadedTextureMemory);
+    };
+    shadedTextureMemory[0x20] = 0xFF; shadedTextureMemory[0x21] = 0x00;
+    shadedTextureMemory[0x22] = 0x00; shadedTextureMemory[0x23] = 0xFF;
+    shadedTextureMemory[0x24] = 0x00; shadedTextureMemory[0x25] = 0xFF;
+    shadedTextureMemory[0x26] = 0x00; shadedTextureMemory[0x27] = 0xFF;
+    shadedTextureMemory[0x28] = 0x00; shadedTextureMemory[0x29] = 0x00;
+    shadedTextureMemory[0x2A] = 0xFF; shadedTextureMemory[0x2B] = 0xFF;
+    shadedTextureMemory[0x2C] = 0xFF; shadedTextureMemory[0x2D] = 0xFF;
+    shadedTextureMemory[0x2E] = 0xFF; shadedTextureMemory[0x2F] = 0xFF;
+    submitShadedTexture((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitShadedTexture((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitShadedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitShadedTexture((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitShadedTexture((0x0BULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitShadedTexture((5ULL << 16) << 32 | 65536U);
+    submitShadedTexture((1ULL << 16) << 32 | 65536U);
+    submitShadedTexture((5ULL << 16) << 32 | 3ULL * 65536U);
+    for (int i = 0; i < 8; ++i) submitShadedTexture(0ULL);
+    submitShadedTexture(0ULL); // S=0, T=0
+    submitShadedTexture((65536ULL << 32)); // dS/dX = 1 texel
+    submitShadedTexture(65536ULL); // dT/dY = 1 texel
+    for (int i = 0; i < 5; ++i) submitShadedTexture(0ULL);
+    check(shadedTextureMemory[(2 * 8 + 2) * 4] == 0xFF &&
+          shadedTextureMemory[(2 * 8 + 2) * 4 + 1] == 0xFF &&
+          shadedTextureMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
+          "ShadeTextureTriangle locates and samples its texture coefficient block");
+
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
     std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
