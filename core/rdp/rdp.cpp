@@ -661,7 +661,9 @@ case 0x33: // LoadBlock
                     const std::int64_t fixedS = startS + relativeX * dsdx + relativeY * dsdy;
                     const std::int64_t fixedT = startT + relativeX * dtdx + relativeY * dtdy;
                     const auto floorDiv = [](std::int64_t value, std::int64_t divisor) {
-                        return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
+                        const std::int64_t quotient = value / divisor;
+            const std::int64_t remainder = value % divisor;
+            return remainder < 0 ? quotient - 1 : quotient;
                     };
                     const std::int64_t integerS = floorDiv(fixedS, 1LL << 16);
                     const std::int64_t integerT = floorDiv(fixedT, 1LL << 16);
@@ -1074,7 +1076,7 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::int64_t s, std::int64
         if (tileState.size != 2U)
             return 0;
 
-        const std::size_t pairS = s & ~static_cast<std::size_t>(1U);
+        const std::int64_t pairS = s & ~std::int64_t(1);
         const std::uint32_t first = textureTexel(tileIndex, pairS, t);
         const std::uint32_t second = textureTexel(tileIndex, pairS + 1U, t);
         const std::int32_t u = static_cast<std::int32_t>((first >> 8) & 0xFFU) - 128;
