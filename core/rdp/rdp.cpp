@@ -120,19 +120,32 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
 
         const std::size_t entryCount =
             (static_cast<std::size_t>(tileState.loadEndS - tileState.loadStartS) >> 2) + 1U;
-        const std::size_t sourceStart = static_cast<std::size_t>(tileState.loadStartS >> 2);
+        const std::size_t sourceS = static_cast<std::size_t>(tileState.loadStartS >> 2);
+        const std::size_t sourceT = static_cast<std::size_t>(tileState.loadStartT >> 2);
         const std::size_t destinationBase = static_cast<std::size_t>(tileState.tmem) * 8U;
+
+        // Validate the complete transfer before touching TMEM. A failed load
+        // must not leave a partially updated palette or report the tile loaded.
+        if (sourceS >= textureImageWidth_ ||
+            entryCount > textureImageWidth_ - sourceS ||
+            entryCount > (tmem_.size() - std::min(destinationBase, tmem_.size())) / 8U ||
+            destinationBase > tmem_.size())
+            break;
+
+        const std::uint64_t sourceTexel =
+            static_cast<std::uint64_t>(sourceT) * textureImageWidth_ + sourceS;
+        const std::uint64_t sourceAddress =
+            static_cast<std::uint64_t>(textureImageAddress_) + sourceTexel * 2U;
+        const std::uint64_t sourceBytes = static_cast<std::uint64_t>(entryCount) * 2U;
+        if (sourceAddress > rdram.size() || sourceBytes > rdram.size() - sourceAddress)
+            break;
+
         for (std::size_t entry = 0; entry < entryCount; ++entry)
         {
-            const std::uint64_t sourceAddress = static_cast<std::uint64_t>(textureImageAddress_) +
-                (sourceStart + entry) * 2U;
+            const std::uint8_t high = rdram[static_cast<std::size_t>(sourceAddress) + entry * 2U];
+            const std::uint8_t low = rdram[static_cast<std::size_t>(sourceAddress) + entry * 2U + 1U];
             const std::size_t destinationAddress = destinationBase + entry * 8U;
-            if (sourceAddress > rdram.size() || 2U > rdram.size() - sourceAddress ||
-                destinationAddress > tmem_.size() || 8U > tmem_.size() - destinationAddress)
-                continue;
-            const std::uint8_t high = rdram[sourceAddress];
-            const std::uint8_t low = rdram[sourceAddress + 1U];
-            // The RDP duplicates each palette entry into four 16-bit TMEM banks.
+            // Each 16-bit palette entry is replicated into four TMEM banks.
             for (std::size_t bank = 0; bank < 4; ++bank)
             {
                 tmem_[destinationAddress + bank * 2U] = high;
@@ -143,7 +156,7 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         break;
     }
 
-    case 0x33: // LoadBlock
+case 0x33: // LoadBlock
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
         RdpTileState &tileState = tiles_[tileIndex];
