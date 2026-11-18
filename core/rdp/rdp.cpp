@@ -842,7 +842,7 @@ std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std
     const std::uint32_t inverseT = 32U - fractionT;
 
     std::uint32_t result = 0;
-    for (unsigned shift : {24U, 16U, 8U, 0U})
+    for (unsigned shift = 0; shift <= 24U; shift += 8U)
     {
         const std::uint32_t c00 = (topLeft >> shift) & 0xFFU;
         const std::uint32_t c10 = (topRight >> shift) & 0xFFU;
