@@ -576,7 +576,7 @@ case 0x33: // LoadBlock
                     }
                     else
                     {
-                        const auto pixel = static_cast<std::uint16_t>((x & 1U) ? fillColor_ : fillColor_ >> 16);
+                        const auto pixel = static_cast<std::uint16_t>(((static_cast<std::uint64_t>(y) * colorImageWidth_ + x) & 1U) ? fillColor_ : fillColor_ >> 16);
                         rdram[offset] = static_cast<std::uint8_t>(pixel >> 8);
                         rdram[offset + 1] = static_cast<std::uint8_t>(pixel);
                     }
@@ -807,7 +807,7 @@ case 0x33: // LoadBlock
                     const std::uint16_t pixel = textured
                         ? static_cast<std::uint16_t>((((color >> 27) & 0x1FU) << 11) |
                             (((color >> 19) & 0x3FU) << 5) | ((color >> 11) & 0x1FU))
-                        : static_cast<std::uint16_t>((x & 1) ? fillColor_ : fillColor_ >> 16);
+                        : static_cast<std::uint16_t>(((static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) & 1U) ? fillColor_ : fillColor_ >> 16);
                     rdram[offset] = static_cast<std::uint8_t>(pixel >> 8);
                     rdram[offset + 1] = static_cast<std::uint8_t>(pixel);
                 }
