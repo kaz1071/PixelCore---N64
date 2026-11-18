@@ -63,7 +63,7 @@ public:
     std::uint8_t tmemByte(std::size_t index) const;
     // Returns a raw big-endian texel value after applying the tile's integer-coordinate addressing, or zero when unavailable.
     std::uint32_t textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const;
-    // Returns RGBA8888 for supported RGBA, CI (when TLUT is enabled), IA, and intensity texels; zero for unsupported formats.
+    // Returns RGBA8888 for supported RGBA, YUV16, CI (when TLUT is enabled), IA, and intensity texels; zero for unsupported formats.
     std::uint32_t textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const;
 
 private:
