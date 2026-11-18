@@ -27,6 +27,8 @@ void Rdp::reset()
     primitiveMinLevel_ = 0;
     primitiveLodFraction_ = 0;
     environmentColor_ = 0;
+    combineMux0_ = 0;
+    combineMux1_ = 0;
     primitiveDepth_ = 0;
     primitiveDeltaZ_ = 0;
     conversionCoefficients_.fill(0);
@@ -48,6 +50,10 @@ std::size_t Rdp::commandWordCount(std::uint8_t opcode)
 
     if (opcode >= 0x08 && opcode <= 0x0F)
         return triangleWords[opcode - 0x08];
+
+    // SetCombine carries two 64-bit words containing the color/alpha muxes.
+    if (opcode == 0x3C)
+        return 2;
 
     // Texture rectangle and flipped texture rectangle include one
     // additional 64-bit parameter word.
@@ -376,6 +382,14 @@ case 0x33: // LoadBlock
 
     case 0x3B: // SetEnvironmentColor
         environmentColor_ = static_cast<std::uint32_t>(command);
+        break;
+
+    case 0x3C: // SetCombine
+        if (lastCommand_.size() == 2U)
+        {
+            combineMux0_ = lastCommand_[0] & 0x00FFFFFFFFFFFFFFULL;
+            combineMux1_ = lastCommand_[1];
+        }
         break;
 
     case 0x24: // TextureRectangle
@@ -721,6 +735,16 @@ std::uint8_t Rdp::primitiveLodFraction() const
 std::uint32_t Rdp::environmentColor() const
 {
     return environmentColor_;
+}
+
+std::uint64_t Rdp::combineMux0() const
+{
+    return combineMux0_;
+}
+
+std::uint64_t Rdp::combineMux1() const
+{
+    return combineMux1_;
 }
 
 std::uint16_t Rdp::primitiveDepth() const
