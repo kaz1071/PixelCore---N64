@@ -579,6 +579,35 @@ case 0x33: // LoadBlock
                     if (integerS < 0 || integerT < 0) continue;
                     color = textureRgbaFiltered(textureTile, static_cast<std::size_t>(integerS),
                                                  static_cast<std::size_t>(integerT), fractionS, fractionT);
+                    if (shaded)
+                    {
+                        // Shade coefficients are RG, BA pairs in 16.16 fixed point.
+                        // The X and Y derivative blocks provide per-pixel interpolation.
+                        const std::int64_t relativeShadeX = x - (xh >> 16);
+                        const std::int64_t relativeShadeY = y - (yh >> 2);
+                        std::uint32_t shade = 0;
+                        for (std::size_t channel = 0; channel < 4; ++channel)
+                        {
+                            const std::size_t pair = channel / 2U;
+                            const unsigned halfShift = (channel & 1U) == 0U ? 32U : 0U;
+                            const std::int64_t initial = static_cast<std::int32_t>(
+                                lastCommand_[4U + pair] >> halfShift);
+                            const std::int64_t dx = static_cast<std::int32_t>(
+                                lastCommand_[6U + pair] >> halfShift);
+                            const std::int64_t dy = static_cast<std::int32_t>(
+                                lastCommand_[10U + pair] >> halfShift);
+                            const std::int64_t fixed = initial +
+                                relativeShadeX * dx + relativeShadeY * dy;
+                            const std::uint32_t component = static_cast<std::uint32_t>(
+                                std::clamp<std::int64_t>(fixed >> 16, 0, 255));
+                            shade |= component << (24U - static_cast<unsigned>(channel) * 8U);
+                        }
+                        const std::uint32_t red = (((color >> 24) & 0xFFU) * ((shade >> 24) & 0xFFU) + 127U) / 255U;
+                        const std::uint32_t green = (((color >> 16) & 0xFFU) * ((shade >> 16) & 0xFFU) + 127U) / 255U;
+                        const std::uint32_t blue = (((color >> 8) & 0xFFU) * ((shade >> 8) & 0xFFU) + 127U) / 255U;
+                        const std::uint32_t alpha = ((color & 0xFFU) * (shade & 0xFFU) + 127U) / 255U;
+                        color = (red << 24) | (green << 16) | (blue << 8) | alpha;
+                    }
                 }
                 if (bpp == 4)
                 {
