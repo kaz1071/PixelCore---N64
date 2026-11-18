@@ -698,7 +698,7 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
     // Color-indexed texels use the upper TMEM half as a replicated TLUT.
     if (tileState.format == 2U)
     {
-        if ((otherModesLow_ & (1U << 15)) == 0 ||
+        if ((otherModesHigh_ & (1U << 15)) == 0 ||
             (tileState.size != 0U && tileState.size != 1U))
             return 0;
         const std::size_t paletteIndex = tileState.size == 0U
@@ -710,7 +710,7 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
         const std::uint32_t entry =
             (static_cast<std::uint32_t>(tmem_[paletteAddress]) << 8) |
             tmem_[paletteAddress + 1U];
-        if ((otherModesLow_ & (1U << 14)) != 0)
+        if ((otherModesHigh_ & (1U << 14)) != 0)
         {
             const std::uint32_t intensity = (entry >> 8) & 0xFFU;
             return packIntensityAlpha(intensity, entry & 0xFFU);
