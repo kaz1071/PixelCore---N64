@@ -647,24 +647,41 @@ case 0x33: // LoadBlock
                         const auto colorSource = [&](unsigned selector, unsigned channel) -> int {
                             switch (selector)
                             {
-                            case 0: case 1: return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
+                            case 0: case 1: case 2:
+                                return static_cast<int>((texture >> (24U - channel * 8U)) & 0xFFU);
                             case 3: return static_cast<int>((primitive >> (24U - channel * 8U)) & 0xFFU);
                             case 4: return static_cast<int>((shadeColor >> (24U - channel * 8U)) & 0xFFU);
                             case 5: return static_cast<int>((environment >> (24U - channel * 8U)) & 0xFFU);
                             case 6: return 255;
+                            case 7: return 0;
                             default: return 0;
                             }
                         };
                         const auto alphaSource = [&](unsigned selector) -> int {
                             switch (selector)
                             {
-                            case 0: case 1: return static_cast<int>(texture & 0xFFU);
+                            case 0: case 1: case 2: return static_cast<int>(texture & 0xFFU);
                             case 3: return static_cast<int>(primitive & 0xFFU);
                             case 4: return static_cast<int>(shadeColor & 0xFFU);
                             case 5: return static_cast<int>(environment & 0xFFU);
-                            case 6: return primitiveLodFraction_;
-                            case 7: return primitiveLodFraction_;
+                            case 6: return 255;
+                            case 7: return 0;
                             default: return 0;
+                            }
+                        };
+                        const auto colorFactor = [&](unsigned selector, unsigned channel) -> int {
+                            switch (selector)
+                            {
+                            case 0: case 1: case 2: return colorSource(selector, channel);
+                            case 6: return 0; // Key scale is not implemented yet.
+                            case 7: return static_cast<int>(texture & 0xFFU); // Combined alpha.
+                            case 8: case 9: return static_cast<int>(texture & 0xFFU);
+                            case 10: return static_cast<int>(primitive & 0xFFU);
+                            case 11: return static_cast<int>(shadeColor & 0xFFU);
+                            case 12: return static_cast<int>(environment & 0xFFU);
+                            case 13: case 14: return primitiveLodFraction_;
+                            case 15: return 0; // K5 is supplied by SetConvert.
+                            default: return colorSource(selector, channel);
                             }
                         };
                         std::uint32_t combined = 0;
@@ -672,13 +689,7 @@ case 0x33: // LoadBlock
                         {
                             const int a = colorSource(aSel, channel);
                             const int b = colorSource(bSel, channel);
-                            const int factor = cSel == 6U ? 255 :
-                                cSel == 7U ? static_cast<int>(texture & 0xFFU) :
-                                cSel == 8U ? static_cast<int>(texture & 0xFFU) :
-                                cSel == 10U ? static_cast<int>(primitive & 0xFFU) :
-                                cSel == 11U ? static_cast<int>(shadeColor & 0xFFU) :
-                                cSel == 12U ? static_cast<int>(environment & 0xFFU) :
-                                colorSource(cSel, channel);
+                            const int factor = colorFactor(cSel, channel);
                             const int d = colorSource(dSel, channel);
                             const int value = std::clamp(((a - b) * factor + 127) / 255 + d, 0, 255);
                             combined |= static_cast<std::uint32_t>(value) << (24U - channel * 8U);
