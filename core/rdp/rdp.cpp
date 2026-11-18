@@ -622,3 +622,29 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
         value = (value << 8) | tmem_[byteOffset + byte];
     return value;
 }
+
+
+std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const
+{
+    if (tileIndex >= tiles_.size())
+        return 0;
+
+    const RdpTileState &tileState = tiles_[tileIndex];
+    if (tileState.format != 0U || (tileState.size != 2U && tileState.size != 3U))
+        return 0;
+
+    const std::uint32_t texel = textureTexel(tileIndex, s, t);
+    if (tileState.size == 3U)
+        return texel;
+
+    const std::uint32_t red = (texel >> 11) & 0x1FU;
+    const std::uint32_t green = (texel >> 6) & 0x1FU;
+    const std::uint32_t blue = (texel >> 1) & 0x1FU;
+    const std::uint32_t alpha = texel & 1U;
+    const auto expand5 = [](std::uint32_t channel) {
+        return (channel << 3) | (channel >> 2);
+    };
+
+    return (expand5(red) << 24) | (expand5(green) << 16) |
+           (expand5(blue) << 8) | (alpha ? 0xFFU : 0U);
+}
