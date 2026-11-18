@@ -700,7 +700,7 @@ int main()
     submitTextureRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitTextureRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     // 2x2 rectangle, S/T start at zero, one texel per pixel.
-    submitTextureRectangle((0x24ULL << 56) | (4ULL << 12) | 4ULL);
+    submitTextureRectangle((0x24ULL << 56) | (8ULL << 12) | 8ULL);
     submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (32ULL << 16) | 32ULL);
     check(textureRectangleMemory[0] == 0xFF && textureRectangleMemory[1] == 0x00 &&
           textureRectangleMemory[2] == 0x00 && textureRectangleMemory[3] == 0xFF,
