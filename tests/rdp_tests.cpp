@@ -187,7 +187,7 @@ int main()
         if (blockLoad.pushCommandWord(word)) blockLoad.executeLastCommand(blockRdram);
     };
     submitBlock((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
-    submitBlock((0x35ULL << 56) | (1ULL << 41) | (2ULL << 32));
+    submitBlock((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) | (2ULL << 32));
     submitBlock((0x33ULL << 56) | (0ULL << 44) | (0ULL << 32) |
                 (0ULL << 24) | (12ULL << 12));
     check(blockLoad.tile(0).loaded && blockLoad.tile(0).loadType == 1,
