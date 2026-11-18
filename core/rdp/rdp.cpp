@@ -15,6 +15,7 @@ void Rdp::reset()
     textureImageSize_ = 0;
     tmem_.fill(0);
     colorImageAddress_ = 0;
+    depthImageAddress_ = 0;
     colorImageWidth_ = 0;
     colorImageFormat_ = 0;
     colorImageSize_ = 0;
@@ -77,6 +78,10 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         textureImageSize_ = static_cast<std::uint8_t>((command >> 51) & 0x03U);
         textureImageWidth_ = static_cast<std::uint32_t>((command >> 32) & 0x03FFU) + 1U;
         textureImageAddress_ = static_cast<std::uint32_t>(command & 0x03FFFFFFU);
+        break;
+
+    case 0x3E: // SetDepthImage
+        depthImageAddress_ = static_cast<std::uint32_t>(command & 0x03FFFFFFU);
         break;
 
     case 0x3F: // SetColorImage
@@ -945,6 +950,11 @@ std::uint64_t Rdp::combineMux0() const
 std::uint64_t Rdp::combineMux1() const
 {
     return combineMux1_;
+}
+
+std::uint32_t Rdp::depthImageAddress() const
+{
+    return depthImageAddress_;
 }
 
 std::uint16_t Rdp::primitiveDepth() const
