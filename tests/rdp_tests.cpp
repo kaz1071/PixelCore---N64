@@ -307,8 +307,8 @@ int main()
     // CI4 combines the tile palette bank with the texel's four-bit index.
     Rdp ci4Texture;
     std::vector<std::uint8_t> ci4Memory(0x80, 0);
-    ci4Memory[0x20] = 0x07;
-    ci4Memory[0x21] = 0xC1; // Palette entry 16: opaque blue RGBA5551.
+    ci4Memory[0x20] = 0x00;
+    ci4Memory[0x21] = 0x3F; // Palette entry 16: opaque blue RGBA5551.
     ci4Memory[0x40] = 0x00; // CI4 texel index zero.
     const auto submitCi4 = [&ci4Texture, &ci4Memory](std::uint64_t word) {
         if (ci4Texture.pushCommandWord(word))
