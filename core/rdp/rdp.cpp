@@ -585,6 +585,7 @@ case 0x33: // LoadBlock
     }
 
     case 0x08: // FillTriangle
+    case 0x09: // ShadeTriangle
     case 0x0A: // TextureTriangle
     case 0x0B: // ShadeTextureTriangle
     case 0x0E: // TextureDepthTriangle
@@ -592,9 +593,9 @@ case 0x33: // LoadBlock
     {
         const bool textured = lastOpcode_ == 0x0A || lastOpcode_ == 0x0B ||
                               lastOpcode_ == 0x0E || lastOpcode_ == 0x0F;
-        const bool shaded = lastOpcode_ == 0x0B || lastOpcode_ == 0x0F;
+        const bool shaded = lastOpcode_ == 0x09 || lastOpcode_ == 0x0B || lastOpcode_ == 0x0F;
         const std::size_t expectedWords = lastOpcode_ == 0x08 ? 4U :
-            lastOpcode_ == 0x0A ? 12U : lastOpcode_ == 0x0B ? 20U :
+            lastOpcode_ == 0x09 ? 12U : lastOpcode_ == 0x0A ? 12U : lastOpcode_ == 0x0B ? 20U :
             lastOpcode_ == 0x0E ? 14U : lastOpcode_ == 0x0F ? 22U : 0U;
         if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
             (colorImageSize_ != 2 && colorImageSize_ != 3) ||
@@ -795,6 +796,31 @@ case 0x33: // LoadBlock
                         const int alphaD = alphaSource(adSel);
                         const int alpha = std::clamp(((alphaA - alphaB) * alphaFactor + 127) / 255 + alphaD, 0, 255);
                         color = combined | static_cast<std::uint32_t>(alpha);
+                    }
+                }
+                else if (shaded)
+                {
+                    // ShadeTriangle uses the same RGBA coefficient block as
+                    // ShadeTextureTriangle, but writes the interpolated shade
+                    // directly instead of multiplying it by a texture sample.
+                    const std::int64_t relativeShadeX = x - (xh >> 16);
+                    const std::int64_t relativeShadeY = y - (yh >> 2);
+                    color = 0;
+                    for (std::size_t channel = 0; channel < 4; ++channel)
+                    {
+                        const std::size_t pair = channel / 2U;
+                        const unsigned halfShift = (channel & 1U) == 0U ? 32U : 0U;
+                        const std::int64_t initial = static_cast<std::int32_t>(
+                            lastCommand_[4U + pair] >> halfShift);
+                        const std::int64_t dx = static_cast<std::int32_t>(
+                            lastCommand_[6U + pair] >> halfShift);
+                        const std::int64_t dy = static_cast<std::int32_t>(
+                            lastCommand_[10U + pair] >> halfShift);
+                        const std::int64_t fixed = initial +
+                            relativeShadeX * dx + relativeShadeY * dy;
+                        const std::uint32_t component = static_cast<std::uint32_t>(
+                            std::clamp<std::int64_t>(fixed >> 16, 0, 255));
+                        color |= component << (24U - static_cast<unsigned>(channel) * 8U);
                     }
                 }
                 if (bpp == 4)
