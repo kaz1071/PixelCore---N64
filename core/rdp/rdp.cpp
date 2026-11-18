@@ -615,10 +615,13 @@ case 0x33: // LoadBlock
         };
         const std::int64_t startS = textured ? highSigned(lastCommand_[textureOffset]) : 0;
         const std::int64_t startT = textured ? lowSigned(lastCommand_[textureOffset]) : 0;
-        const std::int64_t dsdx = textured ? highSigned(lastCommand_[textureOffset + 1U]) : 0;
-        const std::int64_t dtdx = textured ? lowSigned(lastCommand_[textureOffset + 1U]) : 0;
-        const std::int64_t dsdy = textured ? highSigned(lastCommand_[textureOffset + 2U]) : 0;
-        const std::int64_t dtdy = textured ? lowSigned(lastCommand_[textureOffset + 2U]) : 0;
+        // The eight-word texture block is S/T, W, dS/dX+dT/dX,
+        // dW/dX, dS/dE+dT/dE, dW/dE, dS/dY+dT/dY, dW/dY.
+        // Screen-space X and Y derivatives therefore live at offsets 2 and 6.
+        const std::int64_t dsdx = textured ? highSigned(lastCommand_[textureOffset + 2U]) : 0;
+        const std::int64_t dtdx = textured ? lowSigned(lastCommand_[textureOffset + 2U]) : 0;
+        const std::int64_t dsdy = textured ? highSigned(lastCommand_[textureOffset + 6U]) : 0;
+        const std::int64_t dtdy = textured ? lowSigned(lastCommand_[textureOffset + 6U]) : 0;
         // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
         const int yh = static_cast<int>(w0 & 0x3FFFU);
         const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
