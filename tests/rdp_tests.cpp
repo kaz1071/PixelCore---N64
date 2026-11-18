@@ -799,7 +799,8 @@ int main()
 
     // A non-zero SetCombine mux selects the primitive color for textured pixels.
     submitTexturedTriangle((0x3AULL << 56) | (255ULL << 32) | 0x20A040FFULL);
-    submitTexturedTriangle((0x3CULL << 56) | (3ULL << 52) | (6ULL << 47));
+    submitTexturedTriangle((0x3CULL << 56) | (3ULL << 52) | (10ULL << 47) |
+                            (3ULL << 44) | (7ULL << 41));
     submitTexturedTriangle((15ULL << 28) | (7ULL << 15) | (7ULL << 12) | (7ULL << 9));
     submitTexturedTriangle((0x0AULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
     submitTexturedTriangle((5ULL << 16) << 32 | 65536U);
