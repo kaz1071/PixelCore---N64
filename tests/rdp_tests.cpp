@@ -1042,6 +1042,29 @@ int main()
           shadedTextureMemory[(2 * 8 + 2) * 4 + 2] == 0xC0,
           "ShadeTextureTriangle modulates texture channels using interpolated RGBA shade");
 
+    // ShadeTriangle (opcode 0x09) writes interpolated RGBA directly,
+    // without requiring a texture image or texture coefficient block.
+    Rdp shadedTriangle;
+    std::vector<std::uint8_t> shadedTriangleMemory(8 * 8 * 4, 0);
+    const auto submitShadedTriangle = [&shadedTriangle, &shadedTriangleMemory](std::uint64_t word) {
+        if (shadedTriangle.pushCommandWord(word))
+            shadedTriangle.executeLastCommand(shadedTriangleMemory);
+    };
+    submitShadedTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitShadedTriangle((0x09ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitShadedTriangle((5ULL << 16) << 32 | 65536U);
+    submitShadedTriangle((1ULL << 16) << 32 | 65536U);
+    submitShadedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitShadedTriangle((128ULL << 16) << 32 | (64ULL << 16));
+    submitShadedTriangle((192ULL << 16) << 32 | (255ULL << 16));
+    for (int i = 0; i < 6; ++i) submitShadedTriangle(0ULL);
+    const std::size_t shadedTrianglePixel = (2 * 8 + 2) * 4;
+    check(shadedTriangleMemory[shadedTrianglePixel] == 0x80 &&
+          shadedTriangleMemory[shadedTrianglePixel + 1] == 0x40 &&
+          shadedTriangleMemory[shadedTrianglePixel + 2] == 0xC0 &&
+          shadedTriangleMemory[shadedTrianglePixel + 3] == 0xFF,
+          "ShadeTriangle writes interpolated RGBA without texture sampling");
+
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
     std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
