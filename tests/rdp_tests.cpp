@@ -1452,8 +1452,8 @@ int main()
             resetScissor.executeLastCommand(resetMemory);
     };
     submitReset((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
-    submitReset((0x2DULL << 56) | (8ULL << 44) | (8ULL << 32) |
-                (12ULL << 12) | 12ULL);
+    submitReset((0x2DULL << 56) | (12ULL << 44) | (8ULL << 32) |
+                (16ULL << 12) | 12ULL);
     resetScissor.reset();
     submitReset((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitReset((0x37ULL << 56) | 0xAB0000FFULL);
@@ -1461,7 +1461,7 @@ int main()
     submitReset((5ULL << 16) << 32 | 65536U);
     submitReset((1ULL << 16) << 32 | 65536U);
     submitReset((5ULL << 16) << 32 | 3ULL * 65536U);
-    check(resetMemory[(2 * 8 + 1) * 4] == 0xAB,
+    check(resetMemory[(2 * 8 + 2) * 4] == 0xAB,
           "RDP reset restores the default full-width scissor rectangle");
 
     if (failures != 0)
