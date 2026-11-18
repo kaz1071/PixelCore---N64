@@ -270,7 +270,7 @@ int main()
     std::vector<std::uint8_t> clippedYuvMemory(0x40, 0);
     clippedYuvMemory[0x20] = 0xFF;
     clippedYuvMemory[0x21] = 0xFF;
-    clippedYuvMemory[0x22] = 0x00;
+    clippedYuvMemory[0x22] = 0xFF;
     clippedYuvMemory[0x23] = 0x00;
     const auto submitClippedYuv = [&clippedYuvTexture, &clippedYuvMemory](std::uint64_t word) {
         if (clippedYuvTexture.pushCommandWord(word))
@@ -279,8 +279,9 @@ int main()
     submitClippedYuv((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
     submitClippedYuv((0x35ULL << 56) | (1ULL << 53) | (2ULL << 51) | (1ULL << 41));
     submitClippedYuv((0x33ULL << 56) | (4ULL << 12));
+    // Positive K0 drives red above 255; negative K3 drives blue below 0.
     const std::uint64_t extremeYuvCoefficients = (0x2CULL << 56) |
-        (255ULL << 45) | (255ULL << 36) | (255ULL << 27) | (255ULL << 18);
+        (255ULL << 45) | (257ULL << 18);
     submitClippedYuv(extremeYuvCoefficients);
     const std::uint32_t clippedYuv = clippedYuvTexture.textureRgba(0, 0, 0);
     check(((clippedYuv >> 24) & 0xFFU) == 255U &&
