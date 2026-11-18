@@ -287,15 +287,18 @@ case 0x33: // LoadBlock
                     const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
                     const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
                     const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
-                    const std::size_t destinationAddress = destinationRow + destinationBit / 8U;
-                    tmem_[destinationAddress] = static_cast<std::uint8_t>(
-                        (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
-                        (nibble << destinationShift));
+                    const std::size_t destinationAddress = destinationRow +
+                        ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
+                    if (destinationAddress < tmem_.size())
+                        tmem_[destinationAddress] = static_cast<std::uint8_t>(
+                            (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
+                            (nibble << destinationShift));
                 }
                 else
                 {
                     const std::size_t texelBytes = bitsPerTexel / 8U;
-                    const std::uint64_t destinationAddress = destinationRow + destinationBit / 8U;
+                    const std::uint64_t destinationAddress = destinationRow +
+                        ((destinationBit / 8U) ^ ((row & 1U) != 0U ? 4U : 0U));
                     if (sourceAddress > rdram.size() || texelBytes > rdram.size() - sourceAddress ||
                         destinationAddress > tmem_.size() || texelBytes > tmem_.size() - destinationAddress)
                         continue;
@@ -658,7 +661,8 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
     const std::size_t texelBit = s * bitsPerTexel;
     if (texelBit / 8U > tmem_.size() - base - rowOffset)
         return 0;
-    const std::size_t byteOffset = base + rowOffset + texelBit / 8U;
+    const std::size_t byteOffset = base + rowOffset +
+        ((texelBit / 8U) ^ ((t & 1U) != 0U ? 4U : 0U));
     const std::size_t bitInByte = texelBit & 7U;
     const std::size_t byteCount = bitsPerTexel / 8U;
     if (bitsPerTexel == 4U)
