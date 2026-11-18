@@ -112,10 +112,72 @@ void Rdp::executeLastCommand(std::vector<std::uint8_t> &rdram)
         tileState.loadEndS = static_cast<std::uint16_t>((command >> 12) & 0x0FFFU);
         tileState.loadEndT = 0;
         tileState.loadDxt = static_cast<std::uint16_t>(command & 0x0FFFU);
+        tileState.loaded = false;
+
+        if (textureImageWidth_ == 0 || tileState.loadEndS < tileState.loadStartS)
+            break;
+
+        const std::size_t bitsPerTexel = 4U << textureImageSize_;
+        const std::size_t texelCount =
+            (static_cast<std::size_t>(tileState.loadEndS - tileState.loadStartS) >> 2) + 1U;
+        const std::size_t sourceRowBytes =
+            (static_cast<std::size_t>(textureImageWidth_) * bitsPerTexel + 7U) / 8U;
+        const std::size_t sourceStartS = tileState.loadStartS >> 2;
+        const std::size_t sourceStartT = tileState.loadStartT >> 2;
+        const std::size_t destinationBase = static_cast<std::size_t>(tileState.tmem) * 8U;
+        std::size_t destinationBit = 0;
+        std::size_t row = 0;
+        std::size_t rowTexels = 0;
+
+        for (std::size_t texel = 0; texel < texelCount; ++texel)
+        {
+            const std::size_t sourceTexel = sourceStartS + texel;
+            const std::size_t sourceRow = sourceStartT + row;
+            const std::uint64_t sourceRowAddress = static_cast<std::uint64_t>(textureImageAddress_) +
+                sourceRow * sourceRowBytes;
+            const std::uint64_t sourceBit = static_cast<std::uint64_t>(sourceTexel) * bitsPerTexel;
+            const std::uint64_t sourceAddress = sourceRowAddress + sourceBit / 8U;
+            if (bitsPerTexel == 4U)
+            {
+                const std::size_t destinationAddress = destinationBase + destinationBit / 8U;
+                if (sourceAddress < rdram.size() && destinationAddress < tmem_.size())
+                {
+                    const unsigned sourceShift = (sourceBit & 4U) ? 0U : 4U;
+                    const unsigned destinationShift = (destinationBit & 4U) ? 0U : 4U;
+                    const std::uint8_t nibble = static_cast<std::uint8_t>((rdram[sourceAddress] >> sourceShift) & 0x0FU);
+                    tmem_[destinationAddress] = static_cast<std::uint8_t>(
+                        (tmem_[destinationAddress] & ~(0x0FU << destinationShift)) |
+                        (nibble << destinationShift));
+                }
+            }
+            else
+            {
+                const std::size_t texelBytes = bitsPerTexel / 8U;
+                const std::uint64_t destinationAddress = destinationBase + destinationBit / 8U;
+                if (sourceAddress <= rdram.size() && texelBytes <= rdram.size() - sourceAddress &&
+                    destinationAddress <= tmem_.size() && texelBytes <= tmem_.size() - destinationAddress)
+                    for (std::size_t byte = 0; byte < texelBytes; ++byte)
+                        tmem_[destinationAddress + byte] = rdram[sourceAddress + byte];
+            }
+
+            destinationBit += bitsPerTexel;
+            ++rowTexels;
+            // DXT is the 1.11 fixed-point increment of the TMEM word address.
+            // Crossing a 64-bit word boundary advances the destination row.
+            const std::size_t dxtAccumulator = (texel + 1U) * tileState.loadDxt;
+            const std::size_t dxtRow = dxtAccumulator >> 11;
+            if (dxtRow > row)
+            {
+                row = dxtRow;
+                rowTexels = 0;
+                destinationBit = row * (tileState.line != 0
+                    ? static_cast<std::size_t>(tileState.line) * 64U
+                    : ((texelCount * bitsPerTexel + 63U) & ~std::size_t(63U)));
+            }
+        }
         tileState.loaded = true;
         break;
     }
-
     case 0x34: // LoadTile
     {
         const std::size_t tileIndex = static_cast<std::size_t>((command >> 24) & 0x07U);
