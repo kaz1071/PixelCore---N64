@@ -235,9 +235,9 @@ int main()
           oddBlockLoad.tmemByte(8) == 0x3C && oddBlockLoad.tmemByte(9) == 0x3D &&
           oddBlockLoad.tmemByte(10) == 0x3E && oddBlockLoad.tmemByte(11) == 0x3F,
           "LoadBlock applies DXT row advancement and odd-row TMEM word swapping");
-    check(oddBlockLoad.textureTexel(0, 0, 1) == 0x5051U &&
-          oddBlockLoad.textureTexel(0, 1, 1) == 0x5253U,
-          "texture sampling reads DXT-wrapped odd LoadBlock rows");
+    check(oddBlockLoad.textureTexel(0, 0, 1) == 0x3839U &&
+          oddBlockLoad.textureTexel(0, 1, 1) == 0x3A3BU,
+          "texture sampling reads DXT-wrapped odd LoadBlock rows from the continuing source row");
 
     // A half-row DXT increment must carry after two 64-bit words, and
     // LoadBlock continues at the next source image row after eight 16-bit texels.
