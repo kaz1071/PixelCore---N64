@@ -925,7 +925,7 @@ int main()
     negativeTriangleMemory[0x2A] = 0xFF; negativeTriangleMemory[0x2B] = 0xFF;
     negativeTriangleMemory[0x2C] = 0xFF; negativeTriangleMemory[0x2D] = 0xFF;
     negativeTriangleMemory[0x2E] = 0xFF; negativeTriangleMemory[0x2F] = 0xFF;
-    submitNegativeTriangle((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32) | 7ULL);
+    submitNegativeTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitNegativeTriangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitNegativeTriangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41) | (1ULL << 4));
     submitNegativeTriangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
@@ -933,7 +933,7 @@ int main()
     submitNegativeTriangle((5ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
-    submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-65536)) << 32);
+    submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-131072)) << 32);
     for (int i = 0; i < 7; ++i) submitNegativeTriangle(0ULL);
     const std::size_t negativeTrianglePixel = (2 * 8 + 2) * 4;
     check(negativeTriangleMemory[negativeTrianglePixel] == 0x00 &&
