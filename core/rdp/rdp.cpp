@@ -832,7 +832,7 @@ case 0x33: // LoadBlock
                 }
                 else
                 {
-                    const std::uint16_t pixel = textured
+                    const std::uint16_t pixel = (textured || shaded)
                         ? static_cast<std::uint16_t>((((color >> 27) & 0x1FU) << 11) |
                             (((color >> 19) & 0x3FU) << 5) | ((color >> 11) & 0x1FU))
                         : static_cast<std::uint16_t>(((static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) & 1U) ? fillColor_ : fillColor_ >> 16);
