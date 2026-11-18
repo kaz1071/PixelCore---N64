@@ -826,4 +826,34 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
     }
 
     return 0;
+
+
+std::uint32_t Rdp::textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
+                                       std::uint8_t fractionS, std::uint8_t fractionT) const
+{
+    if (fractionS > 31U || fractionT > 31U)
+        return 0;
+
+    const std::uint32_t topLeft = textureRgba(tileIndex, s, t);
+    const std::uint32_t topRight = textureRgba(tileIndex, s + 1U, t);
+    const std::uint32_t bottomLeft = textureRgba(tileIndex, s, t + 1U);
+    const std::uint32_t bottomRight = textureRgba(tileIndex, s + 1U, t + 1U);
+    const std::uint32_t inverseS = 32U - fractionS;
+    const std::uint32_t inverseT = 32U - fractionT;
+
+    std::uint32_t result = 0;
+    for (unsigned shift : {24U, 16U, 8U, 0U})
+    {
+        const std::uint32_t c00 = (topLeft >> shift) & 0xFFU;
+        const std::uint32_t c10 = (topRight >> shift) & 0xFFU;
+        const std::uint32_t c01 = (bottomLeft >> shift) & 0xFFU;
+        const std::uint32_t c11 = (bottomRight >> shift) & 0xFFU;
+        const std::uint32_t weighted =
+            c00 * inverseS * inverseT + c10 * fractionS * inverseT +
+            c01 * inverseS * fractionT + c11 * fractionS * fractionT;
+        result |= ((weighted + 512U) >> 10U) << shift;
+    }
+    return result;
+}
+
 }
