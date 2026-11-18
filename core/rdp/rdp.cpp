@@ -490,26 +490,36 @@ case 0x33: // LoadBlock
         break;
     }
 
-    case 0x08: // FillTriangle (edge-only triangle)
+    case 0x08: // FillTriangle
+    case 0x0A: // TextureTriangle (initial affine texture path)
     {
+        const bool textured = lastOpcode_ == 0x0A;
         if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
-            (colorImageSize_ != 2 && colorImageSize_ != 3) || lastCommand_.size() != 4)
+            (colorImageSize_ != 2 && colorImageSize_ != 3) ||
+            lastCommand_.size() != (textured ? 12U : 4U))
             break;
 
         const std::uint64_t w0 = lastCommand_[0];
         const std::uint64_t w1 = lastCommand_[1];
         const std::uint64_t w2 = lastCommand_[2];
         const std::uint64_t w3 = lastCommand_[3];
-        // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
-        const int yh = static_cast<int>(w0 & 0x3FFFU);
-        const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
-        const int yl = static_cast<int>((w0 >> 32) & 0x3FFFU);
+        const std::size_t textureTile = static_cast<std::size_t>((w0 >> 48) & 0x07U);
         const auto highSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value >> 32));
         };
         const auto lowSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value));
         };
+        const std::int64_t startS = textured ? highSigned(lastCommand_[4]) : 0;
+        const std::int64_t startT = textured ? lowSigned(lastCommand_[4]) : 0;
+        const std::int64_t dsdx = textured ? highSigned(lastCommand_[5]) : 0;
+        const std::int64_t dtdx = textured ? lowSigned(lastCommand_[5]) : 0;
+        const std::int64_t dsdy = textured ? highSigned(lastCommand_[6]) : 0;
+        const std::int64_t dtdy = textured ? lowSigned(lastCommand_[6]) : 0;
+        // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
+        const int yh = static_cast<int>(w0 & 0x3FFFU);
+        const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
+        const int yl = static_cast<int>((w0 >> 32) & 0x3FFFU);
         // Edge words are ordered XL/DXLDY, XH/DXHDY, XM/DXMDY.
         // XH is the long edge; the minor edge changes from XM to XL at YM.
         const std::int64_t xl = highSigned(w1);
@@ -540,16 +550,40 @@ case 0x33: // LoadBlock
                 const std::uint64_t offset = static_cast<std::uint64_t>(colorImageAddress_) +
                     (static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) * bpp;
                 if (offset > rdram.size() || bpp > rdram.size() - offset) continue;
+                std::uint32_t color = fillColor_;
+                if (textured)
+                {
+                    // Texture coefficients use signed 16.16 coordinates.
+                    const std::int64_t relativeX = x - (xh >> 16);
+                    const std::int64_t relativeY = y - (yh >> 2);
+                    const std::int64_t fixedS = startS + relativeX * dsdx + relativeY * dsdy;
+                    const std::int64_t fixedT = startT + relativeX * dtdx + relativeY * dtdy;
+                    const auto floorDiv = [](std::int64_t value, std::int64_t divisor) {
+                        return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
+                    };
+                    const std::int64_t integerS = floorDiv(fixedS, 1LL << 16);
+                    const std::int64_t integerT = floorDiv(fixedT, 1LL << 16);
+                    const std::uint8_t fractionS = static_cast<std::uint8_t>(
+                        (fixedS - integerS * (1LL << 16)) >> 11);
+                    const std::uint8_t fractionT = static_cast<std::uint8_t>(
+                        (fixedT - integerT * (1LL << 16)) >> 11);
+                    if (integerS < 0 || integerT < 0) continue;
+                    color = textureRgbaFiltered(textureTile, static_cast<std::size_t>(integerS),
+                                                 static_cast<std::size_t>(integerT), fractionS, fractionT);
+                }
                 if (bpp == 4)
                 {
-                    rdram[offset] = static_cast<std::uint8_t>(fillColor_ >> 24);
-                    rdram[offset + 1] = static_cast<std::uint8_t>(fillColor_ >> 16);
-                    rdram[offset + 2] = static_cast<std::uint8_t>(fillColor_ >> 8);
-                    rdram[offset + 3] = static_cast<std::uint8_t>(fillColor_);
+                    rdram[offset] = static_cast<std::uint8_t>(color >> 24);
+                    rdram[offset + 1] = static_cast<std::uint8_t>(color >> 16);
+                    rdram[offset + 2] = static_cast<std::uint8_t>(color >> 8);
+                    rdram[offset + 3] = static_cast<std::uint8_t>(color);
                 }
                 else
                 {
-                    const auto pixel = static_cast<std::uint16_t>((x & 1) ? fillColor_ : fillColor_ >> 16);
+                    const std::uint16_t pixel = textured
+                        ? static_cast<std::uint16_t>((((color >> 27) & 0x1FU) << 11) |
+                            (((color >> 19) & 0x3FU) << 5) | ((color >> 11) & 0x1FU))
+                        : static_cast<std::uint16_t>((x & 1) ? fillColor_ : fillColor_ >> 16);
                     rdram[offset] = static_cast<std::uint8_t>(pixel >> 8);
                     rdram[offset + 1] = static_cast<std::uint8_t>(pixel);
                 }
