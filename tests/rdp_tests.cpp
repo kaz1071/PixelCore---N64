@@ -336,6 +336,24 @@ int main()
           oddRgba32Load.textureTexel(0, 1, 1) == 0x40414243U,
           "32-bit texture sampling reads both odd-row texels after TMEM half swapping");
 
+    // Signed texture coordinates must wrap through masked tiles instead of
+    // being clamped to zero before the tile's address mode is applied.
+    Rdp negativeTextureCoordinates;
+    std::vector<std::uint8_t> negativeTextureMemory(0x30, 0);
+    negativeTextureMemory[0x10] = 0x11; negativeTextureMemory[0x11] = 0x11;
+    negativeTextureMemory[0x12] = 0x22; negativeTextureMemory[0x13] = 0x22;
+    negativeTextureMemory[0x14] = 0x33; negativeTextureMemory[0x15] = 0x33;
+    negativeTextureMemory[0x16] = 0x44; negativeTextureMemory[0x17] = 0x44;
+    const auto submitNegativeTexture = [&negativeTextureCoordinates, &negativeTextureMemory](std::uint64_t word) {
+        if (negativeTextureCoordinates.pushCommandWord(word))
+            negativeTextureCoordinates.executeLastCommand(negativeTextureMemory);
+    };
+    submitNegativeTexture((0x3DULL << 56) | (2ULL << 51) | (3ULL << 32) | 0x10ULL);
+    submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) | (2ULL << 4));
+    submitNegativeTexture((0x34ULL << 56) | (12ULL << 12));
+    check(negativeTextureCoordinates.textureTexel(0, -1, 0) == 0x4444U,
+          "negative S coordinates wrap to the final texel when tile masking is enabled");
+
     // Bilinear sampling interpolates RGBA channels with 5-bit fractions.
     Rdp bilinearTexture;
     std::vector<std::uint8_t> bilinearRdram(0x40, 0);
