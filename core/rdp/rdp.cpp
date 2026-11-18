@@ -545,7 +545,6 @@ case 0x33: // LoadBlock
         const int yl = static_cast<int>((w0 >> 32) & 0x3FFFU);
         // Edge words are ordered XL/DXLDY, XH/DXHDY, XM/DXMDY.
         // XH is the long edge; the minor edge changes from XM to XL at YM.
-        const std::int64_t xl = highSigned(w1);
         const std::int64_t dxldy = lowSigned(w1);
         const std::int64_t xh = highSigned(w2);
         const std::int64_t dxhdy = lowSigned(w2);
@@ -1157,6 +1156,4 @@ std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::size_t s, std
 
     // Point filtering (and the reserved mode) selects the integer texel.
     return textureRgba(tileIndex, s, t);
-}
-
 }
