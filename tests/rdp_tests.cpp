@@ -304,6 +304,50 @@ int main()
     check(ciTexture.textureRgba(0, 0, 0) == 0,
           "CI texture conversion returns zero when TLUT lookup is disabled");
 
+    // CI4 combines the tile palette bank with the texel's four-bit index.
+    Rdp ci4Texture;
+    std::vector<std::uint8_t> ci4Memory(0x80, 0);
+    ci4Memory[0x20] = 0x07;
+    ci4Memory[0x21] = 0xC1; // Palette entry 16: opaque blue RGBA5551.
+    ci4Memory[0x40] = 0x00; // CI4 texel index zero.
+    const auto submitCi4 = [&ci4Texture, &ci4Memory](std::uint64_t word) {
+        if (ci4Texture.pushCommandWord(word))
+            ci4Texture.executeLastCommand(ci4Memory);
+    };
+    submitCi4((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitCi4((0x35ULL << 56) | (2ULL << 53) | (2ULL << 51) |
+              (1ULL << 41) | (0x110ULL << 32));
+    submitCi4((0x30ULL << 56)); // Load palette entry 16 at TMEM word 0x110.
+    submitCi4((0x3DULL << 56) | (0ULL << 51) | (7ULL << 32) | 0x40ULL);
+    submitCi4((0x35ULL << 56) | (2ULL << 53) | (1ULL << 41) |
+              (1ULL << 32) | (1ULL << 20)); // CI4, palette bank 1.
+    submitCi4((0x33ULL << 56));
+    submitCi4((0x2FULL << 56) | (0x8000ULL << 32));
+    check(ci4Texture.textureRgba(0, 0, 0) == 0x0000FFFFU,
+          "CI4 sampling adds the tile palette bank before resolving its TLUT entry");
+
+    // IA16 TLUT mode interprets each palette entry as intensity followed by alpha.
+    Rdp iaTlutTexture;
+    std::vector<std::uint8_t> iaTlutMemory(0x80, 0);
+    iaTlutMemory[0x20] = 0x80;
+    iaTlutMemory[0x21] = 0x40;
+    iaTlutMemory[0x40] = 0x00;
+    const auto submitIaTlut = [&iaTlutTexture, &iaTlutMemory](std::uint64_t word) {
+        if (iaTlutTexture.pushCommandWord(word))
+            iaTlutTexture.executeLastCommand(iaTlutMemory);
+    };
+    submitIaTlut((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitIaTlut((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                 (0x100ULL << 32));
+    submitIaTlut((0x30ULL << 56));
+    submitIaTlut((0x3DULL << 56) | (1ULL << 51) | (7ULL << 32) | 0x40ULL);
+    submitIaTlut((0x35ULL << 56) | (2ULL << 53) | (1ULL << 51) |
+                 (1ULL << 41));
+    submitIaTlut((0x33ULL << 56));
+    submitIaTlut((0x2FULL << 56) | (0xC000ULL << 32));
+    check(iaTlutTexture.textureRgba(0, 0, 0) == 0x80808040U,
+          "CI8 sampling converts IA16 TLUT entries to grayscale with the stored alpha");
+
     // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
     submitBlock((0x32ULL << 56) | (12ULL << 12));
     const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
