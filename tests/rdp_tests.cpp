@@ -901,9 +901,13 @@ int main()
     submitTexturedTriangle((1ULL << 16) << 32 | 65536U);
     submitTexturedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
     submitTexturedTriangle(0ULL); // S=0, T=0
+    submitTexturedTriangle(0ULL); // W
     submitTexturedTriangle((65536ULL << 32)); // dS/dX = 1 texel
+    submitTexturedTriangle(0ULL); // dW/dX
+    submitTexturedTriangle(0ULL); // dS/dE, dT/dE
+    submitTexturedTriangle(0ULL); // dW/dE
     submitTexturedTriangle(65536ULL); // dT/dY = 1 texel
-    for (int i = 0; i < 5; ++i) submitTexturedTriangle(0ULL);
+    submitTexturedTriangle(0ULL); // dW/dY
     check(texturedTriangleMemory[(2 * 8 + 2) * 4] == 0xFF &&
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 1] == 0xFF &&
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
@@ -934,9 +938,11 @@ int main()
     submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
     submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-131072)) << 32);
-    // The texture coefficient block contains four 64-bit words after
-    // the start S/T word: dS/dX, dT/dX, dS/dY, and dT/dY.
-    for (int i = 0; i < 7; ++i) submitNegativeTriangle(0ULL);
+    // Texture coefficients: S/T, W, dS/dX+dT/dX, dW/dX,
+    // dS/dE+dT/dE, dW/dE, dS/dY+dT/dY, dW/dY.
+    submitNegativeTriangle(0ULL); // W
+    submitNegativeTriangle(65536ULL << 32); // dS/dX = 1 texel
+    for (int i = 0; i < 5; ++i) submitNegativeTriangle(0ULL);
     const std::size_t negativeTrianglePixel = (2 * 8 + 2) * 4;
     check(negativeTriangleMemory[negativeTrianglePixel] == 0x00 &&
           negativeTriangleMemory[negativeTrianglePixel + 1] == 0xFF &&
@@ -952,10 +958,14 @@ int main()
     submitTexturedTriangle((5ULL << 16) << 32 | 65536U);
     submitTexturedTriangle((1ULL << 16) << 32 | 65536U);
     submitTexturedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
-    submitTexturedTriangle(0ULL);
-    submitTexturedTriangle((65536ULL << 32));
-    submitTexturedTriangle(65536ULL);
-    for (int i = 0; i < 5; ++i) submitTexturedTriangle(0ULL);
+    submitTexturedTriangle(0ULL); // S=0, T=0
+    submitTexturedTriangle(0ULL); // W
+    submitTexturedTriangle((65536ULL << 32)); // dS/dX = 1 texel
+    submitTexturedTriangle(0ULL); // dW/dX
+    submitTexturedTriangle(0ULL); // dS/dE, dT/dE
+    submitTexturedTriangle(0ULL); // dW/dE
+    submitTexturedTriangle(65536ULL); // dT/dY = 1 texel
+    submitTexturedTriangle(0ULL); // dW/dY
     check(texturedTriangleMemory[(2 * 8 + 2) * 4] == 0x20 &&
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 1] == 0xA0 &&
           texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0x40 &&
@@ -991,9 +1001,13 @@ int main()
     submitShadedTexture((192ULL << 16) << 32 | (255ULL << 16));
     for (int i = 0; i < 6; ++i) submitShadedTexture(0ULL);
     submitShadedTexture(0ULL); // S=0, T=0
+    submitShadedTexture(0ULL); // W
     submitShadedTexture((65536ULL << 32)); // dS/dX = 1 texel
+    submitShadedTexture(0ULL); // dW/dX
+    submitShadedTexture(0ULL); // dS/dE, dT/dE
+    submitShadedTexture(0ULL); // dW/dE
     submitShadedTexture(65536ULL); // dT/dY = 1 texel
-    for (int i = 0; i < 5; ++i) submitShadedTexture(0ULL);
+    submitShadedTexture(0ULL); // dW/dY
     check(shadedTextureMemory[(2 * 8 + 2) * 4] == 0x80 &&
           shadedTextureMemory[(2 * 8 + 2) * 4 + 1] == 0x40 &&
           shadedTextureMemory[(2 * 8 + 2) * 4 + 2] == 0xC0,
