@@ -220,7 +220,7 @@ int main()
           "texture sampling wraps masked S coordinates and mirrors alternate periods");
 
     submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
-                         (2ULL << 32) | (2ULL << 9) | (2ULL << 4));
+                         (2ULL << 32) | (2ULL << 8) | (2ULL << 4));
     check(blockLoad.textureTexel(0, 4, 0) == 0xDEF0U,
           "texture sampling clamps S coordinates to the final tile texel");
 
