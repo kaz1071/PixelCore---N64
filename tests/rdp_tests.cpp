@@ -265,6 +265,28 @@ int main()
     check(yuvTexture.textureRgba(0, 1, 0) == 0x9CD3FFFFU,
           "YUV16 converts the second luminance sample using the same chroma pair");
 
+    // YUV conversion clamps channels instead of wrapping on under/overflow.
+    Rdp clippedYuvTexture;
+    std::vector<std::uint8_t> clippedYuvMemory(0x40, 0);
+    clippedYuvMemory[0x20] = 0xFF;
+    clippedYuvMemory[0x21] = 0xFF;
+    clippedYuvMemory[0x22] = 0x00;
+    clippedYuvMemory[0x23] = 0x00;
+    const auto submitClippedYuv = [&clippedYuvTexture, &clippedYuvMemory](std::uint64_t word) {
+        if (clippedYuvTexture.pushCommandWord(word))
+            clippedYuvTexture.executeLastCommand(clippedYuvMemory);
+    };
+    submitClippedYuv((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitClippedYuv((0x35ULL << 56) | (1ULL << 53) | (2ULL << 51) | (1ULL << 41));
+    submitClippedYuv((0x33ULL << 56) | (4ULL << 12));
+    const std::uint64_t extremeYuvCoefficients = (0x2CULL << 56) |
+        (255ULL << 45) | (255ULL << 36) | (255ULL << 27) | (255ULL << 18);
+    submitClippedYuv(extremeYuvCoefficients);
+    const std::uint32_t clippedYuv = clippedYuvTexture.textureRgba(0, 0, 0);
+    check(((clippedYuv >> 24) & 0xFFU) == 255U &&
+          ((clippedYuv >> 8) & 0xFFU) == 0U,
+          "YUV16 conversion saturates overflowing and underflowing color channels");
+
     // IA and intensity texture formats expand to opaque grayscale/RGBA values.
     const auto sampleConvertedTexture = [](std::uint8_t imageSize, std::uint8_t format,
                                             std::uint8_t tileSize, std::uint8_t firstByte,
