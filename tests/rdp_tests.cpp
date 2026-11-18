@@ -934,7 +934,8 @@ int main()
     submitNegativeTriangle((1ULL << 16) << 32 | 65536U);
     submitNegativeTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
     submitNegativeTriangle(static_cast<std::uint64_t>(static_cast<std::uint32_t>(-131072)) << 32);
-    for (int i = 0; i < 7; ++i) submitNegativeTriangle(0ULL);
+    submitNegativeTriangle(0ULL); // dT/dY = 0: isolate the negative-S wrap on row zero
+    for (int i = 0; i < 6; ++i) submitNegativeTriangle(0ULL);
     const std::size_t negativeTrianglePixel = (2 * 8 + 2) * 4;
     check(negativeTriangleMemory[negativeTrianglePixel] == 0x00 &&
           negativeTriangleMemory[negativeTrianglePixel + 1] == 0xFF &&
