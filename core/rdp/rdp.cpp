@@ -957,6 +957,40 @@ std::uint32_t Rdp::depthImageAddress() const
     return depthImageAddress_;
 }
 
+std::uint16_t Rdp::compressDepth(std::uint32_t depth)
+{
+    // The RDP stores an 18-bit 0.15.3 Z value as an inverted 3-bit
+    // exponent and 11-bit mantissa. Keep only the 18-bit hardware range.
+    depth &= 0x3FFFFU;
+    static constexpr std::uint32_t bases[8] = {
+        0x00000U, 0x20000U, 0x30000U, 0x38000U,
+        0x3C000U, 0x3E000U, 0x3F000U, 0x3F800U
+    };
+    static constexpr unsigned shifts[8] = {6U, 5U, 4U, 3U, 2U, 1U, 0U, 0U};
+    unsigned exponent = 0;
+    for (unsigned candidate = 1; candidate < 8; ++candidate)
+    {
+        if (depth >= bases[candidate])
+            exponent = candidate;
+        else
+            break;
+    }
+    const std::uint32_t mantissa = (depth - bases[exponent]) >> shifts[exponent];
+    return static_cast<std::uint16_t>((exponent << 11U) | (mantissa & 0x7FFU));
+}
+
+std::uint32_t Rdp::decompressDepth(std::uint16_t encodedDepth)
+{
+    static constexpr std::uint32_t bases[8] = {
+        0x00000U, 0x20000U, 0x30000U, 0x38000U,
+        0x3C000U, 0x3E000U, 0x3F000U, 0x3F800U
+    };
+    static constexpr unsigned shifts[8] = {6U, 5U, 4U, 3U, 2U, 1U, 0U, 0U};
+    const unsigned exponent = (encodedDepth >> 11U) & 0x07U;
+    const std::uint32_t mantissa = encodedDepth & 0x07FFU;
+    return bases[exponent] + (mantissa << shifts[exponent]);
+}
+
 std::uint16_t Rdp::primitiveDepth() const
 {
     return primitiveDepth_;
