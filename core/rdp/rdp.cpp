@@ -1015,13 +1015,15 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::int64_t s, std::int6
         rowStride = (rowBytes + 7U) & ~std::size_t(7U);
     }
 
-    if (t > (tmem_.size() / rowStride))
+    if (static_cast<std::uint64_t>(t) >
+        static_cast<std::uint64_t>(tmem_.size() / rowStride))
         return 0;
     const std::size_t rowOffset = t * rowStride;
     if (base > tmem_.size() || rowOffset > tmem_.size() - base)
         return 0;
 
-    if (s > std::numeric_limits<std::size_t>::max() / bitsPerTexel)
+    if (static_cast<std::uint64_t>(s) >
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() / bitsPerTexel))
         return 0;
     const std::size_t texelBit = s * bitsPerTexel;
     if (texelBit / 8U > tmem_.size() - base - rowOffset)
