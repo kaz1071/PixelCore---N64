@@ -213,6 +213,26 @@ int main()
           blockLoad.textureTexel(8, 0, 0) == 0,
           "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
+    // LoadBlock's DXT can wrap the TMEM destination row before the source
+    // image row ends. Odd destination rows use the alternate 32-bit word half.
+    Rdp oddBlockLoad;
+    std::vector<std::uint8_t> oddBlockRdram(0x60, 0);
+    for (std::size_t i = 0; i < 16; ++i)
+        oddBlockRdram[0x20 + i] = static_cast<std::uint8_t>(0x30U + i);
+    const auto submitOddBlock = [&oddBlockLoad, &oddBlockRdram](std::uint64_t word) {
+        if (oddBlockLoad.pushCommandWord(word))
+            oddBlockLoad.executeLastCommand(oddBlockRdram);
+    };
+    submitOddBlock((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitOddBlock((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41));
+    submitOddBlock((0x33ULL << 56) | (28ULL << 12) | 0x200ULL);
+    check(oddBlockLoad.tmemByte(0) == 0x30 && oddBlockLoad.tmemByte(7) == 0x37 &&
+          oddBlockLoad.tmemByte(12) == 0x38 && oddBlockLoad.tmemByte(19) == 0x3F,
+          "LoadBlock applies DXT row advancement and odd-row TMEM word swapping");
+    check(oddBlockLoad.textureTexel(0, 0, 1) == 0x3839U &&
+          oddBlockLoad.textureTexel(0, 1, 1) == 0x3A3BU,
+          "texture sampling reads DXT-wrapped odd LoadBlock rows");
+
     // RGBA texture conversion expands 5-bit channels and preserves the RGBA16 alpha bit.
     Rdp rgba16;
     std::vector<std::uint8_t> rgba16Rdram(0x30, 0);
