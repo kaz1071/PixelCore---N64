@@ -1214,6 +1214,35 @@ int main()
     check(clippedBuffer[(6 * 8 + 6) * 4] == 0xAA,
           "reset restores full-frame scissor bounds");
 
+    // FillDepthTriangle consumes the two Z coefficient words and writes
+    // interpolated pixel depth when primitive-depth source selection is off.
+    Rdp interpolatedDepthTriangle;
+    std::vector<std::uint8_t> interpolatedDepthMemory(8 * 8 * 4 + 8 * 8 * 2, 0);
+    for (std::size_t i = 256; i < interpolatedDepthMemory.size(); i += 2)
+    {
+        interpolatedDepthMemory[i] = 0xFF;
+        interpolatedDepthMemory[i + 1] = 0xFC;
+    }
+    const auto submitInterpolatedDepth = [&interpolatedDepthTriangle, &interpolatedDepthMemory](std::uint64_t word) {
+        if (interpolatedDepthTriangle.pushCommandWord(word))
+            interpolatedDepthTriangle.executeLastCommand(interpolatedDepthMemory);
+    };
+    submitInterpolatedDepth((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitInterpolatedDepth((0x3EULL << 56) | 256ULL);
+    submitInterpolatedDepth((0x2FULL << 56) | 0x30ULL); // Z compare/update, pixel Z source
+    submitInterpolatedDepth((0x0CULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitInterpolatedDepth((5ULL << 16) << 32 | 65536U);
+    submitInterpolatedDepth((1ULL << 16) << 32 | 65536U);
+    submitInterpolatedDepth((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitInterpolatedDepth((0x10000000ULL << 32) | 0x00010000ULL); // Z=0x8000, dZ/dX=1
+    submitInterpolatedDepth(0ULL); // dZ/dE and dZ/dY
+    const std::size_t interpolatedDepthPixel = 256 + (2 * 8 + 2) * 2;
+    const std::uint16_t interpolatedDepthWord = static_cast<std::uint16_t>(
+        (static_cast<std::uint16_t>(interpolatedDepthMemory[interpolatedDepthPixel]) << 8U) |
+        interpolatedDepthMemory[interpolatedDepthPixel + 1U]);
+    check(interpolatedDepthWord != 0xFFFCU,
+          "FillDepthTriangle interpolates pixel Z and updates the depth buffer");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
