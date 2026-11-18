@@ -272,6 +272,38 @@ int main()
     check(sampleConvertedTexture(2, 4, 2, 0x7B, 0) == 0,
           "unsupported 16-bit intensity conversion returns zero");
 
+    // LoadTLUT places replicated 16-bit entries in the upper TMEM half.
+    Rdp ciTexture;
+    std::vector<std::uint8_t> ciMemory(0x80, 0);
+    ciMemory[0x20] = 0xF8;
+    ciMemory[0x21] = 0x01; // Palette entry 0: opaque red RGBA5551.
+    ciMemory[0x40] = 0x00;
+    ciMemory[0x41] = 0x00;
+    ciMemory[0x42] = 0x00;
+    ciMemory[0x43] = 0x00;
+    const auto submitCi = [&ciTexture, &ciMemory](std::uint64_t word) {
+        if (ciTexture.pushCommandWord(word))
+            ciTexture.executeLastCommand(ciMemory);
+    };
+    submitCi((0x3DULL << 56) | (2ULL << 51) | (7ULL << 32) | 0x20ULL);
+    submitCi((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) | (0x100ULL << 32));
+    submitCi((0x30ULL << 56)); // Load one palette entry at TMEM word 0x100.
+    check(ciTexture.tile(0).loaded && ciTexture.tile(0).loadType == 3,
+          "LoadTLUT marks the palette tile loaded");
+    check(ciTexture.tmemByte(0x800) == 0xF8 && ciTexture.tmemByte(0x801) == 0x01 &&
+          ciTexture.tmemByte(0x806) == 0xF8 && ciTexture.tmemByte(0x807) == 0x01,
+          "LoadTLUT replicates each 16-bit palette entry across four TMEM banks");
+
+    submitCi((0x3DULL << 56) | (1ULL << 51) | (7ULL << 32) | 0x40ULL);
+    submitCi((0x35ULL << 56) | (2ULL << 53) | (1ULL << 51) | (1ULL << 41));
+    submitCi((0x33ULL << 56)); // Load CI8 index zero into lower TMEM.
+    submitCi((0x2FULL << 56) | 0x00008000ULL); // Enable RGBA16 TLUT mode.
+    check(ciTexture.textureRgba(0, 0, 0) == 0xFF0000FFU,
+          "CI8 sampling resolves its index through the enabled RGBA16 TLUT");
+    submitCi((0x2FULL << 56)); // Disable TLUT lookup.
+    check(ciTexture.textureRgba(0, 0, 0) == 0,
+          "CI texture conversion returns zero when TLUT lookup is disabled");
+
     // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
     submitBlock((0x32ULL << 56) | (12ULL << 12));
     const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
