@@ -163,7 +163,7 @@ int main()
         if (textureLoad.pushCommandWord(word)) textureLoad.executeLastCommand(textureRdram);
     };
     submitTexture((0x3DULL << 56) | (1ULL << 51) | (3ULL << 32) | 0x10ULL);
-    submitTexture((0x35ULL << 56) | (1ULL << 41) | (1ULL << 32));
+    submitTexture((0x35ULL << 56) | (1ULL << 51) | (1ULL << 41) | (1ULL << 32));
     submitTexture((0x34ULL << 56) | (0ULL << 44) | (0ULL << 32) |
                   (0ULL << 24) | (12ULL << 12) | 4ULL);
     check(textureLoad.tile(0).loaded, "LoadTile completes a valid RDRAM-to-TMEM transfer");
@@ -173,8 +173,10 @@ int main()
     check(textureLoad.tmemByte(20) == 0xA4 && textureLoad.tmemByte(21) == 0xA5 &&
           textureLoad.tmemByte(22) == 0xA6 && textureLoad.tmemByte(23) == 0xA7,
           "LoadTile swaps the two 32-bit halves of each odd TMEM row");
-    check(textureLoad.textureTexel(0, 0, 1) == 0xA4A5U &&
-          textureLoad.textureTexel(0, 1, 1) == 0xA6A7U,
+    check(textureLoad.textureTexel(0, 0, 1) == 0xA4U &&
+          textureLoad.textureTexel(0, 1, 1) == 0xA5U &&
+          textureLoad.textureTexel(0, 2, 1) == 0xA6U &&
+          textureLoad.textureTexel(0, 3, 1) == 0xA7U,
           "texture sampling reverses the odd-row TMEM word swap");
     check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(20) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
