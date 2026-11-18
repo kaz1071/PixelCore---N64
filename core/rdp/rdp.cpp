@@ -865,13 +865,45 @@ case 0x33: // LoadBlock
                         rdram[depthAddress + 1U]);
                     const std::uint16_t storedEncoded = storedWord >> 2U;
                     const std::uint32_t storedDepth = decompressDepth(storedEncoded);
-                    if (depthCompareEnabled && pixelDepth > storedDepth)
+                    const std::uint8_t zMode = static_cast<std::uint8_t>(
+                        (otherModesLow_ >> 10U) & 0x03U);
+                    const std::uint64_t absDzDx = static_cast<std::uint64_t>(
+                        dzdx < 0 ? -dzdx : dzdx);
+                    const std::uint64_t absDzDy = static_cast<std::uint64_t>(
+                        dzdy < 0 ? -dzdy : dzdy);
+                    const std::uint32_t pixelDeltaZ = primitiveDepthSource || !hasDepth
+                        ? std::max<std::uint32_t>(primitiveDeltaZ_, 1U)
+                        : static_cast<std::uint32_t>(std::clamp<std::uint64_t>(
+                            (absDzDx + absDzDy) >> 13U, 1U, 0xFFFFU));
+                    const std::uint32_t storedDeltaZ = 1U <<
+                        (static_cast<unsigned>(storedWord & 0x03U) << 2U);
+                    const std::uint32_t deltaTolerance = std::max(pixelDeltaZ, storedDeltaZ);
+                    const std::uint32_t depthDifference = pixelDepth > storedDepth
+                        ? pixelDepth - storedDepth : storedDepth - pixelDepth;
+                    bool depthPass = true;
+                    switch (zMode)
+                    {
+                    case 0: // Opaque: nearer fragments win.
+                        depthPass = pixelDepth <= storedDepth;
+                        break;
+                    case 1: // Interpenetrating: permit fragments within the surface tolerance.
+                        depthPass = pixelDepth <= storedDepth + deltaTolerance;
+                        break;
+                    case 2: // Transparent: strict front-to-back test; never update Z.
+                        depthPass = pixelDepth < storedDepth;
+                        break;
+                    case 3: // Decal: only fragments coplanar within delta-Z may pass.
+                        depthPass = depthDifference <= deltaTolerance;
+                        break;
+                    }
+                    if (depthCompareEnabled && !depthPass)
                         continue;
-                    if (depthUpdateEnabled)
+                    const bool modeAllowsDepthWrite = zMode == 0U || zMode == 1U;
+                    if (depthUpdateEnabled && modeAllowsDepthWrite)
                     {
                         const std::uint16_t encoded = compressDepth(pixelDepth);
                         unsigned deltaExponent = 0;
-                        for (std::uint16_t delta = primitiveDeltaZ_; delta > 1U; delta >>= 1U)
+                        for (std::uint32_t delta = pixelDeltaZ; delta > 1U; delta >>= 1U)
                             ++deltaExponent;
                         const std::uint16_t encodedDelta = static_cast<std::uint16_t>(
                             std::min(deltaExponent, 15U));
