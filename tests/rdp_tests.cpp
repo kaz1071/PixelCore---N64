@@ -68,6 +68,42 @@ int main()
     check(rdp.cycleType() == ((expectedModesHigh >> 20) & 0x03U),
           "cycle type is decoded from the OtherModes high register");
 
+    check(rdp.textureFilterMode() == ((expectedModesHigh >> 12) & 0x03U),
+          "texture filter mode is decoded from OtherModes high bits");
+
+    // OtherModes selects point, bilinear, and four-texel average sampling.
+    Rdp filteredTexture;
+    std::vector<std::uint8_t> filteredMemory(0x40, 0);
+    filteredMemory[0x20] = 0x00; filteredMemory[0x21] = 0x00;
+    filteredMemory[0x22] = 0x00; filteredMemory[0x23] = 0xFF;
+    filteredMemory[0x24] = 0x00; filteredMemory[0x25] = 0x00;
+    filteredMemory[0x26] = 0xFF; filteredMemory[0x27] = 0xFF;
+    filteredMemory[0x28] = 0xFF; filteredMemory[0x29] = 0x00;
+    filteredMemory[0x2A] = 0x00; filteredMemory[0x2B] = 0xFF;
+    const auto submitFiltered = [&filteredTexture, &filteredMemory](std::uint64_t word) {
+        if (filteredTexture.pushCommandWord(word))
+            filteredTexture.executeLastCommand(filteredMemory);
+    };
+    submitFiltered((0x3DULL << 56) | (1ULL << 32) | (3ULL << 51) | 0x20ULL);
+    submitFiltered((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitFiltered((0x32ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFiltered((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x000000FFU,
+          "point texture filtering selects the integer-coordinate texel");
+    submitFiltered((0x2FULL << 56) | (2ULL << 44));
+    check(filteredTexture.textureFilterMode() == 2U,
+          "SetOtherModes selects bilinear texture filtering");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x404040FFU,
+          "bilinear OtherModes filtering interpolates four neighboring texels");
+    submitFiltered((0x2FULL << 56) | (3ULL << 44));
+    check(filteredTexture.textureFilterMode() == 3U,
+          "SetOtherModes selects average texture filtering");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x404040FFU,
+          "average texture filtering equally averages four neighboring texels");
+    submitFiltered((0x2FULL << 56));
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 32, 0) == 0,
+          "filtered texture sampling rejects invalid fractional coordinates");
+
     // RDP color commands retain their packed RGBA register values.
     const auto setColor = [&rdp, &commandBuffer](std::uint8_t opcode, std::uint32_t color) {
         if (rdp.pushCommandWord((static_cast<std::uint64_t>(opcode) << 56) | color))
