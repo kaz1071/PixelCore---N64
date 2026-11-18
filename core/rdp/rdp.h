@@ -65,14 +65,14 @@ public:
     const RdpTileState &tile(std::size_t index) const;
     std::uint8_t tmemByte(std::size_t index) const;
     // Returns a raw big-endian texel value after applying the tile's integer-coordinate addressing, or zero when unavailable.
-    std::uint32_t textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const;
+    std::uint32_t textureTexel(std::size_t tileIndex, std::int64_t s, std::int64_t t) const;
     // Returns RGBA8888 for supported RGBA, YUV16, CI (when TLUT is enabled), IA, and intensity texels; zero for unsupported formats.
-    std::uint32_t textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const;
+    std::uint32_t textureRgba(std::size_t tileIndex, std::int64_t s, std::int64_t t) const;
     // Bilinearly interpolates four RGBA texels using 5-bit fractional S/T coordinates.
-    std::uint32_t textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
+    std::uint32_t textureRgbaBilinear(std::size_t tileIndex, std::int64_t s, std::int64_t t,
                                       std::uint8_t fractionS, std::uint8_t fractionT) const;
     // Selects point, bilinear, or four-texel average filtering from SetOtherModes.
-    std::uint32_t textureRgbaFiltered(std::size_t tileIndex, std::size_t s, std::size_t t,
+    std::uint32_t textureRgbaFiltered(std::size_t tileIndex, std::int64_t s, std::int64_t t,
                                       std::uint8_t fractionS, std::uint8_t fractionT) const;
 
 private:
