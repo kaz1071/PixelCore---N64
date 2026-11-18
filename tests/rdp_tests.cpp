@@ -1243,6 +1243,44 @@ int main()
     check(interpolatedDepthWord != 0xFFFCU,
           "FillDepthTriangle interpolates pixel Z and updates the depth buffer");
 
+    // ShadeDepthTriangle combines the RGBA and Z coefficient blocks.
+    // This catches coefficient-offset mistakes when both blocks are present.
+    Rdp shadedDepthTriangle;
+    std::vector<std::uint8_t> shadedDepthMemory(8 * 8 * 4 + 8 * 8 * 2, 0);
+    for (std::size_t i = 256; i < shadedDepthMemory.size(); i += 2)
+    {
+        shadedDepthMemory[i] = 0xFF;
+        shadedDepthMemory[i + 1] = 0xFC;
+    }
+    const auto submitShadedDepth = [&shadedDepthTriangle, &shadedDepthMemory](std::uint64_t word) {
+        if (shadedDepthTriangle.pushCommandWord(word))
+            shadedDepthTriangle.executeLastCommand(shadedDepthMemory);
+    };
+    submitShadedDepth((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitShadedDepth((0x3EULL << 56) | 256ULL);
+    submitShadedDepth((0x2FULL << 56) | 0x30ULL);
+    submitShadedDepth((0x0DULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitShadedDepth((5ULL << 16) << 32 | 65536U);
+    submitShadedDepth((1ULL << 16) << 32 | 65536U);
+    submitShadedDepth((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitShadedDepth((128ULL << 16) << 32 | (64ULL << 16));
+    submitShadedDepth((192ULL << 16) << 32 | (255ULL << 16));
+    for (int i = 0; i < 6; ++i) submitShadedDepth(0ULL);
+    submitShadedDepth((0x10000000ULL << 32) | 0x00010000ULL);
+    submitShadedDepth(0ULL);
+    const std::size_t shadedDepthColor = (2 * 8 + 2) * 4;
+    const std::size_t shadedDepthZ = 256 + (2 * 8 + 2) * 2;
+    const std::uint16_t shadedDepthWord = static_cast<std::uint16_t>(
+        (static_cast<std::uint16_t>(shadedDepthMemory[shadedDepthZ]) << 8U) |
+        shadedDepthMemory[shadedDepthZ + 1U]);
+    check(shadedDepthMemory[shadedDepthColor] == 0x80 &&
+          shadedDepthMemory[shadedDepthColor + 1] == 0x40 &&
+          shadedDepthMemory[shadedDepthColor + 2] == 0xC0 &&
+          shadedDepthMemory[shadedDepthColor + 3] == 0xFF,
+          "ShadeDepthTriangle writes interpolated RGBA");
+    check(shadedDepthWord != 0xFFFCU,
+          "ShadeDepthTriangle reads its Z block after the shade coefficients");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
