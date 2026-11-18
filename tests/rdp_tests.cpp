@@ -53,6 +53,33 @@ int main()
           rdp.lastCommand()[1] == 0x123456789ABCDEF0ULL,
           "complete command words are retained");
 
+    // Exercise the streaming parser with every triangle packet size. Each
+    // packet must complete on its final word, and the next opcode must begin
+    // a fresh packet rather than being consumed as a coefficient.
+    for (std::uint8_t opcode = 0x08; opcode <= 0x0F; ++opcode)
+    {
+        Rdp triangleParser;
+        const std::size_t wordCount = Rdp::commandWordCount(opcode);
+        for (std::size_t word = 0; word < wordCount; ++word)
+        {
+            const std::uint64_t packetWord = word == 0
+                ? (static_cast<std::uint64_t>(opcode) << 56)
+                : static_cast<std::uint64_t>(word);
+            const bool completed = triangleParser.pushCommandWord(packetWord);
+            check(completed == (word + 1U == wordCount),
+                  "triangle parser completes only at the declared packet boundary");
+        }
+        check(triangleParser.completedCommands() == 1,
+              "triangle parser counts one complete packet");
+        check(triangleParser.lastOpcode() == opcode &&
+              triangleParser.lastWordCount() == wordCount,
+              "triangle parser retains the complete opcode and packet length");
+        check(triangleParser.pushCommandWord(0x2F00000000000000ULL),
+              "single-word command starts cleanly after a triangle packet");
+        check(triangleParser.completedCommands() == 2,
+              "command following a triangle packet is counted separately");
+    }
+
     // SetOtherModes retains its 24-bit high and 32-bit low register fields.
     const std::uint32_t expectedModesHigh = 0x00ABCDEFU;
     const std::uint32_t expectedModesLow = 0x12345678U;
