@@ -1382,7 +1382,7 @@ int main()
         const std::size_t pixel = (2 * 8 + 2) * 4;
         return memory[pixel];
     };
-    check(renderDepthCase(0x830U, 0x1000U, 1U, 0x8000U) == 0,
+    check(renderDepthCase(0x30U, 0x1020U, 1U, 0x8000U) == 0,
           "opaque Z mode rejects a fragment behind stored depth");
     check(renderDepthCase(0xC30U, 0x1020U, 1024U, 0x8000U) == 0xCC,
           "interpenetrating Z mode accepts fragments inside DeltaZ tolerance");
