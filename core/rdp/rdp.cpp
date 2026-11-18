@@ -491,12 +491,20 @@ case 0x33: // LoadBlock
     }
 
     case 0x08: // FillTriangle
-    case 0x0A: // TextureTriangle (initial affine texture path)
+    case 0x0A: // TextureTriangle
+    case 0x0B: // ShadeTextureTriangle
+    case 0x0E: // TextureDepthTriangle
+    case 0x0F: // ShadeTextureDepthTriangle
     {
-        const bool textured = lastOpcode_ == 0x0A;
+        const bool textured = lastOpcode_ == 0x0A || lastOpcode_ == 0x0B ||
+                              lastOpcode_ == 0x0E || lastOpcode_ == 0x0F;
+        const bool shaded = lastOpcode_ == 0x0B || lastOpcode_ == 0x0F;
+        const std::size_t expectedWords = lastOpcode_ == 0x08 ? 4U :
+            lastOpcode_ == 0x0A ? 12U : lastOpcode_ == 0x0B ? 20U :
+            lastOpcode_ == 0x0E ? 14U : lastOpcode_ == 0x0F ? 22U : 0U;
         if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
             (colorImageSize_ != 2 && colorImageSize_ != 3) ||
-            lastCommand_.size() != (textured ? 12U : 4U))
+            lastCommand_.size() != expectedWords)
             break;
 
         const std::uint64_t w0 = lastCommand_[0];
@@ -504,18 +512,19 @@ case 0x33: // LoadBlock
         const std::uint64_t w2 = lastCommand_[2];
         const std::uint64_t w3 = lastCommand_[3];
         const std::size_t textureTile = static_cast<std::size_t>((w0 >> 48) & 0x07U);
+        const std::size_t textureOffset = 4U + (shaded ? 8U : 0U);
         const auto highSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value >> 32));
         };
         const auto lowSigned = [](std::uint64_t value) {
             return static_cast<std::int32_t>(static_cast<std::uint32_t>(value));
         };
-        const std::int64_t startS = textured ? highSigned(lastCommand_[4]) : 0;
-        const std::int64_t startT = textured ? lowSigned(lastCommand_[4]) : 0;
-        const std::int64_t dsdx = textured ? highSigned(lastCommand_[5]) : 0;
-        const std::int64_t dtdx = textured ? lowSigned(lastCommand_[5]) : 0;
-        const std::int64_t dsdy = textured ? highSigned(lastCommand_[6]) : 0;
-        const std::int64_t dtdy = textured ? lowSigned(lastCommand_[6]) : 0;
+        const std::int64_t startS = textured ? highSigned(lastCommand_[textureOffset]) : 0;
+        const std::int64_t startT = textured ? lowSigned(lastCommand_[textureOffset]) : 0;
+        const std::int64_t dsdx = textured ? highSigned(lastCommand_[textureOffset + 1U]) : 0;
+        const std::int64_t dtdx = textured ? lowSigned(lastCommand_[textureOffset + 1U]) : 0;
+        const std::int64_t dsdy = textured ? highSigned(lastCommand_[textureOffset + 2U]) : 0;
+        const std::int64_t dtdy = textured ? lowSigned(lastCommand_[textureOffset + 2U]) : 0;
         // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
         const int yh = static_cast<int>(w0 & 0x3FFFU);
         const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
