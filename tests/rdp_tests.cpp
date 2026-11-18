@@ -240,6 +240,38 @@ int main()
     check(rgba32.textureRgba(8, 0, 0) == 0,
           "RGBA texture conversion rejects invalid tile indexes");
 
+    // IA and intensity texture formats expand to opaque grayscale/RGBA values.
+    const auto sampleConvertedTexture = [](std::uint8_t imageSize, std::uint8_t format,
+                                            std::uint8_t tileSize, std::uint8_t firstByte,
+                                            std::uint8_t secondByte) {
+        Rdp texture;
+        std::vector<std::uint8_t> memory(0x40, 0);
+        memory[0x20] = firstByte;
+        memory[0x21] = secondByte;
+        const auto submit = [&texture, &memory](std::uint64_t word) {
+            if (texture.pushCommandWord(word))
+                texture.executeLastCommand(memory);
+        };
+        submit((0x3DULL << 56) | (static_cast<std::uint64_t>(imageSize) << 51) |
+               (7ULL << 32) | 0x20ULL);
+        submit((0x35ULL << 56) | (static_cast<std::uint64_t>(format) << 53) |
+               (static_cast<std::uint64_t>(tileSize) << 51) | (1ULL << 41));
+        submit(0x33ULL << 56); // Load one texel.
+        return texture.textureRgba(0, 0, 0);
+    };
+    check(sampleConvertedTexture(2, 3, 2, 0x80, 0x40) == 0x80808040U,
+          "IA16 expands intensity and preserves 8-bit alpha");
+    check(sampleConvertedTexture(1, 3, 1, 0xA5, 0) == 0xAAAAAAAAU,
+          "IA8 expands 4-bit intensity and alpha channels");
+    check(sampleConvertedTexture(0, 3, 0, 0xD0, 0) == 0xDBDBDBFFU,
+          "IA4 expands its 3-bit intensity and 1-bit alpha");
+    check(sampleConvertedTexture(1, 4, 1, 0x7B, 0) == 0x7B7B7BFFU,
+          "I8 expands intensity to opaque grayscale");
+    check(sampleConvertedTexture(0, 4, 0, 0xC0, 0) == 0xCCCCCCFFU,
+          "I4 expands intensity to opaque grayscale");
+    check(sampleConvertedTexture(2, 4, 2, 0x7B, 0) == 0,
+          "unsupported 16-bit intensity conversion returns zero");
+
     // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
     submitBlock((0x32ULL << 56) | (12ULL << 12));
     const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
