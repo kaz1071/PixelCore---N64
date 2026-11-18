@@ -59,6 +59,7 @@ public:
     std::uint32_t environmentColor() const;
     std::uint64_t combineMux0() const;
     std::uint64_t combineMux1() const;
+    std::uint32_t depthImageAddress() const;
     std::uint16_t primitiveDepth() const;
     std::uint16_t primitiveDeltaZ() const;
     std::int16_t conversionCoefficient(std::size_t index) const;
@@ -86,6 +87,7 @@ private:
     std::uint8_t textureImageSize_ = 0;
     std::array<std::uint8_t, 4096> tmem_{};
     std::uint32_t colorImageAddress_ = 0;
+    std::uint32_t depthImageAddress_ = 0;
     std::uint32_t colorImageWidth_ = 0;
     std::uint8_t colorImageFormat_ = 0;
     std::uint8_t colorImageSize_ = 0;
