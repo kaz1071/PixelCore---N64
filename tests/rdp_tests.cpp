@@ -731,6 +731,26 @@ int main()
           framebuffer16[(2 * 8 + 7) * 2 + 1] == 0xC1,
           "RGBA16 triangle follows the upper minor edge slope");
 
+    // RGBA16 fill-color halves alternate across the linear framebuffer,
+    // including when an odd-width row changes the next row's starting half.
+    Rdp oddWidthFill;
+    std::vector<std::uint8_t> oddWidthFillMemory(3 * 2 * 2, 0);
+    const auto submitOddWidthFill = [&oddWidthFill, &oddWidthFillMemory](std::uint64_t word) {
+        if (oddWidthFill.pushCommandWord(word))
+            oddWidthFill.executeLastCommand(oddWidthFillMemory);
+    };
+    submitOddWidthFill((0x3FULL << 56) | (2ULL << 51) | (2ULL << 32));
+    submitOddWidthFill((0x37ULL << 56) | 0xF80007C1ULL);
+    submitOddWidthFill((0x36ULL << 56) | (12ULL << 12) | 8ULL);
+    check(oddWidthFillMemory[0] == 0xF8 && oddWidthFillMemory[1] == 0x00 &&
+          oddWidthFillMemory[2] == 0x07 && oddWidthFillMemory[3] == 0xC1 &&
+          oddWidthFillMemory[4] == 0xF8 && oddWidthFillMemory[5] == 0x00,
+          "RGBA16 fill rectangle alternates fill halves across the first odd-width row");
+    check(oddWidthFillMemory[6] == 0x07 && oddWidthFillMemory[7] == 0xC1 &&
+          oddWidthFillMemory[8] == 0xF8 && oddWidthFillMemory[9] == 0x00 &&
+          oddWidthFillMemory[10] == 0x07 && oddWidthFillMemory[11] == 0xC1,
+          "RGBA16 fill rectangle continues fill-half alternation across odd-width rows");
+
     // TextureRectangle loads RGBA32 texels through the selected tile and writes the framebuffer.
     Rdp textureRectangle;
     std::vector<std::uint8_t> textureRectangleMemory(0x200, 0);
