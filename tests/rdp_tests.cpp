@@ -177,6 +177,48 @@ int main()
     check(depthCodecMonotonic,
           "depth compression remains monotonic and never decodes beyond the source depth");
 
+    // Primitive-Z comparisons reject a farther triangle and preserve the
+    // nearer color/depth already stored at that pixel.
+    Rdp depthTestRdp;
+    std::vector<std::uint8_t> depthTestMemory(8 * 8 * 4 + 8 * 8 * 2, 0);
+    const std::size_t depthBufferBase = 8 * 8 * 4;
+    for (std::size_t i = depthBufferBase; i + 1 < depthTestMemory.size(); i += 2)
+    {
+        depthTestMemory[i] = 0xFF;
+        depthTestMemory[i + 1] = 0xFC; // encoded far-plane depth
+    }
+    const auto submitDepthTest = [&depthTestRdp, &depthTestMemory](std::uint64_t word) {
+        if (depthTestRdp.pushCommandWord(word))
+            depthTestRdp.executeLastCommand(depthTestMemory);
+    };
+    submitDepthTest((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitDepthTest((0x3EULL << 56) | depthBufferBase);
+    submitDepthTest((0x2FULL << 56) | 0x34U); // Z compare, Z update, primitive Z source
+    submitDepthTest((0x2EULL << 56) | (0x1000ULL << 16) | 0x4000ULL);
+    submitDepthTest((0x37ULL << 56) | 0xFF0000FFU);
+    const auto drawDepthTestTriangle = [&submitDepthTest]() {
+        submitDepthTest((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+        submitDepthTest((5ULL << 16) << 32 | 65536U);
+        submitDepthTest((1ULL << 16) << 32 | 65536U);
+        submitDepthTest((5ULL << 16) << 32 | 3ULL * 65536U);
+    };
+    drawDepthTestTriangle();
+    const std::size_t depthTestColorPixel = (2 * 8 + 2) * 4;
+    const std::size_t depthTestZPixel = depthBufferBase + (2 * 8 + 2) * 2;
+    check(depthTestMemory[depthTestColorPixel] == 0xFF,
+          "primitive depth test writes a nearer triangle color");
+    const std::uint16_t firstStoredDepth = static_cast<std::uint16_t>(
+        (static_cast<std::uint16_t>(depthTestMemory[depthTestZPixel]) << 8U) |
+        depthTestMemory[depthTestZPixel + 1U]);
+    check(firstStoredDepth != 0xFFFCU,
+          "primitive depth update stores compressed depth in the Z image");
+    submitDepthTest((0x2EULL << 56) | (0x2000ULL << 16) | 0x4000ULL);
+    submitDepthTest((0x37ULL << 56) | 0x00FF00FFU);
+    drawDepthTestTriangle();
+    check(depthTestMemory[depthTestColorPixel] == 0xFF &&
+          depthTestMemory[depthTestColorPixel + 1] == 0x00,
+          "primitive depth comparison rejects a farther triangle");
+
     check(rdp.pushCommandWord((0x3EULL << 56) | 0x00123456ULL),
           "SetDepthImage completes as a single-word command");
     rdp.executeLastCommand(commandBuffer);
