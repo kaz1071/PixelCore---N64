@@ -978,6 +978,39 @@ int main()
           flippedMemory[14] == 0xFF && flippedMemory[15] == 0xFF,
           "TextureRectangleFlip samples the bottom-right source texel");
 
+    // Clipping a texture rectangle must preserve its original S/T origin.
+    Rdp clippedTextureRectangle;
+    std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
+    clippedTextureMemory[0x20] = 0xFF; clippedTextureMemory[0x21] = 0x00;
+    clippedTextureMemory[0x22] = 0x00; clippedTextureMemory[0x23] = 0xFF;
+    clippedTextureMemory[0x24] = 0x00; clippedTextureMemory[0x25] = 0xFF;
+    clippedTextureMemory[0x26] = 0x00; clippedTextureMemory[0x27] = 0xFF;
+    clippedTextureMemory[0x28] = 0x00; clippedTextureMemory[0x29] = 0x00;
+    clippedTextureMemory[0x2A] = 0xFF; clippedTextureMemory[0x2B] = 0xFF;
+    clippedTextureMemory[0x2C] = 0xFF; clippedTextureMemory[0x2D] = 0xFF;
+    clippedTextureMemory[0x2E] = 0xFF; clippedTextureMemory[0x2F] = 0xFF;
+    const auto submitClippedTexture = [&clippedTextureRectangle, &clippedTextureMemory](std::uint64_t word) {
+        if (clippedTextureRectangle.pushCommandWord(word))
+            clippedTextureRectangle.executeLastCommand(clippedTextureMemory);
+    };
+    submitClippedTexture((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32));
+    submitClippedTexture((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitClippedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitClippedTexture((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitClippedTexture((0x2DULL << 56) | (4ULL << 44) | (4ULL << 32) |
+                         (8ULL << 12) | 8ULL); // x=1..2, y=1..2
+    submitClippedTexture((0x24ULL << 56) | (8ULL << 12) | 8ULL);
+    submitClippedTexture((1024ULL << 16) | 1024ULL);
+    check(clippedTextureMemory[0] == 0 && clippedTextureMemory[4] == 0,
+          "scissor leaves clipped texture-rectangle pixels untouched");
+    check(clippedTextureMemory[(1 * 8 + 1) * 4] == 0xFF &&
+          clippedTextureMemory[(1 * 8 + 1) * 4 + 1] == 0x00,
+          "scissored texture rectangle retains the original S origin");
+    check(clippedTextureMemory[(2 * 8 + 1) * 4] == 0x00 &&
+          clippedTextureMemory[(2 * 8 + 1) * 4 + 1] == 0x00 &&
+          clippedTextureMemory[(2 * 8 + 1) * 4 + 2] == 0xFF,
+          "scissored texture rectangle advances T from its unclipped origin");
+
     // TextureTriangle uses its texture coefficient block to shade triangle spans.
     Rdp texturedTriangle;
     std::vector<std::uint8_t> texturedTriangleMemory(0x300, 0);
