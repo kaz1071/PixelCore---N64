@@ -630,21 +630,59 @@ std::uint32_t Rdp::textureRgba(std::size_t tileIndex, std::size_t s, std::size_t
         return 0;
 
     const RdpTileState &tileState = tiles_[tileIndex];
-    if (tileState.format != 0U || (tileState.size != 2U && tileState.size != 3U))
-        return 0;
-
     const std::uint32_t texel = textureTexel(tileIndex, s, t);
-    if (tileState.size == 3U)
-        return texel;
-
-    const std::uint32_t red = (texel >> 11) & 0x1FU;
-    const std::uint32_t green = (texel >> 6) & 0x1FU;
-    const std::uint32_t blue = (texel >> 1) & 0x1FU;
-    const std::uint32_t alpha = texel & 1U;
-    const auto expand5 = [](std::uint32_t channel) {
-        return (channel << 3) | (channel >> 2);
+    const auto packIntensityAlpha = [](std::uint32_t intensity, std::uint32_t alpha) {
+        return (intensity << 24) | (intensity << 16) | (intensity << 8) | alpha;
     };
 
-    return (expand5(red) << 24) | (expand5(green) << 16) |
-           (expand5(blue) << 8) | (alpha ? 0xFFU : 0U);
+    // RGBA: 16-bit is 5/5/5/1; 32-bit is already RGBA8888.
+    if (tileState.format == 0U)
+    {
+        if (tileState.size == 3U)
+            return texel;
+        if (tileState.size != 2U)
+            return 0;
+
+        const std::uint32_t red = (texel >> 11) & 0x1FU;
+        const std::uint32_t green = (texel >> 6) & 0x1FU;
+        const std::uint32_t blue = (texel >> 1) & 0x1FU;
+        const std::uint32_t alpha = texel & 1U;
+        const auto expand5 = [](std::uint32_t channel) {
+            return (channel << 3) | (channel >> 2);
+        };
+        return (expand5(red) << 24) | (expand5(green) << 16) |
+               (expand5(blue) << 8) | (alpha ? 0xFFU : 0U);
+    }
+
+    // IA: 4-bit uses I3A1, 8-bit uses I4A4, and 16-bit uses I8A8.
+    if (tileState.format == 3U)
+    {
+        if (tileState.size == 0U)
+        {
+            const std::uint32_t intensity3 = (texel >> 1) & 0x07U;
+            const std::uint32_t intensity8 =
+                (intensity3 << 5) | (intensity3 << 2) | (intensity3 >> 1);
+            return packIntensityAlpha(intensity8, (texel & 1U) ? 0xFFU : 0U);
+        }
+        if (tileState.size == 1U)
+        {
+            const std::uint32_t intensity4 = (texel >> 4) & 0x0FU;
+            const std::uint32_t alpha4 = texel & 0x0FU;
+            return packIntensityAlpha(intensity4 * 17U, alpha4 * 17U);
+        }
+        if (tileState.size == 2U)
+            return packIntensityAlpha((texel >> 8) & 0xFFU, texel & 0xFFU);
+        return 0;
+    }
+
+    // Intensity-only textures are opaque grayscale.
+    if (tileState.format == 4U)
+    {
+        if (tileState.size == 0U)
+            return packIntensityAlpha((texel & 0x0FU) * 17U, 0xFFU);
+        if (tileState.size == 1U)
+            return packIntensityAlpha(texel & 0xFFU, 0xFFU);
+    }
+
+    return 0;
 }
