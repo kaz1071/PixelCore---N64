@@ -170,9 +170,12 @@ int main()
     check(textureLoad.tmemByte(8) == 0xA0 && textureLoad.tmemByte(9) == 0xA1 &&
           textureLoad.tmemByte(10) == 0xA2 && textureLoad.tmemByte(11) == 0xA3,
           "LoadTile copies the first source row into the tile TMEM base");
-    check(textureLoad.tmemByte(16) == 0xA4 && textureLoad.tmemByte(17) == 0xA5 &&
-          textureLoad.tmemByte(18) == 0xA6 && textureLoad.tmemByte(19) == 0xA7,
-          "LoadTile copies subsequent rows using the tile line stride");
+    check(textureLoad.tmemByte(20) == 0xA4 && textureLoad.tmemByte(21) == 0xA5 &&
+          textureLoad.tmemByte(22) == 0xA6 && textureLoad.tmemByte(23) == 0xA7,
+          "LoadTile swaps the two 32-bit halves of each odd TMEM row");
+    check(textureLoad.textureTexel(0, 0, 1) == 0xA4A5U &&
+          textureLoad.textureTexel(0, 1, 1) == 0xA6A7U,
+          "texture sampling reverses the odd-row TMEM word swap");
     check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(20) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
 
