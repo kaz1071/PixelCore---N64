@@ -323,6 +323,13 @@ int main()
               (1ULL << 32) | (1ULL << 20)); // CI4, palette bank 1.
     submitCi4((0x33ULL << 56));
     submitCi4((0x2FULL << 56) | (0x8000ULL << 32));
+    check(ci4Texture.tile(0).palette == 1,
+          "CI4 test tile retains palette bank one");
+    check(ci4Texture.tmemByte(0x880) == 0x00 &&
+          ci4Texture.tmemByte(0x881) == 0x3F,
+          "CI4 palette bank one is loaded at its expected upper-TMEM address");
+    check(ci4Texture.textureTexel(0, 0, 0) == 0,
+          "CI4 texture source supplies palette index zero");
     check(ci4Texture.textureRgba(0, 0, 0) == 0x0000FFFFU,
           "CI4 sampling adds the tile palette bank before resolving its TLUT entry");
 
