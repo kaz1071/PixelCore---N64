@@ -283,9 +283,10 @@ int main()
     const std::uint64_t extremeYuvCoefficients = (0x2CULL << 56) |
         (255ULL << 45) | (257ULL << 18);
     submitClippedYuv(extremeYuvCoefficients);
-    const std::uint32_t clippedYuv = clippedYuvTexture.textureRgba(0, 0, 0);
-    check(((clippedYuv >> 24) & 0xFFU) == 255U &&
-          ((clippedYuv >> 8) & 0xFFU) == 0U,
+    const std::uint32_t overflowingYuv = clippedYuvTexture.textureRgba(0, 0, 0);
+    const std::uint32_t underflowingYuv = clippedYuvTexture.textureRgba(0, 1, 0);
+    check(((overflowingYuv >> 24) & 0xFFU) == 255U &&
+          ((underflowingYuv >> 8) & 0xFFU) == 0U,
           "YUV16 conversion saturates overflowing and underflowing color channels");
 
     // IA and intensity texture formats expand to opaque grayscale/RGBA values.
