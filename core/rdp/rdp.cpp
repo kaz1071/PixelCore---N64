@@ -32,6 +32,7 @@ void Rdp::reset()
     combineMux1_ = 0;
     primitiveDepth_ = 0;
     primitiveDeltaZ_ = 0;
+    depthHiddenBits_.clear();
     conversionCoefficients_.fill(0);
     tiles_.fill(RdpTileState{});
     scissorLeft_ = 0;
@@ -875,8 +876,11 @@ case 0x33: // LoadBlock
                         ? std::max<std::uint32_t>(primitiveDeltaZ_, 1U)
                         : static_cast<std::uint32_t>(std::clamp<std::uint64_t>(
                             (absDzDx + absDzDy) >> 13U, 1U, 0xFFFFU));
-                    const std::uint32_t storedDeltaZ = 1U <<
-                        (static_cast<unsigned>(storedWord & 0x03U) << 2U);
+                    const auto hiddenBits = depthHiddenBits_.find(depthAddress);
+                    const unsigned storedDeltaExponent =
+                        (static_cast<unsigned>(storedWord & 0x03U) << 2U) |
+                        (hiddenBits == depthHiddenBits_.end() ? 0U : hiddenBits->second);
+                    const std::uint32_t storedDeltaZ = 1U << storedDeltaExponent;
                     const std::uint32_t deltaTolerance = std::max(pixelDeltaZ, storedDeltaZ);
                     const std::uint32_t depthDifference = pixelDepth > storedDepth
                         ? pixelDepth - storedDepth : storedDepth - pixelDepth;
@@ -914,6 +918,8 @@ case 0x33: // LoadBlock
                             (encoded << 2U) | ((encodedDelta >> 2U) & 0x03U));
                         rdram[depthAddress] = static_cast<std::uint8_t>(depthWord >> 8U);
                         rdram[depthAddress + 1U] = static_cast<std::uint8_t>(depthWord);
+                        depthHiddenBits_[depthAddress] =
+                            static_cast<std::uint8_t>(encodedDelta & 0x03U);
                     }
                 }
 
