@@ -853,8 +853,16 @@ case 0x33: // LoadBlock
                     if (depthUpdateEnabled)
                     {
                         const std::uint16_t encoded = compressDepth(pixelDepth);
+                        unsigned deltaExponent = 0;
+                        for (std::uint16_t delta = primitiveDeltaZ_; delta > 1U; delta >>= 1U)
+                            ++deltaExponent;
+                        const std::uint16_t encodedDelta = static_cast<std::uint16_t>(
+                            std::min(deltaExponent, 15U));
+                        // The two visible delta-Z bits occupy the low bits of
+                        // the depth halfword; the remaining two live in RDRAM
+                        // hidden bits, which this byte-vector memory cannot expose.
                         const std::uint16_t depthWord = static_cast<std::uint16_t>(
-                            (encoded << 2U) | ((primitiveDeltaZ_ >> 14U) & 0x03U));
+                            (encoded << 2U) | ((encodedDelta >> 2U) & 0x03U));
                         rdram[depthOffset] = static_cast<std::uint8_t>(depthWord >> 8U);
                         rdram[depthOffset + 1U] = static_cast<std::uint8_t>(depthWord);
                     }
