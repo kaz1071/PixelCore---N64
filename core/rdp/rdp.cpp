@@ -957,7 +957,9 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::int64_t s, std::int6
                                       std::uint8_t mask, std::uint8_t mirror,
                                       std::uint8_t clamp, std::size_t extent) {
         const auto floorDivide = [](std::int64_t value, std::int64_t divisor) {
-            return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
+            const std::int64_t quotient = value / divisor;
+            const std::int64_t remainder = value % divisor;
+            return remainder < 0 ? quotient - 1 : quotient;
         };
         if (shift <= 10U)
             coordinate = floorDivide(coordinate, std::int64_t(1) << shift);
