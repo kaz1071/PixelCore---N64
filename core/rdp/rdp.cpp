@@ -673,19 +673,32 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
         ((texelBit / 8U) ^ ((t & 1U) != 0U ? 4U : 0U));
     const std::size_t bitInByte = texelBit & 7U;
     const std::size_t byteCount = bitsPerTexel / 8U;
+    if (byteOffset >= tmem_.size())
+        return 0;
+
     if (bitsPerTexel == 4U)
     {
-        if (byteOffset >= tmem_.size())
-            return 0;
         const unsigned shift = bitInByte == 0 ? 4U : 0U;
         return (tmem_[byteOffset] >> shift) & 0x0FU;
     }
 
     if (byteCount > tmem_.size() - byteOffset)
         return 0;
+
+    // TMEM odd-row swapping exchanges the two 32-bit halves of each
+    // 64-bit word. Apply the address transform to every byte, rather than
+    // only the first byte, so texels that span a half-word boundary are
+    // read from the same physical layout used by the load commands.
     std::uint32_t value = 0;
     for (std::size_t byte = 0; byte < byteCount; ++byte)
-        value = (value << 8) | tmem_[byteOffset + byte];
+    {
+        const std::size_t logicalByte = texelBit / 8U + byte;
+        const std::size_t physicalOffset = base + rowOffset +
+            (logicalByte ^ ((t & 1U) != 0U ? 4U : 0U));
+        if (physicalOffset >= tmem_.size())
+            return 0;
+        value = (value << 8) | tmem_[physicalOffset];
+    }
     return value;
 }
 
