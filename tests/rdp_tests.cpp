@@ -80,6 +80,8 @@ int main()
     filteredMemory[0x26] = 0xFF; filteredMemory[0x27] = 0xFF;
     filteredMemory[0x28] = 0xFF; filteredMemory[0x29] = 0x00;
     filteredMemory[0x2A] = 0x00; filteredMemory[0x2B] = 0xFF;
+    filteredMemory[0x2C] = 0x00; filteredMemory[0x2D] = 0xFF;
+    filteredMemory[0x2E] = 0x00; filteredMemory[0x2F] = 0xFF;
     const auto submitFiltered = [&filteredTexture, &filteredMemory](std::uint64_t word) {
         if (filteredTexture.pushCommandWord(word))
             filteredTexture.executeLastCommand(filteredMemory);
