@@ -542,6 +542,45 @@ std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_
     if (!tileState.loaded || tileState.size > 3)
         return 0;
 
+    const auto addressCoordinate = [](std::size_t coordinate, std::uint8_t shift,
+                                      std::uint8_t mask, std::uint8_t mirror,
+                                      std::uint8_t clamp, std::size_t extent) {
+        if (shift <= 10U)
+            coordinate >>= shift;
+        else
+        {
+            const unsigned leftShift = 16U - shift;
+            if (coordinate > (std::numeric_limits<std::size_t>::max() >> leftShift))
+                coordinate = std::numeric_limits<std::size_t>::max();
+            else
+                coordinate <<= leftShift;
+        }
+
+        if (clamp != 0U)
+            return std::min(coordinate, extent == 0 ? std::size_t(0) : extent - 1U);
+
+        if (mask != 0U)
+        {
+            const std::size_t period = std::size_t(1) << mask;
+            const std::size_t block = coordinate / period;
+            coordinate %= period;
+            if (mirror != 0U && (block & 1U) != 0U)
+                coordinate = period - 1U - coordinate;
+        }
+        return coordinate;
+    };
+
+    const std::size_t tileWidth = tileState.lowerRightS >= tileState.upperLeftS
+        ? (static_cast<std::size_t>(tileState.lowerRightS - tileState.upperLeftS) >> 2) + 1U
+        : 0U;
+    const std::size_t tileHeight = tileState.lowerRightT >= tileState.upperLeftT
+        ? (static_cast<std::size_t>(tileState.lowerRightT - tileState.upperLeftT) >> 2) + 1U
+        : 0U;
+    s = addressCoordinate(s, tileState.shiftS, tileState.maskS,
+                           tileState.mirrorS, tileState.clampS, tileWidth);
+    t = addressCoordinate(t, tileState.shiftT, tileState.maskT,
+                           tileState.mirrorT, tileState.clampT, tileHeight);
+
     const std::size_t bitsPerTexel = 4U << tileState.size;
     const std::size_t base = static_cast<std::size_t>(tileState.tmem) * 8U;
     std::size_t rowStride = static_cast<std::size_t>(tileState.line) * 8U;
