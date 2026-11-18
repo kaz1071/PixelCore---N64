@@ -711,7 +711,7 @@ int main()
         if (textureRectangle.pushCommandWord(word))
             textureRectangle.executeLastCommand(textureRectangleMemory);
     };
-    submitTextureRectangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitTextureRectangle((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32));
     submitTextureRectangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitTextureRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitTextureRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
@@ -762,7 +762,7 @@ int main()
         if (flippedTextureRectangle.pushCommandWord(word))
             flippedTextureRectangle.executeLastCommand(flippedMemory);
     };
-    submitFlipped((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitFlipped((0x3FULL << 56) | (3ULL << 51) | (1ULL << 32));
     submitFlipped((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitFlipped((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitFlipped((0x34ULL << 56) | (4ULL << 12) | 4ULL);
