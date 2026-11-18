@@ -593,14 +593,20 @@ case 0x33: // LoadBlock
     case 0x09: // ShadeTriangle
     case 0x0A: // TextureTriangle
     case 0x0B: // ShadeTextureTriangle
+    case 0x0C: // FillDepthTriangle
+    case 0x0D: // ShadeDepthTriangle
     case 0x0E: // TextureDepthTriangle
     case 0x0F: // ShadeTextureDepthTriangle
     {
         const bool textured = lastOpcode_ == 0x0A || lastOpcode_ == 0x0B ||
                               lastOpcode_ == 0x0E || lastOpcode_ == 0x0F;
-        const bool shaded = lastOpcode_ == 0x09 || lastOpcode_ == 0x0B || lastOpcode_ == 0x0F;
+        const bool shaded = lastOpcode_ == 0x09 || lastOpcode_ == 0x0B ||
+                            lastOpcode_ == 0x0D || lastOpcode_ == 0x0F;
+        const bool hasDepth = lastOpcode_ == 0x0C || lastOpcode_ == 0x0D ||
+                              lastOpcode_ == 0x0E || lastOpcode_ == 0x0F;
         const std::size_t expectedWords = lastOpcode_ == 0x08 ? 4U :
             lastOpcode_ == 0x09 ? 12U : lastOpcode_ == 0x0A ? 12U : lastOpcode_ == 0x0B ? 20U :
+            lastOpcode_ == 0x0C ? 6U : lastOpcode_ == 0x0D ? 14U :
             lastOpcode_ == 0x0E ? 14U : lastOpcode_ == 0x0F ? 22U : 0U;
         if (colorImageFormat_ != 0 || colorImageWidth_ == 0 ||
             (colorImageSize_ != 2 && colorImageSize_ != 3) ||
@@ -628,6 +634,10 @@ case 0x33: // LoadBlock
         const std::int64_t dtdx = textured ? lowSigned(lastCommand_[textureOffset + 2U]) : 0;
         const std::int64_t dsdy = textured ? highSigned(lastCommand_[textureOffset + 6U]) : 0;
         const std::int64_t dtdy = textured ? lowSigned(lastCommand_[textureOffset + 6U]) : 0;
+        const std::size_t depthOffset = 4U + (shaded ? 8U : 0U) + (textured ? 8U : 0U);
+        const std::int64_t startZ = hasDepth ? highSigned(lastCommand_[depthOffset]) : 0;
+        const std::int64_t dzdx = hasDepth ? lowSigned(lastCommand_[depthOffset]) : 0;
+        const std::int64_t dzdy = hasDepth ? lowSigned(lastCommand_[depthOffset + 1U]) : 0;
         // Triangle Y coordinates are packed low-to-high as YH, YM, YL.
         const int yh = static_cast<int>(w0 & 0x3FFFU);
         const int ym = static_cast<int>((w0 >> 16) & 0x3FFFU);
@@ -828,24 +838,31 @@ case 0x33: // LoadBlock
                         color |= component << (24U - static_cast<unsigned>(channel) * 8U);
                     }
                 }
-                // Primitive-depth mode is available even for triangles that
-                // do not carry interpolated Z coefficients. Pixel-depth mode
-                // is left untouched until the triangle Z block is decoded.
+                // Pixel Z is interpolated from the triangle depth block;
+                // primitive Z is selected by the SetOtherModes Z-source bit.
                 const bool primitiveDepthSource = (otherModesLow_ & (1U << 2U)) != 0;
                 const bool depthCompareEnabled = (otherModesLow_ & (1U << 4U)) != 0;
                 const bool depthUpdateEnabled = (otherModesLow_ & (1U << 5U)) != 0;
-                const std::uint64_t depthOffset = static_cast<std::uint64_t>(depthImageAddress_) +
+                const std::uint64_t depthAddress = static_cast<std::uint64_t>(depthImageAddress_) +
                     (static_cast<std::uint64_t>(y) * colorImageWidth_ + static_cast<unsigned>(x)) * 2U;
-                const bool depthAddressValid = depthOffset <= rdram.size() &&
-                    2U <= rdram.size() - depthOffset;
-                const std::uint32_t pixelDepth = static_cast<std::uint32_t>(primitiveDepth_ & 0x7FFFU) << 3U;
-                if ((depthCompareEnabled || depthUpdateEnabled) && primitiveDepthSource)
+                const bool depthAddressValid = depthAddress <= rdram.size() &&
+                    2U <= rdram.size() - depthAddress;
+                const std::int64_t relativeDepthX = x - (xh >> 16);
+                const std::int64_t relativeDepthY = y - (yh >> 2);
+                const std::int64_t interpolatedZ = startZ +
+                    relativeDepthX * dzdx + relativeDepthY * dzdy;
+                const std::uint32_t pixelDepth = primitiveDepthSource || !hasDepth
+                    ? (static_cast<std::uint32_t>(primitiveDepth_ & 0x7FFFU) << 3U)
+                    : static_cast<std::uint32_t>(std::clamp<std::int64_t>(
+                        interpolatedZ >> 13U, 0, 0x3FFFF));
+                if ((depthCompareEnabled || depthUpdateEnabled) &&
+                    (primitiveDepthSource || hasDepth))
                 {
                     if (!depthAddressValid)
                         continue;
                     const std::uint16_t storedWord = static_cast<std::uint16_t>(
-                        (static_cast<std::uint16_t>(rdram[depthOffset]) << 8U) |
-                        rdram[depthOffset + 1U]);
+                        (static_cast<std::uint16_t>(rdram[depthAddress]) << 8U) |
+                        rdram[depthAddress + 1U]);
                     const std::uint16_t storedEncoded = storedWord >> 2U;
                     const std::uint32_t storedDepth = decompressDepth(storedEncoded);
                     if (depthCompareEnabled && pixelDepth > storedDepth)
@@ -863,8 +880,8 @@ case 0x33: // LoadBlock
                         // hidden bits, which this byte-vector memory cannot expose.
                         const std::uint16_t depthWord = static_cast<std::uint16_t>(
                             (encoded << 2U) | ((encodedDelta >> 2U) & 0x03U));
-                        rdram[depthOffset] = static_cast<std::uint8_t>(depthWord >> 8U);
-                        rdram[depthOffset + 1U] = static_cast<std::uint8_t>(depthWord);
+                        rdram[depthAddress] = static_cast<std::uint8_t>(depthWord >> 8U);
+                        rdram[depthAddress + 1U] = static_cast<std::uint8_t>(depthWord);
                     }
                 }
 
