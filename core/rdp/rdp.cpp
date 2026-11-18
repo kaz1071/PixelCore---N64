@@ -408,13 +408,15 @@ case 0x33: // LoadBlock
             {
                 const std::int64_t offsetX = static_cast<std::int64_t>(x - xStart);
                 const std::int64_t offsetY = static_cast<std::int64_t>(y - yStart);
-                const std::int64_t fixedS = static_cast<std::int64_t>(startS) +
-                    (flipped ? offsetY * deltaS : offsetX * deltaS);
-                const std::int64_t fixedT = static_cast<std::int64_t>(startT) +
-                    (flipped ? offsetX * deltaT : offsetY * deltaT);
                 const auto floorDiv32 = [](std::int64_t value) {
                     return value >= 0 ? value / 32 : -((-value + 31) / 32);
                 };
+                // S/T starts are 10.5 fixed point; dsdx/dtdy are 5.10.
+                // Convert each per-pixel derivative to the coordinate's 5-bit fraction.
+                const std::int64_t fixedS = static_cast<std::int64_t>(startS) +
+                    floorDiv32((flipped ? offsetY : offsetX) * deltaS);
+                const std::int64_t fixedT = static_cast<std::int64_t>(startT) +
+                    floorDiv32((flipped ? offsetX : offsetY) * deltaT);
                 const std::int64_t integerS = floorDiv32(fixedS);
                 const std::int64_t integerT = floorDiv32(fixedT);
                 const std::uint8_t fractionS = static_cast<std::uint8_t>(fixedS - integerS * 32);
