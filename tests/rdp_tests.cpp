@@ -218,7 +218,10 @@ int main()
     Rdp oddBlockLoad;
     std::vector<std::uint8_t> oddBlockRdram(0x60, 0);
     for (std::size_t i = 0; i < 16; ++i)
+    {
         oddBlockRdram[0x20 + i] = static_cast<std::uint8_t>(0x30U + i);
+        oddBlockRdram[0x30 + i] = static_cast<std::uint8_t>(0x50U + i);
+    }
     const auto submitOddBlock = [&oddBlockLoad, &oddBlockRdram](std::uint64_t word) {
         if (oddBlockLoad.pushCommandWord(word))
             oddBlockLoad.executeLastCommand(oddBlockRdram);
@@ -232,8 +235,8 @@ int main()
           oddBlockLoad.tmemByte(8) == 0x3C && oddBlockLoad.tmemByte(9) == 0x3D &&
           oddBlockLoad.tmemByte(10) == 0x3E && oddBlockLoad.tmemByte(11) == 0x3F,
           "LoadBlock applies DXT row advancement and odd-row TMEM word swapping");
-    check(oddBlockLoad.textureTexel(0, 0, 1) == 0x3C3DU &&
-          oddBlockLoad.textureTexel(0, 1, 1) == 0x3E3FU,
+    check(oddBlockLoad.textureTexel(0, 0, 1) == 0x5051U &&
+          oddBlockLoad.textureTexel(0, 1, 1) == 0x5253U,
           "texture sampling reads DXT-wrapped odd LoadBlock rows");
 
     // A half-row DXT increment must carry after two 64-bit words, and
