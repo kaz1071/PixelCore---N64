@@ -209,6 +209,7 @@ int main()
           "texture sampling safely rejects unavailable rows and invalid tile indexes");
 
     // Tile addressing applies masks, mirroring, clamping, and shifts before TMEM lookup.
+    submitBlock((0x32ULL << 56) | (12ULL << 12));
     const auto submitTileAddressing = [&blockLoad, &blockRdram](std::uint64_t word) {
         if (blockLoad.pushCommandWord(word)) blockLoad.executeLastCommand(blockRdram);
     };
@@ -225,7 +226,7 @@ int main()
 
     submitTileAddressing((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
                          (2ULL << 32) | (1ULL << 1));
-    check(blockLoad.textureTexel(0, 2, 0) == 0x9ABCU,
+    check(blockLoad.textureTexel(0, 4, 0) == 0x9ABCU,
           "texture sampling applies right shifts to S coordinates");
 
     check(rdp.fogColor() == 0x10203040U, "SetFogColor stores packed RGBA");
