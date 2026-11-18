@@ -61,6 +61,8 @@ public:
     std::uint64_t combineMux1() const;
     std::uint32_t depthImageAddress() const;
     std::uint16_t primitiveDepth() const;
+    static std::uint16_t compressDepth(std::uint32_t depth);
+    static std::uint32_t decompressDepth(std::uint16_t encodedDepth);
     std::uint16_t primitiveDeltaZ() const;
     std::int16_t conversionCoefficient(std::size_t index) const;
     const RdpTileState &tile(std::size_t index) const;
