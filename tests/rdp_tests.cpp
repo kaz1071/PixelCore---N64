@@ -715,6 +715,18 @@ int main()
     submitTextureRectangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
     submitTextureRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitTextureRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    // LoadTile stores odd rows with the two 32-bit halves of each TMEM
+    // 64-bit word exchanged. Verify the physical bytes before rasterization.
+    check(textureRectangle.tmemByte(12) == 0x00 &&
+          textureRectangle.tmemByte(13) == 0x00 &&
+          textureRectangle.tmemByte(14) == 0xFF &&
+          textureRectangle.tmemByte(15) == 0xFF,
+          "LoadTile stores the first odd-row RGBA32 texel in the swapped half");
+    check(textureRectangle.tmemByte(8) == 0xFF &&
+          textureRectangle.tmemByte(9) == 0xFF &&
+          textureRectangle.tmemByte(10) == 0xFF &&
+          textureRectangle.tmemByte(11) == 0xFF,
+          "LoadTile stores the second odd-row RGBA32 texel in the swapped half");
     // 2x2 rectangle, S/T start at zero, one texel per pixel.
     submitTextureRectangle((0x24ULL << 56) | (8ULL << 12) | 8ULL);
     submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (1024ULL << 16) | 1024ULL);
