@@ -219,6 +219,23 @@ int main()
     check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(24) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
 
+    // A tile rectangle that extends beyond the source image must fail
+    // without copying even the texels that would have fit.
+    Rdp rejectedTileLoad;
+    std::vector<std::uint8_t> rejectedTileMemory(0x20, 0);
+    rejectedTileMemory[0x10] = 0xA5;
+    const auto submitRejectedTile = [&rejectedTileLoad, &rejectedTileMemory](std::uint64_t word) {
+        if (rejectedTileLoad.pushCommandWord(word))
+            rejectedTileLoad.executeLastCommand(rejectedTileMemory);
+    };
+    submitRejectedTile((0x3DULL << 56) | (1ULL << 51) | 0x10ULL); // one-pixel source image
+    submitRejectedTile((0x35ULL << 56) | (1ULL << 51) | (1ULL << 41));
+    submitRejectedTile((0x34ULL << 56) | (4ULL << 12)); // requests two pixels
+    check(!rejectedTileLoad.tile(0).loaded,
+          "LoadTile rejects a rectangle wider than its source image");
+    check(rejectedTileLoad.tmemByte(0) == 0,
+          "rejected LoadTile leaves TMEM unchanged instead of partially copying");
+
     // LoadBlock streams a linear run of source texels into the selected TMEM tile.
     Rdp blockLoad;
     std::vector<std::uint8_t> blockRdram(0x40, 0);
