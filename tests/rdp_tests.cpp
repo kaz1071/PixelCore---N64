@@ -1418,6 +1418,32 @@ int main()
           (updatedDepthWord >> 2U) == Rdp::compressDepth(0x8100U),
           "depth update works when depth comparison is disabled");
 
+    // Triangle rasterization must honor all four scissor boundaries.
+    Rdp scissoredTriangle;
+    std::vector<std::uint8_t> scissorMemory(8 * 8 * 4, 0);
+    const auto submitScissor = [&scissoredTriangle, &scissorMemory](std::uint64_t word) {
+        if (scissoredTriangle.pushCommandWord(word))
+            scissoredTriangle.executeLastCommand(scissorMemory);
+    };
+    submitScissor((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitScissor((0x2DULL << 56) | (8ULL << 44) | (8ULL << 32) |
+                  (12ULL << 12) | 12ULL);
+    submitScissor((0x37ULL << 56) | 0xEE0000FFULL);
+    submitScissor((0x08ULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitScissor((5ULL << 16) << 32 | 65536U);
+    submitScissor((1ULL << 16) << 32 | 65536U);
+    submitScissor((5ULL << 16) << 32 | 3ULL * 65536U);
+    check(scissorMemory[(2 * 8 + 2) * 4] == 0xEE,
+          "triangle writes pixels inside the scissor rectangle");
+    check(scissorMemory[(2 * 8 + 1) * 4] == 0,
+          "triangle rejects pixels left of the scissor rectangle");
+    check(scissorMemory[(1 * 8 + 2) * 4] == 0,
+          "triangle rejects pixels above the scissor rectangle");
+    check(scissorMemory[(2 * 8 + 3) * 4] == 0,
+          "triangle rejects pixels right of the scissor rectangle");
+    check(scissorMemory[(3 * 8 + 2) * 4] == 0,
+          "triangle rejects pixels below the scissor rectangle");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\n";
