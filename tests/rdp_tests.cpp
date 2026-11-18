@@ -749,6 +749,38 @@ int main()
           flippedMemory[14] == 0xFF && flippedMemory[15] == 0xFF,
           "TextureRectangleFlip samples the bottom-right source texel");
 
+    // TextureTriangle uses its texture coefficient block to shade triangle spans.
+    Rdp texturedTriangle;
+    std::vector<std::uint8_t> texturedTriangleMemory(0x300, 0);
+    const auto submitTexturedTriangle = [&texturedTriangle, &texturedTriangleMemory](std::uint64_t word) {
+        if (texturedTriangle.pushCommandWord(word))
+            texturedTriangle.executeLastCommand(texturedTriangleMemory);
+    };
+    texturedTriangleMemory[0x20] = 0xFF; texturedTriangleMemory[0x21] = 0x00;
+    texturedTriangleMemory[0x22] = 0x00; texturedTriangleMemory[0x23] = 0xFF;
+    texturedTriangleMemory[0x24] = 0x00; texturedTriangleMemory[0x25] = 0xFF;
+    texturedTriangleMemory[0x26] = 0x00; texturedTriangleMemory[0x27] = 0xFF;
+    texturedTriangleMemory[0x28] = 0x00; texturedTriangleMemory[0x29] = 0x00;
+    texturedTriangleMemory[0x2A] = 0xFF; texturedTriangleMemory[0x2B] = 0xFF;
+    texturedTriangleMemory[0x2C] = 0xFF; texturedTriangleMemory[0x2D] = 0xFF;
+    texturedTriangleMemory[0x2E] = 0xFF; texturedTriangleMemory[0x2F] = 0xFF;
+    submitTexturedTriangle((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
+    submitTexturedTriangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitTexturedTriangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitTexturedTriangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitTexturedTriangle((0x0AULL << 56) | (20ULL << 32) | (12ULL << 16) | 4ULL);
+    submitTexturedTriangle((5ULL << 16) << 32 | 65536U);
+    submitTexturedTriangle((1ULL << 16) << 32 | 65536U);
+    submitTexturedTriangle((5ULL << 16) << 32 | 3ULL * 65536U);
+    submitTexturedTriangle(0ULL); // S=0, T=0
+    submitTexturedTriangle((65536ULL << 32)); // dS/dX = 1 texel
+    submitTexturedTriangle(65536ULL); // dT/dY = 1 texel
+    for (int i = 0; i < 5; ++i) submitTexturedTriangle(0ULL);
+    check(texturedTriangleMemory[(2 * 8 + 2) * 4] == 0xFF &&
+          texturedTriangleMemory[(2 * 8 + 2) * 4 + 1] == 0xFF &&
+          texturedTriangleMemory[(2 * 8 + 2) * 4 + 2] == 0xFF,
+          "TextureTriangle samples a texture texel into the triangle framebuffer");
+
     // Scissor clipping limits fill rectangles to the configured region.
     Rdp clipped;
     std::vector<std::uint8_t> clippedBuffer(8 * 8 * 4, 0);
