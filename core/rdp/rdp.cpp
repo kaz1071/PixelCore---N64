@@ -669,6 +669,19 @@ case 0x33: // LoadBlock
                             default: return 0;
                             }
                         };
+                        const auto alphaFactorSource = [&](unsigned selector) -> int {
+                            switch (selector)
+                            {
+                            case 0: return primitiveLodFraction_;
+                            case 1: case 2: return static_cast<int>(texture & 0xFFU);
+                            case 3: return static_cast<int>(primitive & 0xFFU);
+                            case 4: return static_cast<int>(shadeColor & 0xFFU);
+                            case 5: return static_cast<int>(environment & 0xFFU);
+                            case 6: return primitiveLodFraction_;
+                            case 7: return 255;
+                            default: return 0;
+                            }
+                        };
                         const auto colorFactor = [&](unsigned selector, unsigned channel) -> int {
                             switch (selector)
                             {
