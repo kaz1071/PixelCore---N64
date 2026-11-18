@@ -65,6 +65,9 @@ public:
     std::uint32_t textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const;
     // Returns RGBA8888 for supported RGBA, YUV16, CI (when TLUT is enabled), IA, and intensity texels; zero for unsupported formats.
     std::uint32_t textureRgba(std::size_t tileIndex, std::size_t s, std::size_t t) const;
+    // Bilinearly interpolates four RGBA texels using 5-bit fractional S/T coordinates.
+    std::uint32_t textureRgbaBilinear(std::size_t tileIndex, std::size_t s, std::size_t t,
+                                      std::uint8_t fractionS, std::uint8_t fractionT) const;
 
 private:
     std::vector<std::uint64_t> pending_;
