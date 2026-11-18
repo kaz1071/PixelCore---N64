@@ -532,3 +532,52 @@ std::uint8_t Rdp::tmemByte(std::size_t index) const
 {
     return index < tmem_.size() ? tmem_[index] : 0;
 }
+
+std::uint32_t Rdp::textureTexel(std::size_t tileIndex, std::size_t s, std::size_t t) const
+{
+    if (tileIndex >= tiles_.size())
+        return 0;
+
+    const RdpTileState &tileState = tiles_[tileIndex];
+    if (!tileState.loaded || tileState.size > 3)
+        return 0;
+
+    const std::size_t bitsPerTexel = 4U << tileState.size;
+    const std::size_t base = static_cast<std::size_t>(tileState.tmem) * 8U;
+    std::size_t rowStride = static_cast<std::size_t>(tileState.line) * 8U;
+    if (rowStride == 0)
+    {
+        const std::size_t width = tileState.lowerRightS >= tileState.upperLeftS
+            ? (static_cast<std::size_t>(tileState.lowerRightS - tileState.upperLeftS) >> 2) + 1U
+            : 1U;
+        const std::size_t rowBytes = (width * bitsPerTexel + 7U) / 8U;
+        rowStride = (rowBytes + 7U) & ~std::size_t(7U);
+    }
+
+    if (t > (tmem_.size() / rowStride))
+        return 0;
+    const std::size_t rowOffset = t * rowStride;
+    if (base > tmem_.size() || rowOffset > tmem_.size() - base)
+        return 0;
+
+    const std::size_t texelBit = s * bitsPerTexel;
+    if (texelBit / 8U > tmem_.size() - base - rowOffset)
+        return 0;
+    const std::size_t byteOffset = base + rowOffset + texelBit / 8U;
+    const std::size_t bitInByte = texelBit & 7U;
+    const std::size_t byteCount = bitsPerTexel / 8U;
+    if (bitsPerTexel == 4U)
+    {
+        if (byteOffset >= tmem_.size())
+            return 0;
+        const unsigned shift = bitInByte == 0 ? 4U : 0U;
+        return (tmem_[byteOffset] >> shift) & 0x0FU;
+    }
+
+    if (byteCount > tmem_.size() - byteOffset)
+        return 0;
+    std::uint32_t value = 0;
+    for (std::size_t byte = 0; byte < byteCount; ++byte)
+        value = (value << 8) | tmem_[byteOffset + byte];
+    return value;
+}
