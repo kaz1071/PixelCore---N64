@@ -727,6 +727,10 @@ int main()
           textureRectangle.tmemByte(10) == 0xFF &&
           textureRectangle.tmemByte(11) == 0xFF,
           "LoadTile stores the second odd-row RGBA32 texel in the swapped half");
+    check(textureRectangle.textureTexel(0, 0, 1) == 0x0000FFFFU,
+          "RGBA32 texture sampling reads the first odd-row texel");
+    check(textureRectangle.textureTexel(0, 1, 1) == 0xFFFFFFFFU,
+          "RGBA32 texture sampling reads the second odd-row texel");
     // 2x2 rectangle, S/T start at zero, one texel per pixel.
     submitTextureRectangle((0x24ULL << 56) | (8ULL << 12) | 8ULL);
     submitTextureRectangle((0ULL << 48) | (0ULL << 32) | (1024ULL << 16) | 1024ULL);
