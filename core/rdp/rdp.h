@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <array>
 #include <vector>
+#include <unordered_map>
 
 struct RdpTileState
 {
@@ -106,6 +107,9 @@ private:
     std::uint64_t combineMux1_ = 0;
     std::uint16_t primitiveDepth_ = 0;
     std::uint16_t primitiveDeltaZ_ = 0;
+    // RDRAM exposes only the visible 16-bit depth word; the RDP also keeps
+    // the two hidden low bits used by the four-bit DeltaZ exponent.
+    std::unordered_map<std::uint64_t, std::uint8_t> depthHiddenBits_;
     std::array<std::int16_t, 6> conversionCoefficients_{};
     std::array<RdpTileState, 8> tiles_{};
     std::uint32_t scissorLeft_ = 0;
