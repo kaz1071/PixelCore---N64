@@ -515,6 +515,20 @@ int main()
     passed &= check(cpu.cp0(R4300i::Random) == 31,
                     "CP0 Random wraps to 31 when it reaches Wired");
 
+    // Writing Wired limits it to five bits and restarts Random at 31.
+    const std::uint32_t mtc0Wired =
+        cop0 | (0x04U << 21) | (1U << 16) | (R4300i::Wired << 11);
+    memory.words.clear();
+    memory.words[base] = mtc0Wired;
+    cpu.reset();
+    cpu.setReg(1, 0x25); // Only the low five bits (5) are implemented.
+    cpu.setCp0(R4300i::Random, 14);
+    passed &= check(cpu.step(memory, error), "MTC0 Wired executes");
+    passed &= check(cpu.cp0(R4300i::Wired) == 5,
+                    "MTC0 Wired masks values to five implemented bits");
+    passed &= check(cpu.cp0(R4300i::Random) == 30,
+                    "MTC0 Wired restarts Random at 31 before instruction cycling");
+
     // Virtual-address translation: KSEG0 maps directly and a TLB entry
     // translates a mapped virtual page for LW/SW.
     memory.words.clear();
