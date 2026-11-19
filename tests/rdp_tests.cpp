@@ -1888,6 +1888,12 @@ int main()
     check(negativeShiftTexture.textureTexel(0, -1024, 0) == 0x44U &&
           negativeShiftTexture.textureTexel(0, -1025, 0) == 0x33U,
           "negative S shift-ten coordinates floor-divide at exact boundaries");
+    // Mirroring is applied to the signed mask-period index after shifting.
+    submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
+                        (1ULL << 41) | (2ULL << 4) | 1ULL);
+    check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x11U &&
+          negativeShiftTexture.textureTexel(0, -3, 0) == 0x22U,
+          "negative S right shifts mirror the correct masked periods");
 
     // Negative T coordinates use floor division before mask wrapping too.
     Rdp negativeShiftTTexture;
@@ -1917,6 +1923,11 @@ int main()
     check(negativeShiftTTexture.textureTexel(0, 0, -1024) == 0x44U &&
           negativeShiftTTexture.textureTexel(0, 0, -1025) == 0x33U,
           "negative T shift-ten coordinates floor-divide at exact boundaries");
+    submitNegativeShiftT((0x35ULL << 56) | (1ULL << 51) |
+                         (1ULL << 41) | (2ULL << 14) | (1ULL << 10));
+    check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x11U &&
+          negativeShiftTTexture.textureTexel(0, 0, -3) == 0x22U,
+          "negative T right shifts mirror the correct masked periods");
 
     if (failures != 0)
     {
