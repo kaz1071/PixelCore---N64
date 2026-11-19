@@ -359,6 +359,9 @@ int main()
           mirroredTextureT.textureTexel(0, 0, 3) == 0x1111U,
           "texture sampling mirrors alternate masked T periods");
 
+    // Set the tile's full two-row extent so clamping has the correct
+    // final row rather than the default one-texel tile bounds.
+    submitMirroredT((0x32ULL << 56) | (4ULL << 12));
     // T clamping takes precedence over a configured mask and bounds both
     // negative and oversized coordinates to the loaded tile rectangle.
     submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
@@ -526,6 +529,8 @@ int main()
           negativeTextureCoordinates.textureTexel(0, -2, 0) == 0x2222U,
           "S-axis mirroring reverses negative mask periods");
 
+    // Define the complete four-texel tile width for S clamping.
+    submitNegativeTexture((0x32ULL << 56) | (12ULL << 12));
     // S clamping takes precedence over the configured mask and mirror mode.
     submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
                           (2ULL << 8) | (2ULL << 4));
