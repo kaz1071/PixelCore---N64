@@ -320,7 +320,7 @@ void MainWindow::openIplRom()
     if (!loadedRomPath_.isEmpty()) {
         system_.reset();
         emulationRunning_ = true;
-        framebufferView_->setMessage("IPL ROM loaded\\n\\nStarting the emulated N64 boot process...");
+        framebufferView_->setMessage("IPL ROM loaded\n\nStarting the emulated N64 boot process...");
         statusLabel_->setText("IPL loaded — starting emulation");
     } else {
         emulationRunning_ = false;
@@ -361,7 +361,7 @@ void MainWindow::runEmulationFrame()
             const QString message = error.empty()
                 ? "CPU or RSP execution stopped unexpectedly."
                 : QString::fromStdString(error);
-            framebufferView_->setMessage("Emulation stopped\\n\\n" + message);
+            framebufferView_->setMessage("Emulation stopped\n\n" + message);
             statusLabel_->setText("Emulation stopped: " + message);
             return;
         }
