@@ -487,6 +487,34 @@ int main()
     passed &= check(cpu.cp0(R4300i::Index) == 7,
                     "TLBP honors PageMask when matching larger pages");
 
+    // TLBWR uses CP0 Random, which cycles down to Wired and then wraps.
+    const std::uint32_t tlbwr = cop0 | (0x10U << 21) | 0x06U;
+    memory.words.clear();
+    memory.words[base] = tlbwr;
+    memory.words[base + 4] = tlbp;
+    cpu.reset();
+    cpu.setCp0(R4300i::Wired, 10);
+    cpu.setCp0(R4300i::Random, 11);
+    cpu.setCp0(R4300i::EntryHi, 0x00A0002A);
+    cpu.setCp0(R4300i::PageMask, 0);
+    cpu.setCp0(R4300i::EntryLo0, 0x34567);
+    cpu.setCp0(R4300i::EntryLo1, 0x45677);
+    passed &= check(cpu.step(memory, error), "TLBWR executes using CP0 Random");
+    passed &= check(cpu.cp0(R4300i::Random) == 10,
+                    "CP0 Random decrements toward Wired after an instruction");
+    passed &= check(cpu.step(memory, error), "TLBP probes TLBWR-selected entry");
+    passed &= check(cpu.cp0(R4300i::Index) == 11,
+                    "TLBWR writes the entry selected by the pre-decrement Random value");
+
+    memory.words.clear();
+    memory.words[base] = 0; // NOP
+    cpu.reset();
+    cpu.setCp0(R4300i::Wired, 10);
+    cpu.setCp0(R4300i::Random, 10);
+    passed &= check(cpu.step(memory, error), "CPU executes at the Wired boundary");
+    passed &= check(cpu.cp0(R4300i::Random) == 31,
+                    "CP0 Random wraps to 31 when it reaches Wired");
+
     // Virtual-address translation: KSEG0 maps directly and a TLB entry
     // translates a mapped virtual page for LW/SW.
     memory.words.clear();
