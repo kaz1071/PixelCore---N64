@@ -388,6 +388,12 @@ int main()
     check(mirroredTextureT.textureTexel(0, 0, 1) == 0x3333U,
           "T-axis left shift scales coordinates before clamping");
 
+    // Shift value ten is the boundary between right- and left-shift modes.
+    submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (2ULL << 18) | (10ULL << 10));
+    check(mirroredTextureT.textureTexel(0, 0, 1024) == 0x3333U,
+          "T-axis shift ten divides coordinates by 1024");
+
     // Negative T coordinates use floor-based mask periods, not truncation
     // toward zero, when clamping is disabled.
     submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
@@ -563,6 +569,12 @@ int main()
                           (2ULL << 8) | 11ULL);
     check(negativeTextureCoordinates.textureTexel(0, 1, 0) == 0x4444U,
           "S-axis left shift scales coordinates before clamping");
+
+    // Shift value ten is the boundary between right- and left-shift modes.
+    submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                          (2ULL << 8) | 10ULL);
+    check(negativeTextureCoordinates.textureTexel(0, 1024, 0) == 0x2222U,
+          "S-axis shift ten divides coordinates by 1024");
 
     // Bilinear sampling interpolates RGBA channels with 5-bit fractions.
     Rdp bilinearTexture;
