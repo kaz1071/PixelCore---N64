@@ -1399,10 +1399,10 @@ std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::int64_t s, st
         const std::uint32_t bottomLeft = textureRgba(tileIndex, s, t + 1U);
         const std::uint32_t bottomRight = textureRgba(tileIndex, s + 1U, t + 1U);
         const std::uint32_t sum = static_cast<std::uint32_t>(fractionS) + fractionT;
-        const std::uint32_t weights[3] = sum <= 32U
+        const std::array<std::uint32_t, 3> weights = sum <= 32U
             ? std::array<std::uint32_t, 3>{32U - sum, fractionS, fractionT}
             : std::array<std::uint32_t, 3>{sum - 32U, 32U - fractionT, 32U - fractionS};
-        const std::uint32_t samples[3] = sum <= 32U
+        const std::array<std::uint32_t, 3> samples = sum <= 32U
             ? std::array<std::uint32_t, 3>{topLeft, topRight, bottomLeft}
             : std::array<std::uint32_t, 3>{bottomRight, bottomLeft, topRight};
 
