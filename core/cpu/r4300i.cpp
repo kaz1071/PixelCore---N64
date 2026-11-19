@@ -264,6 +264,9 @@ bool R4300i::step(N64Memory &memory, std::string &error)
     pc_ = nextPc_;
     nextPc_ += 4;
     ++cp0Registers_[Count];
+    if (static_cast<std::uint32_t>(cp0Registers_[Count]) ==
+        static_cast<std::uint32_t>(cp0Registers_[Compare]))
+        cp0Registers_[Cause] |= (1ULL << 15); // Timer interrupt pending (IP7).
 
     if (!execute(instruction, instructionAddress, memory, error)) {
         error.clear();
@@ -522,6 +525,8 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         }
         if (rs == 0x04) { // MTC0
             cp0Registers_[rd] = signExtend32(low32(b));
+            if (rd == Compare)
+                cp0Registers_[Cause] &= ~(1ULL << 15); // Writing Compare acknowledges timer.
             return true;
         }
         if (rs == 0x10 && function == 0x18) { // ERET
