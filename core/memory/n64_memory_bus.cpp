@@ -242,6 +242,8 @@ bool N64MemoryBus::write32(std::uint64_t address, std::uint32_t value)
         if (value & 0x00000010U) dpStatus_ &= ~0x00000004U; // clear FLUSH
         if (value & 0x00000020U) dpStatus_ |=  0x00000004U; // set FLUSH
         if (value & 0x00000040U) miInterrupts_ &= ~0x20U; // clear DP interrupt
+        if ((value & 0x00000004U) && !(dpStatus_ & 0x00000002U))
+            processRdpCommands(); // resume a command list paused by FREEZE
         return true;
     }
     if (physical == PiDramAddress) {
@@ -462,6 +464,11 @@ void N64MemoryBus::processPifControl()
 
 void N64MemoryBus::processRdpCommands()
 {
+    // DPC FREEZE pauses command fetch without losing the queued start/end range.
+    // Clearing FREEZE re-enters this routine and resumes at dpCurrent_.
+    if (dpStatus_ & 0x00000002U)
+        return;
+
     // DPC command buffers reside in RDRAM and contain big-endian 64-bit words.
     if (dpCurrent_ > rdram_.size() || dpEnd_ > rdram_.size() ||
         dpEnd_ < dpCurrent_)
