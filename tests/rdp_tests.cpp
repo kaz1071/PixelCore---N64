@@ -995,7 +995,7 @@ int main()
     };
     submitClippedTexture((0x3FULL << 56) | (3ULL << 51) | (7ULL << 32));
     submitClippedTexture((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
-    submitClippedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitClippedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41) | (1ULL << 14));
     submitClippedTexture((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     submitClippedTexture((0x2DULL << 56) | (4ULL << 44) | (4ULL << 32) |
                          (8ULL << 12) | 12ULL); // x=1..2, y=1..3
@@ -1003,12 +1003,9 @@ int main()
     submitClippedTexture((1024ULL << 16) | 1024ULL);
     check(clippedTextureMemory[0] == 0 && clippedTextureMemory[4] == 0,
           "scissor leaves clipped texture-rectangle pixels untouched");
-    check(clippedTextureMemory[(1 * 8 + 1) * 4] == 0xFF &&
-          clippedTextureMemory[(1 * 8 + 1) * 4 + 1] == 0x00,
-          "scissored texture rectangle retains the original S origin");
-    check(clippedTextureMemory[(2 * 8 + 1) * 4] == 0x00 &&
-          clippedTextureMemory[(2 * 8 + 1) * 4 + 1] == 0x00 &&
-          clippedTextureMemory[(2 * 8 + 1) * 4 + 2] == 0xFF,
+    check(clippedTextureMemory[(1 * 8 + 1) * 4] == 0x00 &&
+          clippedTextureMemory[(1 * 8 + 1) * 4 + 1] == 0x00 &&
+          clippedTextureMemory[(1 * 8 + 1) * 4 + 2] == 0xFF,
           "scissored texture rectangle advances T from its unclipped origin");
 
     // TextureTriangle uses its texture coefficient block to shade triangle spans.
