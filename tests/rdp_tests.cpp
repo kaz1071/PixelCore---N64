@@ -1930,6 +1930,20 @@ int main()
           negativeShiftTTexture.textureTexel(0, 0, -3) == 0x22U,
           "negative T right shifts mirror the correct masked periods");
 
+    // Clamp must take precedence over mirroring after negative coordinates
+    // are shifted. With both mode bits set, a negative coordinate clamps to
+    // the first texel instead of reflecting to the end of the mask period.
+    submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
+                        (1ULL << 41) | (3ULL << 8) | (2ULL << 4) | 1ULL);
+    check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x11U,
+          "negative shifted S coordinate clamps before mirror wrapping");
+
+    submitNegativeShiftT((0x35ULL << 56) | (1ULL << 51) |
+                         (1ULL << 41) | (3ULL << 18) |
+                         (2ULL << 14) | (1ULL << 10));
+    check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x11U,
+          "negative shifted T coordinate clamps before mirror wrapping");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\\n";
