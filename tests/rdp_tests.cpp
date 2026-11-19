@@ -1883,6 +1883,11 @@ int main()
     check(negativeShiftTexture.textureTexel(0, -2, 0) == 0x44U &&
           negativeShiftTexture.textureTexel(0, -3, 0) == 0x33U,
           "negative S right shifts preserve exact mask-period boundaries");
+    submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
+                        (1ULL << 41) | (2ULL << 4) | 10ULL);
+    check(negativeShiftTexture.textureTexel(0, -1024, 0) == 0x44U &&
+          negativeShiftTexture.textureTexel(0, -1025, 0) == 0x33U,
+          "negative S shift-ten coordinates floor-divide at exact boundaries");
 
     // Negative T coordinates use floor division before mask wrapping too.
     Rdp negativeShiftTTexture;
@@ -1907,6 +1912,11 @@ int main()
     check(negativeShiftTTexture.textureTexel(0, 0, -2) == 0x44U &&
           negativeShiftTTexture.textureTexel(0, 0, -3) == 0x33U,
           "negative T right shifts preserve exact mask-period boundaries");
+    submitNegativeShiftT((0x35ULL << 56) | (1ULL << 51) |
+                         (1ULL << 41) | (2ULL << 14) | (10ULL << 10));
+    check(negativeShiftTTexture.textureTexel(0, 0, -1024) == 0x44U &&
+          negativeShiftTTexture.textureTexel(0, 0, -1025) == 0x33U,
+          "negative T shift-ten coordinates floor-divide at exact boundaries");
 
     if (failures != 0)
     {
