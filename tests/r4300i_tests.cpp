@@ -100,7 +100,7 @@ int main()
     passed &= check((cpu.cp0(R4300i::Cause) & (1ULL << 15)) != 0,
                     "Count reaching Compare raises the timer pending bit");
     passed &= check(cpu.step(memory, error), "timer interrupt is taken on the next instruction boundary");
-    passed &= check(cpu.pc() == R4300i::BootstrapExceptionVector &&
+    passed &= check(cpu.pc() == R4300i::GeneralExceptionVector &&
                     ((cpu.cp0(R4300i::Cause) >> 2) & 0x1FU) == 0,
                     "enabled timer interrupt enters the general exception vector");
 
