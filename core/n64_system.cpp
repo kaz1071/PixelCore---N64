@@ -11,6 +11,9 @@ void N64System::reset()
     memory_.clearPifRam();
     cpu_.reset();
     rsp_.reset();
+    memory_.setSpProgramCounter(0);
+    memory_.setSpHalted(true);
+    memory_.setSpBroke(false);
     rspClockAccumulator_ = 0;
 }
 
