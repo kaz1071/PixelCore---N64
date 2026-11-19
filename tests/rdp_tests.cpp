@@ -375,6 +375,13 @@ int main()
           mirroredTextureT.textureTexel(0, 0, 3) == 0x3333U,
           "T-axis clamping bounds oversized coordinates to the final row");
 
+    // T right-shift is applied before clamping to the tile's final row.
+    submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (2ULL << 18) | (1ULL << 14) | (1ULL << 10));
+    check(mirroredTextureT.textureTexel(0, 0, 2) == 0x1111U &&
+          mirroredTextureT.textureTexel(0, 0, 4) == 0x3333U,
+          "T-axis right shift scales coordinates before clamping");
+
     // Negative T coordinates use floor-based mask periods, not truncation
     // toward zero, when clamping is disabled.
     submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
@@ -537,6 +544,13 @@ int main()
     check(negativeTextureCoordinates.textureTexel(0, -1, 0) == 0x1111U &&
           negativeTextureCoordinates.textureTexel(0, 4, 0) == 0x4444U,
           "S-axis clamping bounds coordinates before mask or mirror wrapping");
+
+    // Right-shifting S coordinates scales them down before addressing.
+    submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                          (1ULL << 8) | (2ULL << 4) | 1ULL);
+    check(negativeTextureCoordinates.textureTexel(0, 2, 0) == 0x2222U &&
+          negativeTextureCoordinates.textureTexel(0, 4, 0) == 0x3333U,
+          "S-axis right shift divides coordinates before texture addressing");
 
     // Bilinear sampling interpolates RGBA channels with 5-bit fractions.
     Rdp bilinearTexture;
