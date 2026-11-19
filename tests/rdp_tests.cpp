@@ -359,6 +359,27 @@ int main()
           mirroredTextureT.textureTexel(0, 0, 3) == 0x1111U,
           "texture sampling mirrors alternate masked T periods");
 
+    // T clamping takes precedence over a configured mask and bounds both
+    // negative and oversized coordinates to the loaded tile rectangle.
+    submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (2ULL << 18) | (1ULL << 14));
+    check(mirroredTextureT.tile(0).clampT == 1,
+          "SetTile enables T-axis clamping");
+    check(mirroredTextureT.textureTexel(0, 0, -1) == 0x1111U &&
+          mirroredTextureT.textureTexel(0, 0, 0) == 0x1111U,
+          "T-axis clamping bounds negative coordinates to the first row");
+    check(mirroredTextureT.textureTexel(0, 0, 2) == 0x3333U &&
+          mirroredTextureT.textureTexel(0, 0, 3) == 0x3333U,
+          "T-axis clamping bounds oversized coordinates to the final row");
+
+    // Negative T coordinates use floor-based mask periods, not truncation
+    // toward zero, when clamping is disabled.
+    submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (1ULL << 14));
+    check(mirroredTextureT.textureTexel(0, 0, -1) == 0x3333U &&
+          mirroredTextureT.textureTexel(0, 0, -2) == 0x1111U,
+          "negative T coordinates wrap through masked tile periods");
+
     // A tile rectangle that extends beyond the source image must fail
     // without copying even the texels that would have fit.
     Rdp rejectedTileLoad;
