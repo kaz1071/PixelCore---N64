@@ -1888,8 +1888,8 @@ int main()
     Rdp negativeShiftTTexture;
     std::vector<std::uint8_t> negativeShiftTMemory(0x40, 0);
     for (std::size_t row = 0; row < 4; ++row)
-        for (std::size_t byte = 0; byte < 8; ++byte)
-            negativeShiftTMemory[0x10 + row * 8 + byte] =
+        for (std::size_t column = 0; column < 4; ++column)
+            negativeShiftTMemory[0x10 + row * 4 + column] =
                 static_cast<std::uint8_t>((row + 1U) * 0x11U);
     const auto submitNegativeShiftT = [&negativeShiftTTexture,
                                        &negativeShiftTMemory](std::uint64_t word) {
@@ -1902,10 +1902,10 @@ int main()
                          (1ULL << 41) | (2ULL << 14) | (1ULL << 10));
     submitNegativeShiftT((0x34ULL << 56) | (12ULL << 12) | 12ULL);
     submitNegativeShiftT((0x32ULL << 56) | (12ULL << 12) | 12ULL);
-    check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x4444U,
+    check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x44U,
           "negative T coordinate is floor-shifted before mask wrapping");
-    check(negativeShiftTTexture.textureTexel(0, 0, -2) == 0x4444U &&
-          negativeShiftTTexture.textureTexel(0, 0, -3) == 0x3333U,
+    check(negativeShiftTTexture.textureTexel(0, 0, -2) == 0x44U &&
+          negativeShiftTTexture.textureTexel(0, 0, -3) == 0x33U,
           "negative T right shifts preserve exact mask-period boundaries");
 
     if (failures != 0)
