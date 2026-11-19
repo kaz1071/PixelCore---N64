@@ -560,7 +560,7 @@ int main()
 
     // Shifts above ten move S coordinates left before clamp evaluation.
     submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
-                          (2ULL << 8) | (11ULL << 4));
+                          (2ULL << 8) | 11ULL);
     check(negativeTextureCoordinates.textureTexel(0, 1, 0) == 0x4444U,
           "S-axis left shift scales coordinates before clamping");
 
