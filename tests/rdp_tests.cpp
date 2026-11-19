@@ -361,7 +361,7 @@ int main()
 
     // Set the tile's full two-row extent so clamping has the correct
     // final row rather than the default one-texel tile bounds.
-    submitMirroredT((0x32ULL << 56) | (4ULL << 12));
+    submitMirroredT((0x32ULL << 56) | 4ULL);
     // T clamping takes precedence over a configured mask and bounds both
     // negative and oversized coordinates to the loaded tile rectangle.
     submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
