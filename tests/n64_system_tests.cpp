@@ -39,6 +39,27 @@ int main()
     passed &= check(system.cpu().cp0(R4300i::Count) == 2,
                     "CP0 Count advances for executed instructions");
 
+    // A batch run continuously executes the CPU and schedules an active RSP.
+    system.reset();
+    const std::vector<std::uint8_t> loopBootRom = {
+        0x25, 0x4A, 0x00, 0x01, // addiu t2, t2, 1
+        0x0B, 0xF0, 0x00, 0x00, // j 0xBFC00000
+        0x00, 0x00, 0x00, 0x00  // delay-slot nop
+    };
+    system.loadBootRom(loopBootRom);
+    passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002A),
+                    "write scheduled RSP instruction");
+    passed &= check(system.memory().write32(N64MemoryBus::SpImemBase + 4, 0x0000000D),
+                    "write scheduled RSP BREAK instruction");
+    passed &= check(system.memory().write32(N64MemoryBus::SpStatus, 0x01),
+                    "start RSP before running a CPU batch");
+    passed &= check(system.runInstructions(6, error),
+                    "system runs a bounded batch of CPU and RSP instructions");
+    passed &= check(system.cpu().reg(10) == 2,
+                    "CPU batch executes instructions across loop iterations");
+    passed &= check(system.rsp().reg(8) == 42 && system.memory().spHalted(),
+                    "CPU batch schedules the RSP and observes its BREAK halt");
+
     // The system exposes a separately stepped scalar RSP sharing SP IMEM/DMEM.
     passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002A),
                     "write RSP test instruction through system memory bus");
