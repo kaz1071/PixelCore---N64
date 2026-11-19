@@ -1875,12 +1875,13 @@ int main()
     submitNegativeShift((0x3DULL << 56) | (1ULL << 51) |
                         (3ULL << 32) | 0x10ULL);
     submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
-                        (1ULL << 41) | (1ULL << 4) | 1ULL);
+                        (1ULL << 41) | (2ULL << 4) | 1ULL);
     submitNegativeShift((0x34ULL << 56) | (3ULL << 12) | 0ULL);
     check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x44U,
           "negative S coordinate is floor-shifted before mask wrapping");
-    check(negativeShiftTexture.textureTexel(0, -2, 0) == 0x22U,
-          "negative S coordinate preserves exact right-shift boundaries");
+    check(negativeShiftTexture.textureTexel(0, -2, 0) == 0x44U &&
+          negativeShiftTexture.textureTexel(0, -3, 0) == 0x33U,
+          "negative S right shifts preserve exact mask-period boundaries");
 
     if (failures != 0)
     {
