@@ -1863,10 +1863,10 @@ int main()
     // negative infinity before mask wrapping, not truncate toward zero.
     Rdp negativeShiftTexture;
     std::vector<std::uint8_t> negativeShiftMemory(0x40, 0);
-    negativeShiftMemory[0x10] = 0x11;
-    negativeShiftMemory[0x11] = 0x22;
-    negativeShiftMemory[0x12] = 0x33;
-    negativeShiftMemory[0x13] = 0x44;
+    negativeShiftMemory[0x10] = 0x11; negativeShiftMemory[0x11] = 0x11;
+    negativeShiftMemory[0x12] = 0x22; negativeShiftMemory[0x13] = 0x22;
+    negativeShiftMemory[0x14] = 0x33; negativeShiftMemory[0x15] = 0x33;
+    negativeShiftMemory[0x16] = 0x44; negativeShiftMemory[0x17] = 0x44;
     const auto submitNegativeShift = [&negativeShiftTexture,
                                       &negativeShiftMemory](std::uint64_t word) {
         if (negativeShiftTexture.pushCommandWord(word))
@@ -1876,7 +1876,8 @@ int main()
                         (3ULL << 32) | 0x10ULL);
     submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
                         (1ULL << 41) | (2ULL << 4) | 1ULL);
-    submitNegativeShift((0x34ULL << 56) | (3ULL << 12) | 0ULL);
+    submitNegativeShift((0x34ULL << 56) | (12ULL << 12) | 0ULL);
+    submitNegativeShift((0x32ULL << 56) | (12ULL << 12));
     check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x44U,
           "negative S coordinate is floor-shifted before mask wrapping");
     check(negativeShiftTexture.textureTexel(0, -2, 0) == 0x44U &&
