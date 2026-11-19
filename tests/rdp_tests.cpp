@@ -1130,6 +1130,35 @@ int main()
           averagedFlippedMemory[3] == 0xFF,
           "TextureRectangleFlip applies four-texel average filtering");
 
+    // The non-flipped rectangle path must select the same four-texel average.
+    Rdp averagedTextureRectangle;
+    std::vector<std::uint8_t> averagedRectangleMemory(0x200, 0);
+    averagedRectangleMemory[0x20] = 0xFF; averagedRectangleMemory[0x21] = 0x00;
+    averagedRectangleMemory[0x22] = 0x00; averagedRectangleMemory[0x23] = 0xFF;
+    averagedRectangleMemory[0x24] = 0x00; averagedRectangleMemory[0x25] = 0xFF;
+    averagedRectangleMemory[0x26] = 0x00; averagedRectangleMemory[0x27] = 0xFF;
+    averagedRectangleMemory[0x28] = 0x00; averagedRectangleMemory[0x29] = 0x00;
+    averagedRectangleMemory[0x2A] = 0xFF; averagedRectangleMemory[0x2B] = 0xFF;
+    averagedRectangleMemory[0x2C] = 0xFF; averagedRectangleMemory[0x2D] = 0xFF;
+    averagedRectangleMemory[0x2E] = 0xFF; averagedRectangleMemory[0x2F] = 0xFF;
+    const auto submitAveragedRectangle = [&averagedTextureRectangle,
+                                          &averagedRectangleMemory](std::uint64_t word) {
+        if (averagedTextureRectangle.pushCommandWord(word))
+            averagedTextureRectangle.executeLastCommand(averagedRectangleMemory);
+    };
+    submitAveragedRectangle((0x3FULL << 56) | (3ULL << 51));
+    submitAveragedRectangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitAveragedRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitAveragedRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitAveragedRectangle((0x2FULL << 56) | (3ULL << 44));
+    submitAveragedRectangle((0x24ULL << 56) | (4ULL << 12) | 4ULL);
+    submitAveragedRectangle((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
+    check(averagedRectangleMemory[0] == 0x80 &&
+          averagedRectangleMemory[1] == 0x80 &&
+          averagedRectangleMemory[2] == 0x80 &&
+          averagedRectangleMemory[3] == 0xFF,
+          "TextureRectangle applies four-texel average filtering");
+
     // Clipping a texture rectangle must preserve its original S/T origin.
     Rdp clippedTextureRectangle;
     std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
