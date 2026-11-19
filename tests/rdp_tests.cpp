@@ -123,9 +123,9 @@ int main()
     submitFiltered((0x2FULL << 56) | (1ULL << 44));
     check(filteredTexture.textureFilterMode() == 1U,
           "SetOtherModes selects three-point texture filtering");
-    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 8, 8) == 0x404000FFU,
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 8, 8) == 0x400040FFU,
           "three-point filtering interpolates the upper texture triangle");
-    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 24, 24) == 0x808000FFU,
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 24, 24) == 0x408040FFU,
           "three-point filtering interpolates the lower texture triangle");
     check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x800080FFU,
           "three-point filtering handles samples on the diagonal");
@@ -1007,7 +1007,7 @@ int main()
     submitRectangleFiltered((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitRectangleFiltered((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     submitRectangleFiltered((0x2FULL << 56) | (2ULL << 44)); // Bilinear texture filtering.
-    submitRectangleFiltered((0x24ULL << 56) | 4ULL); // One pixel at (0, 0).
+    submitRectangleFiltered((0x24ULL << 56) | (4ULL << 12) | 4ULL); // One pixel at (0, 0).
     submitRectangleFiltered((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
     check(rectangleFilteredMemory[0] == 0x80 && rectangleFilteredMemory[1] == 0x80 &&
           rectangleFilteredMemory[2] == 0x80 && rectangleFilteredMemory[3] == 0xFF,
