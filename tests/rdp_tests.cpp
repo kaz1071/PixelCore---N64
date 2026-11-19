@@ -335,6 +335,30 @@ int main()
     check(textureLoad.tmemByte(7) == 0 && textureLoad.tmemByte(24) == 0,
           "LoadTile leaves bytes outside the requested tile rows untouched");
 
+    // T-axis wrapping and mirroring must use the loaded tile height.
+    Rdp mirroredTextureT;
+    std::vector<std::uint8_t> mirroredTextureTMemory(0x40, 0);
+    mirroredTextureTMemory[0x10] = 0x11; mirroredTextureTMemory[0x11] = 0x11;
+    mirroredTextureTMemory[0x12] = 0x22; mirroredTextureTMemory[0x13] = 0x22;
+    mirroredTextureTMemory[0x14] = 0x33; mirroredTextureTMemory[0x15] = 0x33;
+    mirroredTextureTMemory[0x16] = 0x44; mirroredTextureTMemory[0x17] = 0x44;
+    const auto submitMirroredT = [&mirroredTextureT, &mirroredTextureTMemory](std::uint64_t word) {
+        if (mirroredTextureT.pushCommandWord(word))
+            mirroredTextureT.executeLastCommand(mirroredTextureTMemory);
+    };
+    submitMirroredT((0x3DULL << 56) | (2ULL << 51) | (1ULL << 32) | 0x10ULL);
+    submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                    (1ULL << 14) | (1ULL << 18));
+    submitMirroredT((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    check(mirroredTextureT.tile(0).loaded,
+          "T-axis mirror fixture loads a two-row texture");
+    check(mirroredTextureT.textureTexel(0, 0, 0) == 0x1111U &&
+          mirroredTextureT.textureTexel(0, 0, 1) == 0x3333U,
+          "texture sampling reads both rows before T-axis wrapping");
+    check(mirroredTextureT.textureTexel(0, 0, 2) == 0x3333U &&
+          mirroredTextureT.textureTexel(0, 0, 3) == 0x1111U,
+          "texture sampling mirrors alternate masked T periods");
+
     // A tile rectangle that extends beyond the source image must fail
     // without copying even the texels that would have fit.
     Rdp rejectedTileLoad;
