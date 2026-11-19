@@ -1013,6 +1013,35 @@ int main()
           rectangleFilteredMemory[2] == 0x80 && rectangleFilteredMemory[3] == 0xFF,
           "TextureRectangle bilinearly filters fractional S/T coordinates");
 
+    // The three-point filter must also be used by the rectangle rasterizer.
+    Rdp threePointTextureRectangle;
+    std::vector<std::uint8_t> threePointRectangleMemory(0x200, 0);
+    threePointRectangleMemory[0x20] = 0xFF; threePointRectangleMemory[0x21] = 0x00;
+    threePointRectangleMemory[0x22] = 0x00; threePointRectangleMemory[0x23] = 0xFF;
+    threePointRectangleMemory[0x24] = 0x00; threePointRectangleMemory[0x25] = 0xFF;
+    threePointRectangleMemory[0x26] = 0x00; threePointRectangleMemory[0x27] = 0xFF;
+    threePointRectangleMemory[0x28] = 0x00; threePointRectangleMemory[0x29] = 0x00;
+    threePointRectangleMemory[0x2A] = 0xFF; threePointRectangleMemory[0x2B] = 0xFF;
+    threePointRectangleMemory[0x2C] = 0xFF; threePointRectangleMemory[0x2D] = 0xFF;
+    threePointRectangleMemory[0x2E] = 0xFF; threePointRectangleMemory[0x2F] = 0xFF;
+    const auto submitThreePointRectangle = [&threePointTextureRectangle,
+                                             &threePointRectangleMemory](std::uint64_t word) {
+        if (threePointTextureRectangle.pushCommandWord(word))
+            threePointTextureRectangle.executeLastCommand(threePointRectangleMemory);
+    };
+    submitThreePointRectangle((0x3FULL << 56) | (3ULL << 51));
+    submitThreePointRectangle((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitThreePointRectangle((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitThreePointRectangle((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitThreePointRectangle((0x2FULL << 56) | (1ULL << 44));
+    submitThreePointRectangle((0x24ULL << 56) | (4ULL << 12) | 4ULL);
+    submitThreePointRectangle((8ULL << 48) | (8ULL << 32) | (512ULL << 16) | 512ULL);
+    check(threePointRectangleMemory[0] == 0x80 &&
+          threePointRectangleMemory[1] == 0x40 &&
+          threePointRectangleMemory[2] == 0x40 &&
+          threePointRectangleMemory[3] == 0xFF,
+          "TextureRectangle applies three-point filtering to fractional S/T coordinates");
+
     // Clipping a texture rectangle must preserve its original S/T origin.
     Rdp clippedTextureRectangle;
     std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
