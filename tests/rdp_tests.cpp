@@ -1859,9 +1859,32 @@ int main()
     check(resetMemory[(2 * 8 + 2) * 4] == 0xAB,
           "RDP reset restores the default full-width scissor rectangle");
 
+    // Right shifts of negative texture coordinates must round toward
+    // negative infinity before mask wrapping, not truncate toward zero.
+    Rdp negativeShiftTexture;
+    std::vector<std::uint8_t> negativeShiftMemory(0x40, 0);
+    negativeShiftMemory[0x10] = 0x11;
+    negativeShiftMemory[0x11] = 0x22;
+    negativeShiftMemory[0x12] = 0x33;
+    negativeShiftMemory[0x13] = 0x44;
+    const auto submitNegativeShift = [&negativeShiftTexture,
+                                      &negativeShiftMemory](std::uint64_t word) {
+        if (negativeShiftTexture.pushCommandWord(word))
+            negativeShiftTexture.executeLastCommand(negativeShiftMemory);
+    };
+    submitNegativeShift((0x3DULL << 56) | (1ULL << 51) |
+                        (3ULL << 32) | 0x10ULL);
+    submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
+                        (1ULL << 41) | (1ULL << 4) | 1ULL);
+    submitNegativeShift((0x34ULL << 56) | (3ULL << 12) | 0ULL);
+    check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x44U,
+          "negative S coordinate is floor-shifted before mask wrapping");
+    check(negativeShiftTexture.textureTexel(0, -2, 0) == 0x22U,
+          "negative S coordinate preserves exact right-shift boundaries");
+
     if (failures != 0)
     {
-        std::cerr << failures << " RDP test(s) failed\n";
+        std::cerr << failures << " RDP test(s) failed\\n";
         return EXIT_FAILURE;
     }
 
