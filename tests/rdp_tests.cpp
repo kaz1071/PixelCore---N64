@@ -1048,6 +1048,34 @@ int main()
           textureRectangle16Memory[1] == 0x21,
           "TextureRectangle packs bilinear RGBA output into a 16-bit color image");
 
+    Rdp flippedTextureRectangle16;
+    std::vector<std::uint8_t> flippedTextureRectangle16Memory(0x200, 0);
+    flippedTextureRectangle16Memory[0x20] = 0xFF; flippedTextureRectangle16Memory[0x21] = 0x00;
+    flippedTextureRectangle16Memory[0x22] = 0x00; flippedTextureRectangle16Memory[0x23] = 0xFF;
+    flippedTextureRectangle16Memory[0x24] = 0x00; flippedTextureRectangle16Memory[0x25] = 0xFF;
+    flippedTextureRectangle16Memory[0x26] = 0x00; flippedTextureRectangle16Memory[0x27] = 0xFF;
+    flippedTextureRectangle16Memory[0x28] = 0x00; flippedTextureRectangle16Memory[0x29] = 0x00;
+    flippedTextureRectangle16Memory[0x2A] = 0xFF; flippedTextureRectangle16Memory[0x2B] = 0xFF;
+    flippedTextureRectangle16Memory[0x2C] = 0xFF; flippedTextureRectangle16Memory[0x2D] = 0xFF;
+    flippedTextureRectangle16Memory[0x2E] = 0xFF; flippedTextureRectangle16Memory[0x2F] = 0xFF;
+    const auto submitFlippedTextureRectangle16 = [&flippedTextureRectangle16,
+        &flippedTextureRectangle16Memory](std::uint64_t word) {
+        if (flippedTextureRectangle16.pushCommandWord(word))
+            flippedTextureRectangle16.executeLastCommand(flippedTextureRectangle16Memory);
+    };
+    submitFlippedTextureRectangle16((0x3FULL << 56) | (2ULL << 51) | (3ULL << 32));
+    submitFlippedTextureRectangle16((0x3DULL << 56) | (3ULL << 51) |
+                                    (1ULL << 32) | 0x20ULL);
+    submitFlippedTextureRectangle16((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitFlippedTextureRectangle16((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFlippedTextureRectangle16((0x2FULL << 56) | (2ULL << 44));
+    submitFlippedTextureRectangle16((0x25ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFlippedTextureRectangle16((16ULL << 48) | (16ULL << 32) |
+                                    (512ULL << 16) | 512ULL);
+    check(flippedTextureRectangle16Memory[0] == 0x84 &&
+          flippedTextureRectangle16Memory[1] == 0x21,
+          "TextureRectangleFlip packs bilinear RGBA output into a 16-bit color image");
+
     // The three-point filter must also be used by the rectangle rasterizer.
     Rdp threePointTextureRectangle;
     std::vector<std::uint8_t> threePointRectangleMemory(0x200, 0);
