@@ -998,8 +998,8 @@ int main()
     submitClippedTexture((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
     submitClippedTexture((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     submitClippedTexture((0x2DULL << 56) | (4ULL << 44) | (4ULL << 32) |
-                         (8ULL << 12) | 8ULL); // x=1..2, y=1..2
-    submitClippedTexture((0x24ULL << 56) | (8ULL << 12) | 8ULL);
+                         (8ULL << 12) | 12ULL); // x=1..2, y=1..3
+    submitClippedTexture((0x24ULL << 56) | (8ULL << 12) | 12ULL);
     submitClippedTexture((1024ULL << 16) | 1024ULL);
     check(clippedTextureMemory[0] == 0 && clippedTextureMemory[4] == 0,
           "scissor leaves clipped texture-rectangle pixels untouched");
