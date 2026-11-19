@@ -1944,6 +1944,21 @@ int main()
     check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x11U,
           "negative shifted T coordinate clamps before mirror wrapping");
 
+    // Left shifts (shift values 11-15) scale signed coordinates before
+    // mask-period wrapping. A shift of 11 turns -1 into exactly -32;
+    // with a five-bit mask that lands on texel zero.
+    submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
+                        (1ULL << 41) | (5ULL << 4) | 11ULL);
+    check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x11U &&
+          negativeShiftTexture.textureTexel(0, -2, 0) == 0x11U,
+          "negative S left shifts scale before mask-period wrapping");
+
+    submitNegativeShiftT((0x35ULL << 56) | (1ULL << 51) |
+                         (1ULL << 41) | (5ULL << 14) | (11ULL << 10));
+    check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x11U &&
+          negativeShiftTTexture.textureTexel(0, 0, -2) == 0x11U,
+          "negative T left shifts scale before mask-period wrapping");
+
     if (failures != 0)
     {
         std::cerr << failures << " RDP test(s) failed\\n";
