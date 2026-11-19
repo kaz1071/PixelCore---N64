@@ -164,6 +164,30 @@ bool subOverflows64(std::uint64_t a, std::uint64_t b, std::uint64_t result)
 {
     return (((a ^ b) & (a ^ result)) >> 63) != 0;
 }
+
+struct UInt128Product {
+    std::uint64_t high;
+    std::uint64_t low;
+};
+
+UInt128Product multiplyUnsigned64(std::uint64_t a, std::uint64_t b)
+{
+    const std::uint64_t aLow = static_cast<std::uint32_t>(a);
+    const std::uint64_t aHigh = a >> 32;
+    const std::uint64_t bLow = static_cast<std::uint32_t>(b);
+    const std::uint64_t bHigh = b >> 32;
+
+    const std::uint64_t lowProduct = aLow * bLow;
+    const std::uint64_t middleOne = aHigh * bLow + (lowProduct >> 32);
+    const std::uint64_t middleLow = static_cast<std::uint32_t>(middleOne);
+    const std::uint64_t middleHigh = middleOne >> 32;
+    const std::uint64_t middleTwo = aLow * bHigh + middleLow;
+
+    return {
+        aHigh * bHigh + middleHigh + (middleTwo >> 32),
+        (middleTwo << 32) | static_cast<std::uint32_t>(lowProduct)
+    };
+}
 }
 
 void R4300i::reset()
@@ -280,6 +304,7 @@ bool R4300i::step(N64Memory &memory, std::string &error)
 bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress,
                      N64Memory &memory, std::string &error)
 {
+    (void)error; // Execution failures are currently reported through CPU exceptions.
     const unsigned int opcode = instruction >> 26;
     const unsigned int rs = (instruction >> 21) & 0x1F;
     const unsigned int rt = (instruction >> 16) & 0x1F;
@@ -349,18 +374,19 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         }
 
         case 0x1C: { // DMULT (signed 64-bit multiply)
-            const __int128 product = static_cast<__int128>(static_cast<std::int64_t>(a)) *
-                                     static_cast<__int128>(static_cast<std::int64_t>(b));
-            const unsigned __int128 bits = static_cast<unsigned __int128>(product);
-            lo_ = static_cast<std::uint64_t>(bits);
-            hi_ = static_cast<std::uint64_t>(bits >> 64);
+            UInt128Product product = multiplyUnsigned64(a, b);
+            if (static_cast<std::int64_t>(a) < 0)
+                product.high -= b;
+            if (static_cast<std::int64_t>(b) < 0)
+                product.high -= a;
+            lo_ = product.low;
+            hi_ = product.high;
             break;
         }
         case 0x1D: { // DMULTU (unsigned 64-bit multiply)
-            const unsigned __int128 product = static_cast<unsigned __int128>(a) *
-                                              static_cast<unsigned __int128>(b);
-            lo_ = static_cast<std::uint64_t>(product);
-            hi_ = static_cast<std::uint64_t>(product >> 64);
+            const UInt128Product product = multiplyUnsigned64(a, b);
+            lo_ = product.low;
+            hi_ = product.high;
             break;
         }
         case 0x1E: { // DDIV (signed 64-bit divide)
