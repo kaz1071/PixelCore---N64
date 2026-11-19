@@ -556,6 +556,10 @@ bool R4300i::execute(std::uint32_t instruction, std::uint64_t instructionAddress
         }
         if (rs == 0x04) { // MTC0
             cp0Registers_[rd] = signExtend32(low32(b));
+            if (rd == Wired) {
+                cp0Registers_[Wired] &= 0x1FULL;
+                cp0Registers_[Random] = 31;
+            }
             if (rd == Compare)
                 cp0Registers_[Cause] &= ~(1ULL << 15); // Writing Compare acknowledges timer.
             return true;
