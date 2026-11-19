@@ -120,6 +120,15 @@ int main()
     submitFiltered((0x34ULL << 56) | (4ULL << 12) | 4ULL);
     check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x000000FFU,
           "point texture filtering selects the integer-coordinate texel");
+    submitFiltered((0x2FULL << 56) | (1ULL << 44));
+    check(filteredTexture.textureFilterMode() == 1U,
+          "SetOtherModes selects three-point texture filtering");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 8, 8) == 0x404000FFU,
+          "three-point filtering interpolates the upper texture triangle");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 24, 24) == 0x808000FFU,
+          "three-point filtering interpolates the lower texture triangle");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x800080FFU,
+          "three-point filtering handles samples on the diagonal");
     submitFiltered((0x2FULL << 56) | (2ULL << 44));
     check(filteredTexture.textureFilterMode() == 2U,
           "SetOtherModes selects bilinear texture filtering");
