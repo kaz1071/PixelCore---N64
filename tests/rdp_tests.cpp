@@ -134,6 +134,12 @@ int main()
           "SetOtherModes selects bilinear texture filtering");
     check(filteredTexture.textureRgbaFiltered(0, 0, 0, 16, 16) == 0x404040FFU,
           "bilinear OtherModes filtering interpolates four neighboring texels");
+    check(filteredTexture.textureRgbaBilinear(0, 0, 0, 32, 0) == 0,
+          "bilinear texture sampling rejects out-of-range fractional S coordinates");
+    check(filteredTexture.textureRgbaFiltered(0, 0, 0, 0, 32) == 0,
+          "filtered texture sampling rejects out-of-range fractional T coordinates");
+    check(filteredTexture.textureRgbaFiltered(8, 0, 0, 16, 16) == 0,
+          "filtered texture sampling safely rejects an invalid tile index");
     submitFiltered((0x2FULL << 56) | (3ULL << 44));
     check(filteredTexture.textureFilterMode() == 3U,
           "SetOtherModes selects average texture filtering");
