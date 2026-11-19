@@ -60,6 +60,9 @@ int main()
     passed &= check(system.rsp().reg(8) == 42 && system.memory().spHalted(),
                     "CPU batch schedules the RSP and observes its BREAK halt");
 
+    // Reset before the isolated RSP tests so the scheduled-run state does not leak.
+    system.reset();
+
     // The system exposes a separately stepped scalar RSP sharing SP IMEM/DMEM.
     passed &= check(system.memory().write32(N64MemoryBus::SpImemBase, 0x2408002A),
                     "write RSP test instruction through system memory bus");
