@@ -1042,6 +1042,36 @@ int main()
           threePointRectangleMemory[3] == 0xFF,
           "TextureRectangle applies three-point filtering to fractional S/T coordinates");
 
+    // TextureRectangleFlip must apply the same selected filter while swapping
+    // the S/T derivative axes.
+    Rdp flippedFilteredRectangle;
+    std::vector<std::uint8_t> flippedFilteredMemory(0x200, 0);
+    flippedFilteredMemory[0x20] = 0xFF; flippedFilteredMemory[0x21] = 0x00;
+    flippedFilteredMemory[0x22] = 0x00; flippedFilteredMemory[0x23] = 0xFF;
+    flippedFilteredMemory[0x24] = 0x00; flippedFilteredMemory[0x25] = 0xFF;
+    flippedFilteredMemory[0x26] = 0x00; flippedFilteredMemory[0x27] = 0xFF;
+    flippedFilteredMemory[0x28] = 0x00; flippedFilteredMemory[0x29] = 0x00;
+    flippedFilteredMemory[0x2A] = 0xFF; flippedFilteredMemory[0x2B] = 0xFF;
+    flippedFilteredMemory[0x2C] = 0xFF; flippedFilteredMemory[0x2D] = 0xFF;
+    flippedFilteredMemory[0x2E] = 0xFF; flippedFilteredMemory[0x2F] = 0xFF;
+    const auto submitFlippedFiltered = [&flippedFilteredRectangle,
+                                        &flippedFilteredMemory](std::uint64_t word) {
+        if (flippedFilteredRectangle.pushCommandWord(word))
+            flippedFilteredRectangle.executeLastCommand(flippedFilteredMemory);
+    };
+    submitFlippedFiltered((0x3FULL << 56) | (3ULL << 51));
+    submitFlippedFiltered((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitFlippedFiltered((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitFlippedFiltered((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFlippedFiltered((0x2FULL << 56) | (2ULL << 44));
+    submitFlippedFiltered((0x25ULL << 56) | (4ULL << 12) | (4ULL << 0));
+    submitFlippedFiltered((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
+    check(flippedFilteredMemory[0] == 0x80 &&
+          flippedFilteredMemory[1] == 0x80 &&
+          flippedFilteredMemory[2] == 0x80 &&
+          flippedFilteredMemory[3] == 0xFF,
+          "TextureRectangleFlip bilinearly filters fractional S/T coordinates");
+
     // Clipping a texture rectangle must preserve its original S/T origin.
     Rdp clippedTextureRectangle;
     std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
