@@ -11,6 +11,7 @@ void N64System::reset()
     memory_.clearPifRam();
     cpu_.reset();
     rsp_.reset();
+    rspClockAccumulator_ = 0;
 }
 
 bool N64System::step(std::string &error)
@@ -19,6 +20,24 @@ bool N64System::step(std::string &error)
     if (result)
         memory_.advanceViCycles(1);
     return result;
+}
+
+bool N64System::runInstructions(std::uint32_t cpuInstructionCount, std::string &error)
+{
+    // The R4300i runs at 93.75 MHz and the RSP at 62.5 MHz. This accumulator
+    // schedules two RSP instructions for every three CPU instruction steps.
+    for (std::uint32_t i = 0; i < cpuInstructionCount; ++i) {
+        if (!step(error))
+            return false;
+
+        rspClockAccumulator_ = static_cast<std::uint8_t>(rspClockAccumulator_ + 2);
+        if (rspClockAccumulator_ >= 3) {
+            rspClockAccumulator_ = static_cast<std::uint8_t>(rspClockAccumulator_ - 3);
+            if (!memory_.spHalted() && !stepRsp(error))
+                return false;
+        }
+    }
+    return true;
 }
 
 void N64System::advanceCpuCycles(std::uint32_t cycles)
