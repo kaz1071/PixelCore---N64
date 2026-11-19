@@ -1072,6 +1072,35 @@ int main()
           flippedFilteredMemory[3] == 0xFF,
           "TextureRectangleFlip bilinearly filters fractional S/T coordinates");
 
+    // Flipped rectangles must also honor the three-point filter mode.
+    Rdp threePointFlippedRectangle;
+    std::vector<std::uint8_t> threePointFlippedMemory(0x200, 0);
+    threePointFlippedMemory[0x20] = 0xFF; threePointFlippedMemory[0x21] = 0x00;
+    threePointFlippedMemory[0x22] = 0x00; threePointFlippedMemory[0x23] = 0xFF;
+    threePointFlippedMemory[0x24] = 0x00; threePointFlippedMemory[0x25] = 0xFF;
+    threePointFlippedMemory[0x26] = 0x00; threePointFlippedMemory[0x27] = 0xFF;
+    threePointFlippedMemory[0x28] = 0x00; threePointFlippedMemory[0x29] = 0x00;
+    threePointFlippedMemory[0x2A] = 0xFF; threePointFlippedMemory[0x2B] = 0xFF;
+    threePointFlippedMemory[0x2C] = 0xFF; threePointFlippedMemory[0x2D] = 0xFF;
+    threePointFlippedMemory[0x2E] = 0xFF; threePointFlippedMemory[0x2F] = 0xFF;
+    const auto submitThreePointFlipped = [&threePointFlippedRectangle,
+                                          &threePointFlippedMemory](std::uint64_t word) {
+        if (threePointFlippedRectangle.pushCommandWord(word))
+            threePointFlippedRectangle.executeLastCommand(threePointFlippedMemory);
+    };
+    submitThreePointFlipped((0x3FULL << 56) | (3ULL << 51));
+    submitThreePointFlipped((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitThreePointFlipped((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitThreePointFlipped((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitThreePointFlipped((0x2FULL << 56) | (1ULL << 44));
+    submitThreePointFlipped((0x25ULL << 56) | (4ULL << 12) | 4ULL);
+    submitThreePointFlipped((8ULL << 48) | (8ULL << 32) | (512ULL << 16) | 512ULL);
+    check(threePointFlippedMemory[0] == 0x80 &&
+          threePointFlippedMemory[1] == 0x40 &&
+          threePointFlippedMemory[2] == 0x40 &&
+          threePointFlippedMemory[3] == 0xFF,
+          "TextureRectangleFlip applies three-point filtering to fractional S/T coordinates");
+
     // The four-texel average mode is also honored by flipped rectangles.
     Rdp averagedFlippedRectangle;
     std::vector<std::uint8_t> averagedFlippedMemory(0x200, 0);
