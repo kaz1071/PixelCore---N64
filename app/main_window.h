@@ -26,6 +26,8 @@ protected:
 
 private:
     void openRom();
+    void openIplRom();
+    void runEmulationFrame();
     void updateControllerInput();
     void updateRomDisplay();
     void updateFramebuffer();
@@ -39,4 +41,6 @@ private:
     qint64 loadedRomSize_ = 0;
     N64System system_;
     QSet<int> pressedKeys_;
+    bool emulationRunning_ = false;
+    bool executionFailed_ = false;
 };
