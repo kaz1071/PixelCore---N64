@@ -3,6 +3,7 @@
 #include "core/rom/rom_file.h"
 
 #include <QAction>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImage>
@@ -84,6 +85,8 @@ MainWindow::MainWindow(QWidget *parent)
     auto *openAction = fileMenu->addAction("&Open ROM...");
     openAction->setShortcut(QKeySequence::Open);
     connect(openAction, &QAction::triggered, this, &MainWindow::openRom);
+    auto *openIplAction = fileMenu->addAction("Open &IPL ROM...");
+    connect(openIplAction, &QAction::triggered, this, &MainWindow::openIplRom);
 
     fileMenu->addSeparator();
     auto *quitAction = fileMenu->addAction("&Quit");
@@ -143,7 +146,7 @@ MainWindow::MainWindow(QWidget *parent)
     framebufferView_->setFocus();
     frameTimer_ = new QTimer(this);
     frameTimer_->setTimerType(Qt::PreciseTimer);
-    connect(frameTimer_, &QTimer::timeout, this, &MainWindow::updateFramebuffer);
+    connect(frameTimer_, &QTimer::timeout, this, &MainWindow::runEmulationFrame);
     frameTimer_->start(16);
     statusLabel_ = new QLabel("Ready — no ROM loaded", this);
     statusBar()->addWidget(statusLabel_, 1);
@@ -278,8 +281,51 @@ void MainWindow::openRom()
 
     system_.loadCartridge(rom.image());
     system_.reset();
+    executionFailed_ = false;
+    emulationRunning_ = system_.memory().bootRomSize() != 0;
 
     updateRomDisplay();
+}
+
+void MainWindow::openIplRom()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        "Open Nintendo 64 IPL ROM",
+        QString(),
+        "IPL ROM images (*.bin *.rom *.ipl);;All files (*)"
+    );
+    if (path.isEmpty())
+        return;
+
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "Could not load IPL ROM", file.errorString());
+        return;
+    }
+
+    const QByteArray bytes = file.readAll();
+    if (bytes.isEmpty()) {
+        QMessageBox::warning(this, "Could not load IPL ROM", "The selected IPL ROM is empty.");
+        return;
+    }
+
+    std::vector<std::uint8_t> image;
+    image.reserve(static_cast<std::size_t>(bytes.size()));
+    for (char byte : bytes)
+        image.push_back(static_cast<std::uint8_t>(static_cast<unsigned char>(byte)));
+
+    system_.loadBootRom(image);
+    executionFailed_ = false;
+    if (!loadedRomPath_.isEmpty()) {
+        system_.reset();
+        emulationRunning_ = true;
+        framebufferView_->setMessage("IPL ROM loaded\\n\\nStarting the emulated N64 boot process...");
+        statusLabel_->setText("IPL loaded — starting emulation");
+    } else {
+        emulationRunning_ = false;
+        statusLabel_->setText("IPL ROM loaded — now open a game ROM");
+    }
 }
 
 void MainWindow::updateRomDisplay()
@@ -289,15 +335,40 @@ void MainWindow::updateRomDisplay()
 
     framebufferView_->setMessage(
         QString("ROM loaded\n\n%1\n%2\n%3\n%4 MiB\n\n"
-                "Waiting for the emulated VI to produce a framebuffer.")
+                "%5")
             .arg(fileInfo.fileName())
             .arg(loadedRomTitle_.isEmpty() ? "Title: (not set in ROM header)" :
                                            "Title: " + loadedRomTitle_)
             .arg("Byte order: " + loadedRomFormat_)
             .arg(QString::number(sizeMiB, 'f', 2))
+            .arg(emulationRunning_ ? "Running the IPL boot process..." :
+                                     "Open File → Open IPL ROM to provide boot firmware and start execution.")
     );
 
-    statusLabel_->setText("ROM loaded — waiting for VI video output");
+    statusLabel_->setText(emulationRunning_ ? "ROM loaded — emulation running" :
+                                              "ROM loaded — waiting for an IPL ROM");
+}
+
+void MainWindow::runEmulationFrame()
+{
+    if (emulationRunning_) {
+        std::string error;
+        // Keep each GUI tick bounded so a difficult instruction sequence cannot
+        // monopolize the desktop event loop.
+        if (!system_.runInstructions(50000, error)) {
+            emulationRunning_ = false;
+            executionFailed_ = true;
+            const QString message = error.empty()
+                ? "CPU or RSP execution stopped unexpectedly."
+                : QString::fromStdString(error);
+            framebufferView_->setMessage("Emulation stopped\\n\\n" + message);
+            statusLabel_->setText("Emulation stopped: " + message);
+            return;
+        }
+    }
+
+    if (!executionFailed_)
+        updateFramebuffer();
 }
 
 void MainWindow::updateFramebuffer()
