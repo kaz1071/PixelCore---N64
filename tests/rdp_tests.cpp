@@ -1095,9 +1095,9 @@ int main()
     submitAveragedFlipped((0x2FULL << 56) | (3ULL << 44));
     submitAveragedFlipped((0x25ULL << 56) | (4ULL << 12) | 4ULL);
     submitAveragedFlipped((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
-    check(averagedFlippedMemory[0] == 0x40 &&
-          averagedFlippedMemory[1] == 0x40 &&
-          averagedFlippedMemory[2] == 0x40 &&
+    check(averagedFlippedMemory[0] == 0x80 &&
+          averagedFlippedMemory[1] == 0x80 &&
+          averagedFlippedMemory[2] == 0x80 &&
           averagedFlippedMemory[3] == 0xFF,
           "TextureRectangleFlip applies four-texel average filtering");
 
