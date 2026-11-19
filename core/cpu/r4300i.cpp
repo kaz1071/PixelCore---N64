@@ -297,6 +297,11 @@ bool R4300i::step(N64Memory &memory, std::string &error)
         return false;
     }
 
+    // Random cycles through [31:Wired], wrapping to 31 at the Wired floor.
+    const std::uint64_t wired = cp0Registers_[Wired] & 0x1FULL;
+    const std::uint64_t random = cp0Registers_[Random] & 0x1FULL;
+    cp0Registers_[Random] = (random <= wired || random > 31) ? 31 : random - 1;
+
     registers_[0] = 0;
     return true;
 }
