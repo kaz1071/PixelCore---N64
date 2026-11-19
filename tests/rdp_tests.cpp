@@ -1072,6 +1072,35 @@ int main()
           flippedFilteredMemory[3] == 0xFF,
           "TextureRectangleFlip bilinearly filters fractional S/T coordinates");
 
+    // The four-texel average mode is also honored by flipped rectangles.
+    Rdp averagedFlippedRectangle;
+    std::vector<std::uint8_t> averagedFlippedMemory(0x200, 0);
+    averagedFlippedMemory[0x20] = 0xFF; averagedFlippedMemory[0x21] = 0x00;
+    averagedFlippedMemory[0x22] = 0x00; averagedFlippedMemory[0x23] = 0xFF;
+    averagedFlippedMemory[0x24] = 0x00; averagedFlippedMemory[0x25] = 0xFF;
+    averagedFlippedMemory[0x26] = 0x00; averagedFlippedMemory[0x27] = 0xFF;
+    averagedFlippedMemory[0x28] = 0x00; averagedFlippedMemory[0x29] = 0x00;
+    averagedFlippedMemory[0x2A] = 0xFF; averagedFlippedMemory[0x2B] = 0xFF;
+    averagedFlippedMemory[0x2C] = 0xFF; averagedFlippedMemory[0x2D] = 0xFF;
+    averagedFlippedMemory[0x2E] = 0xFF; averagedFlippedMemory[0x2F] = 0xFF;
+    const auto submitAveragedFlipped = [&averagedFlippedRectangle,
+                                        &averagedFlippedMemory](std::uint64_t word) {
+        if (averagedFlippedRectangle.pushCommandWord(word))
+            averagedFlippedRectangle.executeLastCommand(averagedFlippedMemory);
+    };
+    submitAveragedFlipped((0x3FULL << 56) | (3ULL << 51));
+    submitAveragedFlipped((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitAveragedFlipped((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitAveragedFlipped((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitAveragedFlipped((0x2FULL << 56) | (3ULL << 44));
+    submitAveragedFlipped((0x25ULL << 56) | (4ULL << 12) | 4ULL);
+    submitAveragedFlipped((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
+    check(averagedFlippedMemory[0] == 0x40 &&
+          averagedFlippedMemory[1] == 0x40 &&
+          averagedFlippedMemory[2] == 0x40 &&
+          averagedFlippedMemory[3] == 0xFF,
+          "TextureRectangleFlip applies four-texel average filtering");
+
     // Clipping a texture rectangle must preserve its original S/T origin.
     Rdp clippedTextureRectangle;
     std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
