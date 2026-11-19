@@ -16,6 +16,9 @@ public:
 
     void reset();
     bool step(std::string &error);
+    // Run a bounded batch of CPU instructions and schedule the RSP at its
+    // approximate 2:3 clock ratio. Returns false if CPU or RSP execution fails.
+    bool runInstructions(std::uint32_t cpuInstructionCount, std::string &error);
     void advanceCpuCycles(std::uint32_t cycles);
     bool stepRsp(std::string &error);
 
@@ -33,4 +36,5 @@ private:
     N64MemoryBus memory_;
     R4300i cpu_;
     Rsp rsp_;
+    std::uint8_t rspClockAccumulator_ = 0;
 };
