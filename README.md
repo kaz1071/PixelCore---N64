@@ -26,7 +26,8 @@ It is part of the **PixelCore** family of emulators, alongside PixelCore - NES.
 - [x] Normalize ROM byte order for the emulation core
 - [x] Initial MIPS R4300i CPU core and starter instruction set
 - [x] CPU arithmetic, shifts, HI/LO operations, and multiply/divide
-- [x] Initial COP0 access, ERET, and basic exception handling
+- [x] Initial COP0 access, ERET, exception handling, and Count/Compare timer interrupts
+- [x] Initial CP0 Random/Wired cycling and TLBWR replacement selection
 - [x] Byte, halfword, word, doubleword, and unaligned merge memory instructions
 - [x] Initial LL/SC load-linked and store-conditional support
 - [x] Initial 8 MiB RDRAM, read-only cartridge/boot ROM, 64-byte PIF RAM, and 4 KiB SP DMEM/IMEM mappings
