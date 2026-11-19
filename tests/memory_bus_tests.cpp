@@ -429,6 +429,32 @@ int main()
     passed &= check(dpBus.read32(N64MemoryBus::MiInterrupt, word) && !(word & 0x20U),
                     "DPC acknowledgement clears the MI DP interrupt");
 
+    // DPC FREEZE pauses command fetching and resumes the saved command range.
+    N64MemoryBus frozenDpBus;
+    const std::uint64_t frozenCommand =
+        (static_cast<std::uint64_t>(0x37) << 56) | 0xAABBCCDDU;
+    passed &= check(frozenDpBus.write32(0x180,
+                    static_cast<std::uint32_t>(frozenCommand >> 32)) &&
+                    frozenDpBus.write32(0x184, static_cast<std::uint32_t>(frozenCommand)),
+                    "write an RDP command for the DPC freeze test");
+    passed &= check(frozenDpBus.write32(N64MemoryBus::DpStart, 0x180),
+                    "set frozen DPC command-list start");
+    passed &= check(frozenDpBus.write32(N64MemoryBus::DpStatus, 0x08),
+                    "set DPC FREEZE before command submission");
+    passed &= check(frozenDpBus.write32(N64MemoryBus::DpEnd, 0x188),
+                    "queue a command-list end while DPC is frozen");
+    passed &= check(frozenDpBus.rdp().completedCommands() == 0,
+                    "DPC FREEZE prevents RDP command execution");
+    passed &= check(frozenDpBus.read32(N64MemoryBus::DpCurrent, word) && word == 0x180,
+                    "frozen DPC retains its current command address");
+    passed &= check(frozenDpBus.write32(N64MemoryBus::DpStatus, 0x04),
+                    "clear DPC FREEZE to resume command fetching");
+    passed &= check(frozenDpBus.rdp().completedCommands() == 1 &&
+                    frozenDpBus.rdp().lastOpcode() == 0x37,
+                    "clearing DPC FREEZE resumes and executes queued commands");
+    passed &= check(frozenDpBus.read32(N64MemoryBus::DpCurrent, word) && word == 0x188,
+                    "resumed DPC advances current address to the end pointer");
+
     // The initial RDP rasterizer draws fill rectangles into RGBA32 RDRAM images.
     N64MemoryBus renderBus;
     const std::uint64_t setColorImage =
