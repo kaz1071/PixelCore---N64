@@ -515,6 +515,24 @@ int main()
     check(negativeTextureCoordinates.textureTexel(0, -1, 0) == 0x4444U,
           "negative S coordinates wrap to the final texel when tile masking is enabled");
 
+    // S-axis mirroring reverses every alternate masked period, including
+    // periods on the negative side of the coordinate origin.
+    submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                          (1ULL << 8) | (2ULL << 4));
+    check(negativeTextureCoordinates.textureTexel(0, 4, 0) == 0x4444U &&
+          negativeTextureCoordinates.textureTexel(0, 5, 0) == 0x3333U,
+          "S-axis mirroring reverses the alternate positive mask period");
+    check(negativeTextureCoordinates.textureTexel(0, -1, 0) == 0x1111U &&
+          negativeTextureCoordinates.textureTexel(0, -2, 0) == 0x2222U,
+          "S-axis mirroring reverses negative mask periods");
+
+    // S clamping takes precedence over the configured mask and mirror mode.
+    submitNegativeTexture((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
+                          (2ULL << 8) | (2ULL << 4));
+    check(negativeTextureCoordinates.textureTexel(0, -1, 0) == 0x1111U &&
+          negativeTextureCoordinates.textureTexel(0, 4, 0) == 0x4444U,
+          "S-axis clamping bounds coordinates before mask or mirror wrapping");
+
     // Bilinear sampling interpolates RGBA channels with 5-bit fractions.
     Rdp bilinearTexture;
     std::vector<std::uint8_t> bilinearRdram(0x40, 0);
