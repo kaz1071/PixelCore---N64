@@ -1875,7 +1875,7 @@ int main()
     submitNegativeShift((0x3DULL << 56) | (1ULL << 51) |
                         (3ULL << 32) | 0x10ULL);
     submitNegativeShift((0x35ULL << 56) | (1ULL << 51) |
-                        (1ULL << 41) | (2ULL << 4) | 1ULL);
+                        (1ULL << 41) | (1ULL << 8) | (2ULL << 4) | 1ULL);
     submitNegativeShift((0x34ULL << 56) | (12ULL << 12) | 0ULL);
     submitNegativeShift((0x32ULL << 56) | (12ULL << 12));
     check(negativeShiftTexture.textureTexel(0, -1, 0) == 0x44U,
@@ -1910,7 +1910,8 @@ int main()
     submitNegativeShiftT((0x3DULL << 56) | (1ULL << 51) |
                          (3ULL << 32) | 0x10ULL);
     submitNegativeShiftT((0x35ULL << 56) | (1ULL << 51) |
-                         (1ULL << 41) | (2ULL << 14) | (1ULL << 10));
+                         (1ULL << 41) | (1ULL << 18) |
+                         (2ULL << 14) | (1ULL << 10));
     submitNegativeShiftT((0x34ULL << 56) | (12ULL << 12) | 12ULL);
     submitNegativeShiftT((0x32ULL << 56) | (12ULL << 12) | 12ULL);
     check(negativeShiftTTexture.textureTexel(0, 0, -1) == 0x44U,
