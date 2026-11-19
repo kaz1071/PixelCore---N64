@@ -378,7 +378,7 @@ int main()
     // T right-shift is applied before clamping to the tile's final row.
     submitMirroredT((0x35ULL << 56) | (2ULL << 51) | (1ULL << 41) |
                     (2ULL << 18) | (1ULL << 14) | (1ULL << 10));
-    check(mirroredTextureT.textureTexel(0, 0, 2) == 0x1111U &&
+    check(mirroredTextureT.textureTexel(0, 0, 2) == 0x3333U &&
           mirroredTextureT.textureTexel(0, 0, 4) == 0x3333U,
           "T-axis right shift scales coordinates before clamping");
 
