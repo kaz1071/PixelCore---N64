@@ -88,6 +88,37 @@ int main()
     passed &= check(cpu.step(memory, error), "MFC0 executes");
     passed &= check(cpu.reg(1) == 0x1234, "MFC0 reads value written by MTC0");
 
+    // CP0 Count/Compare raises the timer interrupt (IP7) and Compare acknowledges it.
+    memory.words.clear();
+    memory.words[base] = 0; // NOP
+    memory.words[base + 4] = 0; // NOP
+    cpu.reset();
+    cpu.setCp0(R4300i::Status, 0x00008001U); // IE + IM7, with EXL/ERL clear.
+    cpu.setCp0(R4300i::Count, 0);
+    cpu.setCp0(R4300i::Compare, 1);
+    passed &= check(cpu.step(memory, error), "CPU executes until Count matches Compare");
+    passed &= check((cpu.cp0(R4300i::Cause) & (1ULL << 15)) != 0,
+                    "Count reaching Compare raises the timer pending bit");
+    passed &= check(cpu.step(memory, error), "timer interrupt is taken on the next instruction boundary");
+    passed &= check(cpu.pc() == R4300i::BootstrapExceptionVector &&
+                    ((cpu.cp0(R4300i::Cause) >> 2) & 0x1FU) == 0,
+                    "enabled timer interrupt enters the general exception vector");
+
+    // With interrupts masked, software can acknowledge the timer by writing Compare.
+    memory.words.clear();
+    memory.words[base] = iType(0x09, 0, 1, 0x55); // addiu r1, r0, 0x55
+    memory.words[base + 4] = (0x10U << 26) | (0x04U << 21) |
+                             (1U << 16) | (R4300i::Compare << 11); // mtc0 r1, Compare
+    cpu.reset();
+    cpu.setCp0(R4300i::Count, 0);
+    cpu.setCp0(R4300i::Compare, 1);
+    passed &= check(cpu.step(memory, error), "timer pending bit is generated before acknowledgement");
+    passed &= check((cpu.cp0(R4300i::Cause) & (1ULL << 15)) != 0,
+                    "timer interrupt is pending before Compare write");
+    passed &= check(cpu.step(memory, error), "MTC0 Compare executes");
+    passed &= check((cpu.cp0(R4300i::Cause) & (1ULL << 15)) == 0,
+                    "writing Compare clears the timer pending bit");
+
     // An unsupported instruction raises Reserved Instruction and selects BEV vector.
     memory.words.clear();
     memory.words[base] = 0x70000000U; // Reserved SPECIAL2 opcode
