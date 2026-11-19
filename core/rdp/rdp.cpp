@@ -1391,6 +1391,33 @@ std::uint32_t Rdp::textureRgbaFiltered(std::size_t tileIndex, std::int64_t s, st
         return 0;
 
     const std::uint8_t filter = textureFilterMode();
+    if (filter == 1U)
+    {
+        // Three-point filtering selects the triangle containing the sample.
+        const std::uint32_t topLeft = textureRgba(tileIndex, s, t);
+        const std::uint32_t topRight = textureRgba(tileIndex, s + 1U, t);
+        const std::uint32_t bottomLeft = textureRgba(tileIndex, s, t + 1U);
+        const std::uint32_t bottomRight = textureRgba(tileIndex, s + 1U, t + 1U);
+        const std::uint32_t sum = static_cast<std::uint32_t>(fractionS) + fractionT;
+        const std::uint32_t weights[3] = sum <= 32U
+            ? std::array<std::uint32_t, 3>{32U - sum, fractionS, fractionT}
+            : std::array<std::uint32_t, 3>{sum - 32U, 32U - fractionT, 32U - fractionS};
+        const std::uint32_t samples[3] = sum <= 32U
+            ? std::array<std::uint32_t, 3>{topLeft, topRight, bottomLeft}
+            : std::array<std::uint32_t, 3>{bottomRight, bottomLeft, topRight};
+
+        std::uint32_t result = 0;
+        for (unsigned shift = 0; shift <= 24U; shift += 8U)
+        {
+            const std::uint32_t weighted =
+                ((samples[0] >> shift) & 0xFFU) * weights[0] +
+                ((samples[1] >> shift) & 0xFFU) * weights[1] +
+                ((samples[2] >> shift) & 0xFFU) * weights[2];
+            result |= ((weighted + 16U) >> 5U) << shift;
+        }
+        return result;
+    }
+
     if (filter == 2U)
         return textureRgbaBilinear(tileIndex, s, t, fractionS, fractionT);
 
