@@ -101,6 +101,8 @@ int main()
                     "system reset clears CPU general registers");
     passed &= check(system.rsp().pc() == 0 && system.rsp().reg(8) == 0,
                     "system reset clears the RSP processor state");
+    passed &= check(system.memory().spHalted() && system.memory().spProgramCounter() == 0,
+                    "system reset restores SP HALT and program counter");
     std::uint32_t pifWord = 1;
     passed &= check(system.memory().read32(N64MemoryBus::PifRamBase, pifWord) &&
                     pifWord == 0, "system reset clears PIF RAM");
