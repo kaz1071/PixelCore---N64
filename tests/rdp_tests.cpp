@@ -978,6 +978,32 @@ int main()
           flippedMemory[14] == 0xFF && flippedMemory[15] == 0xFF,
           "TextureRectangleFlip samples the bottom-right source texel");
 
+    // Texture rectangles must apply the selected bilinear filter to fractional S/T.
+    Rdp filteredTextureRectangle;
+    std::vector<std::uint8_t> filteredMemory(0x200, 0);
+    filteredMemory[0x20] = 0xFF; filteredMemory[0x21] = 0x00;
+    filteredMemory[0x22] = 0x00; filteredMemory[0x23] = 0xFF;
+    filteredMemory[0x24] = 0x00; filteredMemory[0x25] = 0xFF;
+    filteredMemory[0x26] = 0x00; filteredMemory[0x27] = 0xFF;
+    filteredMemory[0x28] = 0x00; filteredMemory[0x29] = 0x00;
+    filteredMemory[0x2A] = 0xFF; filteredMemory[0x2B] = 0xFF;
+    filteredMemory[0x2C] = 0xFF; filteredMemory[0x2D] = 0xFF;
+    filteredMemory[0x2E] = 0xFF; filteredMemory[0x2F] = 0xFF;
+    const auto submitFiltered = [&filteredTextureRectangle, &filteredMemory](std::uint64_t word) {
+        if (filteredTextureRectangle.pushCommandWord(word))
+            filteredTextureRectangle.executeLastCommand(filteredMemory);
+    };
+    submitFiltered((0x3FULL << 56) | (3ULL << 51));
+    submitFiltered((0x3DULL << 56) | (3ULL << 51) | (1ULL << 32) | 0x20ULL);
+    submitFiltered((0x35ULL << 56) | (3ULL << 51) | (1ULL << 41));
+    submitFiltered((0x34ULL << 56) | (4ULL << 12) | 4ULL);
+    submitFiltered((0x2FULL << 56) | (2ULL << 44)); // Bilinear texture filtering.
+    submitFiltered((0x24ULL << 56) | 4ULL); // One pixel at (0, 0).
+    submitFiltered((16ULL << 48) | (16ULL << 32) | (512ULL << 16) | 512ULL);
+    check(filteredMemory[0] == 0x80 && filteredMemory[1] == 0x80 &&
+          filteredMemory[2] == 0x80 && filteredMemory[3] == 0xFF,
+          "TextureRectangle bilinearly filters fractional S/T coordinates");
+
     // Clipping a texture rectangle must preserve its original S/T origin.
     Rdp clippedTextureRectangle;
     std::vector<std::uint8_t> clippedTextureMemory(0x200, 0);
