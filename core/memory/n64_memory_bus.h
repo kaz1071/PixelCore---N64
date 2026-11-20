@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 // Early physical-memory implementation for the N64.
@@ -88,7 +89,7 @@ public:
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
-    bool prepareCartridgeDirectBoot(std::uint32_t &entryPoint);
+    bool prepareCartridgeDirectBoot(std::uint32_t &entryPoint, std::string &error);
     void clearRdram();
     void clearPifRam();
     Pif &pif();
