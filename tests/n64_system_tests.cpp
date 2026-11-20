@@ -46,10 +46,10 @@ int main()
     cartridge[0x09] = 0x10;
     cartridge[0x0A] = 0x04;
     cartridge[0x0B] = 0x00; // Entry point: 0x80100400.
-    cartridge[0x1000] = 0x24;
-    cartridge[0x1001] = 0x08;
-    cartridge[0x1002] = 0x00;
-    cartridge[0x1003] = 0x2A; // addiu t0, zero, 42.
+    cartridge[0x0040] = 0x24;
+    cartridge[0x0041] = 0x08;
+    cartridge[0x0042] = 0x00;
+    cartridge[0x0043] = 0x2A; // IPL3 starts at cartridge ROM offset 0x40.
     system.loadCartridge(cartridge);
     passed &= check(system.startCartridgeDirectBoot(error),
                     "system prepares experimental cartridge direct boot");
@@ -61,7 +61,7 @@ int main()
     std::uint32_t copiedBootInstruction = 0;
     passed &= check(system.memory().read32(0x100400, copiedBootInstruction) &&
                     copiedBootInstruction == 0x2408002A,
-                    "direct boot copies cartridge boot code into RDRAM");
+                    "direct boot copies IPL3 from cartridge ROM offset 0x40 into RDRAM");
     passed &= check(system.step(error) && system.cpu().reg(8) == 42,
                     "CPU executes the copied cartridge entry-point instruction");
     const auto pcHistory = system.cpu().recentPcHistory();
