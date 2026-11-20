@@ -9,6 +9,8 @@
 #include <QtGlobal>
 
 class QLabel;
+class QPlainTextEdit;
+class QPushButton;
 class QKeyEvent;
 class QTimer;
 class FramebufferView;
@@ -34,6 +36,8 @@ private:
 
     QLabel *statusLabel_ = nullptr;
     FramebufferView *framebufferView_ = nullptr;
+    QPlainTextEdit *diagnosticHistory_ = nullptr;
+    QPushButton *copyHistoryButton_ = nullptr;
     QTimer *frameTimer_ = nullptr;
     QString loadedRomPath_;
     QString loadedRomTitle_;
