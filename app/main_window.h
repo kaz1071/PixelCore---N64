@@ -43,4 +43,5 @@ private:
     QSet<int> pressedKeys_;
     bool emulationRunning_ = false;
     bool executionFailed_ = false;
+    bool directBootActive_ = false;
 };
