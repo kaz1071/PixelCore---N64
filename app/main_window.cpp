@@ -15,6 +15,9 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPainter>
+#include <QPlainTextEdit>
+#include <QClipboard>
+#include <QApplication>
 #include <QTimer>
 #include <QStatusBar>
 #include <QVBoxLayout>
@@ -114,6 +117,27 @@ MainWindow::MainWindow(QWidget *parent)
     framebufferView_->setObjectName("gameViewport");
     framebufferView_->setFocusPolicy(Qt::StrongFocus);
 
+    diagnosticHistory_ = new QPlainTextEdit(central);
+    diagnosticHistory_->setObjectName("cpuExecutionHistory");
+    diagnosticHistory_->setReadOnly(true);
+    diagnosticHistory_->setLineWrapMode(QPlainTextEdit::NoWrap);
+    diagnosticHistory_->setMaximumBlockCount(100);
+    diagnosticHistory_->setMaximumHeight(150);
+    diagnosticHistory_->setStyleSheet(
+        "QPlainTextEdit { background: #080d17; color: #b8c6dc; "
+        "border: 1px solid #263650; border-radius: 8px; "
+        "font-family: monospace; font-size: 12px; padding: 6px; }"
+    );
+    diagnosticHistory_->hide();
+
+    copyHistoryButton_ = new QPushButton("Copy CPU History", central);
+    copyHistoryButton_->setCursor(Qt::PointingHandCursor);
+    copyHistoryButton_->hide();
+    connect(copyHistoryButton_, &QPushButton::clicked, this, [this]() {
+        QApplication::clipboard()->setText(diagnosticHistory_->toPlainText());
+        statusLabel_->setText("CPU execution history copied to clipboard");
+    });
+
     auto *openButton = new QPushButton("Open ROM", central);
     openButton->setCursor(Qt::PointingHandCursor);
     openButton->setMinimumHeight(46);
@@ -130,6 +154,8 @@ MainWindow::MainWindow(QWidget *parent)
     layout->addWidget(subtitle);
     layout->addSpacing(12);
     layout->addWidget(framebufferView_, 1);
+    layout->addWidget(diagnosticHistory_);
+    layout->addWidget(copyHistoryButton_, 0, Qt::AlignRight);
 
     auto *inputInfo = new QLabel(
         "Keyboard controller: WASD = analog stick  |  Arrows = D-pad  |  J/K/U = A/B/Z  |  Enter = Start",
@@ -409,20 +435,25 @@ void MainWindow::updateFramebuffer()
             emulationRunning_ = false;
             statusLabel_->setText("Diagnostic paused: VI was not configured after 2 seconds");
         }
-        QString message = QString("ROM loaded\n\n%1\n\n"
-                                   "VI_WIDTH: 0x%2\nVI_CONTROL: 0x%3\nVI_ORIGIN: 0x%4\n"
-                                   "CPU PC: 0x%5\n\nRecent CPU execution (oldest first):")
-                              .arg(viWaitFrames_ >= 120
-                                   ? "Execution paused — trace is frozen"
-                                   : "Waiting for VI video configuration...")
-                              .arg(width, 8, 16, QChar('0'))
-                              .arg(control, 8, 16, QChar('0'))
-                              .arg(origin, 8, 16, QChar('0'))
-                              .arg(system_.cpu().pc(), 16, 16, QChar('0'));
+        const QString state = viWaitFrames_ >= 120
+            ? "Execution paused — trace is frozen"
+            : "Waiting for VI video configuration...";
+        framebufferView_->setMessage(
+            QString("ROM loaded\n\n%1\n\nVI_WIDTH: 0x%2   VI_CONTROL: 0x%3\nVI_ORIGIN: 0x%4\nCPU PC: 0x%5\n\nFull CPU history is shown below.")
+                .arg(state)
+                .arg(width, 8, 16, QChar('0'))
+                .arg(control, 8, 16, QChar('0'))
+                .arg(origin, 8, 16, QChar('0'))
+                .arg(system_.cpu().pc(), 16, 16, QChar('0')));
         const auto history = system_.cpu().recentPcHistory();
-        for (const std::uint64_t address : history)
-            message += QString("\n0x%1").arg(address, 16, 16, QChar('0'));
-        framebufferView_->setMessage(message);
+        QString historyText = "Recent CPU execution (oldest first):";
+        for (std::size_t i = 0; i < history.size(); ++i)
+            historyText += QString("\n%1: 0x%2")
+                .arg(static_cast<qulonglong>(i + 1), 2, 10, QChar('0'))
+                .arg(history[i], 16, 16, QChar('0'));
+        diagnosticHistory_->setPlainText(historyText);
+        diagnosticHistory_->show();
+        copyHistoryButton_->show();
         return;
     }
 
@@ -436,5 +467,7 @@ void MainWindow::updateFramebuffer()
                        static_cast<int>(width), static_cast<int>(DisplayHeight),
                        static_cast<int>(width * sizeof(std::uint32_t)),
                        QImage::Format_ARGB32);
+    diagnosticHistory_->hide();
+    copyHistoryButton_->hide();
     framebufferView_->setFrame(frame.copy());
 }
