@@ -44,4 +44,5 @@ private:
     bool emulationRunning_ = false;
     bool executionFailed_ = false;
     bool directBootActive_ = false;
+    unsigned int viWaitFrames_ = 0;
 };
