@@ -253,6 +253,18 @@ std::vector<std::uint64_t> R4300i::recentPcHistory() const
     return history;
 }
 
+std::vector<std::pair<std::uint64_t, std::uint32_t>> R4300i::recentInstructionTrace() const
+{
+    std::vector<std::pair<std::uint64_t, std::uint32_t>> trace;
+    trace.reserve(pcHistorySize_);
+    const std::size_t first = (pcHistoryNext_ + PcHistoryCapacity - pcHistorySize_) % PcHistoryCapacity;
+    for (std::size_t i = 0; i < pcHistorySize_; ++i) {
+        const std::size_t slot = (first + i) % PcHistoryCapacity;
+        trace.emplace_back(pcHistory_[slot], instructionHistory_[slot]);
+    }
+    return trace;
+}
+
 void R4300i::setPc(std::uint64_t address)
 {
     pc_ = address;
@@ -308,6 +320,10 @@ bool R4300i::step(N64Memory &memory, std::string &error)
         error.clear();
         return true;
     }
+
+    const std::size_t traceSlot =
+        (pcHistoryNext_ + PcHistoryCapacity - 1) % PcHistoryCapacity;
+    instructionHistory_[traceSlot] = instruction;
 
     // Advance before execution so a taken branch still executes its delay slot.
     currentInstructionInDelaySlot_ = nextInstructionIsDelaySlot_;
