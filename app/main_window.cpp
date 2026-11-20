@@ -401,9 +401,20 @@ void MainWindow::updateFramebuffer()
     system_.memory().read32(N64MemoryBus::ViControl, control);
     system_.memory().read32(N64MemoryBus::ViOrigin, origin);
     if (!widthRead || width == 0 || width > 640) {
-        QString message = QString("ROM loaded\n\nWaiting for VI video configuration...\n\n"
-                                   "VI_WIDTH: 0x%1\nVI_CONTROL: 0x%2\nVI_ORIGIN: 0x%3\n"
-                                   "Current CPU PC: 0x%4\n\nRecent CPU execution (oldest first):")
+        // Freeze the diagnostic after roughly two seconds so the execution trace
+        // remains readable instead of racing the 60 Hz UI refresh.
+        if (viWaitFrames_ < 120)
+            ++viWaitFrames_;
+        if (viWaitFrames_ >= 120) {
+            emulationRunning_ = false;
+            statusLabel_->setText("Diagnostic paused: VI was not configured after 2 seconds");
+        }
+        QString message = QString("ROM loaded\\n\\n%1\\n\\n"
+                                   "VI_WIDTH: 0x%2\\nVI_CONTROL: 0x%3\\nVI_ORIGIN: 0x%4\\n"
+                                   "CPU PC: 0x%5\\n\\nRecent CPU execution (oldest first):")
+                              .arg(viWaitFrames_ >= 120
+                                   ? "Execution paused — trace is frozen"
+                                   : "Waiting for VI video configuration...")
                               .arg(width, 8, 16, QChar('0'))
                               .arg(control, 8, 16, QChar('0'))
                               .arg(origin, 8, 16, QChar('0'))
