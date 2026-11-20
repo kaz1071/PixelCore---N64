@@ -401,14 +401,17 @@ void MainWindow::updateFramebuffer()
     system_.memory().read32(N64MemoryBus::ViControl, control);
     system_.memory().read32(N64MemoryBus::ViOrigin, origin);
     if (!widthRead || width == 0 || width > 640) {
-        framebufferView_->setMessage(
-            QString("ROM loaded\n\nWaiting for VI video configuration...\n\n"
-                    "VI_WIDTH: 0x%1\nVI_CONTROL: 0x%2\nVI_ORIGIN: 0x%3\n"
-                    "CPU PC: 0x%4")
-                .arg(width, 8, 16, QChar('0'))
-                .arg(control, 8, 16, QChar('0'))
-                .arg(origin, 8, 16, QChar('0'))
-                .arg(system_.cpu().pc(), 16, 16, QChar('0')));
+        QString message = QString("ROM loaded\n\nWaiting for VI video configuration...\n\n"
+                                   "VI_WIDTH: 0x%1\nVI_CONTROL: 0x%2\nVI_ORIGIN: 0x%3\n"
+                                   "Current CPU PC: 0x%4\n\nRecent CPU execution (oldest first):")
+                              .arg(width, 8, 16, QChar('0'))
+                              .arg(control, 8, 16, QChar('0'))
+                              .arg(origin, 8, 16, QChar('0'))
+                              .arg(system_.cpu().pc(), 16, 16, QChar('0'));
+        const auto history = system_.cpu().recentPcHistory();
+        for (const std::uint64_t address : history)
+            message += QString("\\n0x%1").arg(address, 16, 16, QChar('0'));
+        framebufferView_->setMessage(message);
         return;
     }
 
