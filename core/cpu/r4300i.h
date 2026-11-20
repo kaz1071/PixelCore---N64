@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 struct R4300iTlbEntry
@@ -52,6 +53,7 @@ public:
     void reset();
     void setPc(std::uint64_t address);
     std::vector<std::uint64_t> recentPcHistory() const;
+    std::vector<std::pair<std::uint64_t, std::uint32_t>> recentInstructionTrace() const;
     bool step(N64Memory &memory, std::string &error);
 
     std::uint64_t reg(unsigned int index) const;
@@ -84,6 +86,7 @@ private:
     std::array<R4300iTlbEntry, 32> tlb_{};
     static constexpr std::size_t PcHistoryCapacity = 20;
     std::array<std::uint64_t, PcHistoryCapacity> pcHistory_{};
+    std::array<std::uint32_t, PcHistoryCapacity> instructionHistory_{};
     std::size_t pcHistoryNext_ = 0;
     std::size_t pcHistorySize_ = 0;
 };
