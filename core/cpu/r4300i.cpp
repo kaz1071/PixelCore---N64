@@ -276,6 +276,7 @@ void R4300i::setPc(std::uint64_t address)
 bool R4300i::step(N64Memory &memory, std::string &error)
 {
     pcHistory_[pcHistoryNext_] = pc_;
+    instructionHistory_[pcHistoryNext_] = 0;
     pcHistoryNext_ = (pcHistoryNext_ + 1) % PcHistoryCapacity;
     pcHistorySize_ = std::min(pcHistorySize_ + 1, PcHistoryCapacity);
 
