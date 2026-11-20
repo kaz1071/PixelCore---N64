@@ -64,6 +64,9 @@ int main()
                     "direct boot copies cartridge boot code into RDRAM");
     passed &= check(system.step(error) && system.cpu().reg(8) == 42,
                     "CPU executes the copied cartridge entry-point instruction");
+    const auto pcHistory = system.cpu().recentPcHistory();
+    passed &= check(!pcHistory.empty() && pcHistory.back() == 0x80100400ULL,
+                    "CPU records the address of its most recently executed instruction");
 
     // A batch run continuously executes the CPU and schedules an active RSP.
     system.reset();
