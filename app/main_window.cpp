@@ -280,9 +280,21 @@ void MainWindow::openRom()
     loadedRomSize_ = rom.fileSize();
 
     system_.loadCartridge(rom.image());
-    system_.reset();
     executionFailed_ = false;
-    emulationRunning_ = system_.memory().bootRomSize() != 0;
+    directBootActive_ = false;
+    if (system_.memory().bootRomSize() != 0) {
+        system_.reset();
+        emulationRunning_ = true;
+    } else {
+        std::string bootError;
+        emulationRunning_ = system_.startCartridgeDirectBoot(bootError);
+        directBootActive_ = emulationRunning_;
+        if (!emulationRunning_) {
+            QMessageBox::warning(
+                this, "Could not start experimental direct boot",
+                QString::fromStdString(bootError));
+        }
+    }
 
     updateRomDisplay();
 }
@@ -319,6 +331,7 @@ void MainWindow::openIplRom()
     executionFailed_ = false;
     if (!loadedRomPath_.isEmpty()) {
         system_.reset();
+        directBootActive_ = false;
         emulationRunning_ = true;
         framebufferView_->setMessage("IPL ROM loaded\n\nStarting the emulated N64 boot process...");
         statusLabel_->setText("IPL loaded — starting emulation");
@@ -341,12 +354,17 @@ void MainWindow::updateRomDisplay()
                                            "Title: " + loadedRomTitle_)
             .arg("Byte order: " + loadedRomFormat_)
             .arg(QString::number(sizeMiB, 'f', 2))
-            .arg(emulationRunning_ ? "Running the IPL boot process..." :
-                                     "Open File → Open IPL ROM to provide boot firmware and start execution.")
+            .arg(directBootActive_
+                     ? "Experimental direct boot: skipped IPL/CIC initialization. Compatibility is not guaranteed."
+                     : emulationRunning_
+                         ? "Running the IPL boot process..."
+                         : "Open File → Open IPL ROM to provide boot firmware and start execution.")
     );
 
-    statusLabel_->setText(emulationRunning_ ? "ROM loaded — emulation running" :
-                                              "ROM loaded — waiting for an IPL ROM");
+    statusLabel_->setText(
+        directBootActive_ ? "ROM loaded — experimental direct boot running" :
+        emulationRunning_ ? "ROM loaded — IPL emulation running" :
+                            "ROM loaded — boot preparation failed");
 }
 
 void MainWindow::runEmulationFrame()
