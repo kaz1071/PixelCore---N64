@@ -1,5 +1,7 @@
 #include "core/cpu/r4300i.h"
 
+#include <algorithm>
+
 #include <cstdint>
 #include <limits>
 
@@ -206,6 +208,9 @@ void R4300i::reset()
     llBit_ = false;
     llAddress_ = 0;
     tlb_.fill({});
+    pcHistory_.fill(0);
+    pcHistoryNext_ = 0;
+    pcHistorySize_ = 0;
 }
 
 void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddress,
@@ -238,6 +243,16 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
     nextInstructionIsDelaySlot_ = false;
 }
 
+std::vector<std::uint64_t> R4300i::recentPcHistory() const
+{
+    std::vector<std::uint64_t> history;
+    history.reserve(pcHistorySize_);
+    const std::size_t first = (pcHistoryNext_ + PcHistoryCapacity - pcHistorySize_) % PcHistoryCapacity;
+    for (std::size_t i = 0; i < pcHistorySize_; ++i)
+        history.push_back(pcHistory_[(first + i) % PcHistoryCapacity]);
+    return history;
+}
+
 void R4300i::setPc(std::uint64_t address)
 {
     pc_ = address;
@@ -248,6 +263,10 @@ void R4300i::setPc(std::uint64_t address)
 
 bool R4300i::step(N64Memory &memory, std::string &error)
 {
+    pcHistory_[pcHistoryNext_] = pc_;
+    pcHistoryNext_ = (pcHistoryNext_ + 1) % PcHistoryCapacity;
+    pcHistorySize_ = std::min(pcHistorySize_ + 1, PcHistoryCapacity);
+
     constexpr std::uint64_t ExternalInterruptBit = 1ULL << 10;
     std::uint64_t &cause = cp0Registers_[Cause];
     if (memory.interruptPending())
