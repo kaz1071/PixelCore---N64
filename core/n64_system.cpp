@@ -79,6 +79,26 @@ void N64System::loadBootRom(const std::vector<std::uint8_t> &image)
     memory_.loadBootRom(image);
 }
 
+bool N64System::startCartridgeDirectBoot(std::string &error)
+{
+    reset();
+    std::uint32_t entryPoint = 0;
+    if (!memory_.prepareCartridgeDirectBoot(entryPoint)) {
+        error = "The cartridge does not contain a supported N64 entry point and boot-code block.";
+        return false;
+    }
+
+    // Approximate the standard IPL3 hand-off arguments. This bypasses PIF/CIC
+    // initialization and is a development aid, not an authentic hardware boot.
+    cpu_.setReg(4, 0x80371240ULL); // a0: N64 boot signature
+    cpu_.setReg(5, 0);             // a1: TV type placeholder
+    cpu_.setReg(6, 0x000003F0ULL); // a2: memory-size argument used by IPL3
+    cpu_.setReg(7, 0);             // a3: reset type placeholder
+    cpu_.setPc(entryPoint);
+    error.clear();
+    return true;
+}
+
 R4300i &N64System::cpu() { return cpu_; }
 const R4300i &N64System::cpu() const { return cpu_; }
 Rsp &N64System::rsp() { return rsp_; }
