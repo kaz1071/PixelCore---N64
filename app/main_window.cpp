@@ -445,12 +445,13 @@ void MainWindow::updateFramebuffer()
                 .arg(control, 8, 16, QChar('0'))
                 .arg(origin, 8, 16, QChar('0'))
                 .arg(system_.cpu().pc(), 16, 16, QChar('0')));
-        const auto history = system_.cpu().recentPcHistory();
-        QString historyText = "Recent CPU execution (oldest first):";
+        const auto history = system_.cpu().recentInstructionTrace();
+        QString historyText = "Recent CPU instructions (oldest first):";
         for (std::size_t i = 0; i < history.size(); ++i)
-            historyText += QString("\n%1: 0x%2")
+            historyText += QString("\n%1: PC 0x%2   OP 0x%3")
                 .arg(static_cast<qulonglong>(i + 1), 2, 10, QChar('0'))
-                .arg(history[i], 16, 16, QChar('0'));
+                .arg(history[i].first, 16, 16, QChar('0'))
+                .arg(history[i].second, 8, 16, QChar('0'));
         diagnosticHistory_->setPlainText(historyText);
         diagnosticHistory_->show();
         copyHistoryButton_->show();
