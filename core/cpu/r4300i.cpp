@@ -238,6 +238,14 @@ void R4300i::raiseException(unsigned int exceptionCode, std::uint64_t faultAddre
     nextInstructionIsDelaySlot_ = false;
 }
 
+void R4300i::setPc(std::uint64_t address)
+{
+    pc_ = address;
+    nextPc_ = address + 4;
+    nextInstructionIsDelaySlot_ = false;
+    currentInstructionInDelaySlot_ = false;
+}
+
 bool R4300i::step(N64Memory &memory, std::string &error)
 {
     constexpr std::uint64_t ExternalInterruptBit = 1ULL << 10;
