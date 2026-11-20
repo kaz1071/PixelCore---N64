@@ -24,6 +24,7 @@ public:
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
+    bool startCartridgeDirectBoot(std::string &error);
 
     R4300i &cpu();
     const R4300i &cpu() const;
