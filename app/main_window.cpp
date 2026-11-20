@@ -409,9 +409,9 @@ void MainWindow::updateFramebuffer()
             emulationRunning_ = false;
             statusLabel_->setText("Diagnostic paused: VI was not configured after 2 seconds");
         }
-        QString message = QString("ROM loaded\\n\\n%1\\n\\n"
-                                   "VI_WIDTH: 0x%2\\nVI_CONTROL: 0x%3\\nVI_ORIGIN: 0x%4\\n"
-                                   "CPU PC: 0x%5\\n\\nRecent CPU execution (oldest first):")
+        QString message = QString("ROM loaded\n\n%1\n\n"
+                                   "VI_WIDTH: 0x%2\nVI_CONTROL: 0x%3\nVI_ORIGIN: 0x%4\n"
+                                   "CPU PC: 0x%5\n\nRecent CPU execution (oldest first):")
                               .arg(viWaitFrames_ >= 120
                                    ? "Execution paused — trace is frozen"
                                    : "Waiting for VI video configuration...")
