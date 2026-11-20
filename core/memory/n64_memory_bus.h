@@ -88,6 +88,7 @@ public:
 
     void loadCartridge(const std::vector<std::uint8_t> &image);
     void loadBootRom(const std::vector<std::uint8_t> &image);
+    bool prepareCartridgeDirectBoot(std::uint32_t &entryPoint);
     void clearRdram();
     void clearPifRam();
     Pif &pif();
