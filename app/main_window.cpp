@@ -410,7 +410,7 @@ void MainWindow::updateFramebuffer()
                               .arg(system_.cpu().pc(), 16, 16, QChar('0'));
         const auto history = system_.cpu().recentPcHistory();
         for (const std::uint64_t address : history)
-            message += QString("\\n0x%1").arg(address, 16, 16, QChar('0'));
+            message += QString("\n0x%1").arg(address, 16, 16, QChar('0'));
         framebufferView_->setMessage(message);
         return;
     }
