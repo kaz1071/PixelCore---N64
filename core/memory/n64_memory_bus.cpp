@@ -425,6 +425,30 @@ void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
     bootRom_ = image;
 }
 
+bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint)
+{
+    // The IPL3 stage normally copies the first 0xFC0 bytes of the game image
+    // (starting at cartridge offset 0x1000) to RDRAM at physical 0x400.
+    constexpr std::size_t CartridgeBootOffset = 0x1000;
+    constexpr std::size_t BootCodeSize = 0x0FC0;
+    constexpr std::size_t RdramBootOffset = 0x400;
+    if (cartridge_.size() < CartridgeBootOffset + BootCodeSize)
+        return false;
+
+    if (!readImage(cartridge_, 0x08, entryPoint))
+        return false;
+    const std::uint64_t physicalEntry = toPhysicalAddress(entryPoint);
+    if ((entryPoint & 3U) != 0 || physicalEntry < RdramBootOffset ||
+        physicalEntry >= RdramBootOffset + BootCodeSize ||
+        physicalEntry >= RdramSize)
+        return false;
+
+    std::copy_n(cartridge_.begin() + static_cast<std::ptrdiff_t>(CartridgeBootOffset),
+                BootCodeSize,
+                rdram_.begin() + static_cast<std::ptrdiff_t>(RdramBootOffset));
+    return true;
+}
+
 void N64MemoryBus::clearRdram()
 {
     std::fill(rdram_.begin(), rdram_.end(), 0);
