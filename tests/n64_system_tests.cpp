@@ -39,6 +39,32 @@ int main()
     passed &= check(system.cpu().cp0(R4300i::Count) == 2,
                     "CP0 Count advances for executed instructions");
 
+    // Experimental cartridge direct boot copies the initial game code to
+    // RDRAM and starts at the entry point from the cartridge header.
+    std::vector<std::uint8_t> cartridge(0x2000, 0);
+    cartridge[0x08] = 0x80;
+    cartridge[0x09] = 0x00;
+    cartridge[0x0A] = 0x04;
+    cartridge[0x0B] = 0x00; // Entry point: 0x80000400.
+    cartridge[0x1000] = 0x24;
+    cartridge[0x1001] = 0x08;
+    cartridge[0x1002] = 0x00;
+    cartridge[0x1003] = 0x2A; // addiu t0, zero, 42.
+    system.loadCartridge(cartridge);
+    passed &= check(system.startCartridgeDirectBoot(error),
+                    "system prepares experimental cartridge direct boot");
+    passed &= check(system.cpu().pc() == 0x80000400ULL,
+                    "direct boot starts at the cartridge header entry point");
+    passed &= check(system.cpu().reg(4) == 0x80371240ULL &&
+                    system.cpu().reg(6) == 0x3F0ULL,
+                    "direct boot supplies initial IPL3 hand-off arguments");
+    std::uint32_t copiedBootInstruction = 0;
+    passed &= check(system.memory().read32(0x400, copiedBootInstruction) &&
+                    copiedBootInstruction == 0x2408002A,
+                    "direct boot copies cartridge boot code into RDRAM");
+    passed &= check(system.step(error) && system.cpu().reg(8) == 42,
+                    "CPU executes the copied cartridge entry-point instruction");
+
     // A batch run continuously executes the CPU and schedules an active RSP.
     system.reset();
     const std::vector<std::uint8_t> loopBootRom = {
