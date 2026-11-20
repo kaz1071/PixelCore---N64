@@ -430,15 +430,15 @@ bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint,
                                                    std::string &error)
 {
     // The cartridge header's boot address identifies where the initial
-    // 0xFC0-byte IPL3 block is to be placed in RDRAM. It is commonly 0x80000400,
+    // 0xFC0-byte IPL3 block (stored at ROM offset 0x40) is to be placed in RDRAM. It is commonly 0x80000400,
     // but some cartridges (including Pokémon Stadium) use a higher RDRAM
     // address such as 0x80100400.
-    constexpr std::size_t CartridgeBootOffset = 0x1000;
+    constexpr std::size_t CartridgeBootOffset = 0x0040;
     constexpr std::size_t BootCodeSize = 0x0FC0;
     constexpr std::size_t MinimumRdramBootOffset = 0x400;
     if (cartridge_.size() < CartridgeBootOffset + BootCodeSize) {
         error = "Cartridge image is too small for the initial boot-code block (size: " +
-                std::to_string(cartridge_.size()) + " bytes; need at least 0x1FC0).";
+                std::to_string(cartridge_.size()) + " bytes; need at least 0x1000).";
         return false;
     }
 
