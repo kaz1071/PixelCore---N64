@@ -439,12 +439,15 @@ void MainWindow::updateFramebuffer()
             ? "Execution paused — trace is frozen"
             : "Waiting for VI video configuration...";
         framebufferView_->setMessage(
-            QString("ROM loaded\n\n%1\n\nVI_WIDTH: 0x%2   VI_CONTROL: 0x%3\nVI_ORIGIN: 0x%4\nCPU PC: 0x%5\n\nFull CPU history is shown below.")
+            QString("ROM loaded\\n\\n%1\\n\\nVI_WIDTH: 0x%2   VI_CONTROL: 0x%3\\nVI_ORIGIN: 0x%4\\nCPU PC: 0x%5\\nCP0 EPC: 0x%6\\nCP0 Cause: 0x%7\\nCP0 Status: 0x%8\\n\\nFull CPU history is shown below.")
                 .arg(state)
                 .arg(width, 8, 16, QChar('0'))
                 .arg(control, 8, 16, QChar('0'))
                 .arg(origin, 8, 16, QChar('0'))
-                .arg(system_.cpu().pc(), 16, 16, QChar('0')));
+                .arg(system_.cpu().pc(), 16, 16, QChar('0'))
+                .arg(system_.cpu().cp0(R4300i::EPC), 16, 16, QChar('0'))
+                .arg(system_.cpu().cp0(R4300i::Cause), 16, 16, QChar('0'))
+                .arg(system_.cpu().cp0(R4300i::Status), 16, 16, QChar('0')));
         const auto history = system_.cpu().recentInstructionTrace();
         QString historyText = "Recent CPU instructions (oldest first):";
         for (std::size_t i = 0; i < history.size(); ++i)
