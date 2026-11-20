@@ -377,9 +377,20 @@ void MainWindow::updateFramebuffer()
         return;
 
     std::uint32_t width = 0;
-    if (!system_.memory().read32(N64MemoryBus::ViWidth, width) ||
-        width == 0 || width > 640) {
-        framebufferView_->setMessage("ROM loaded\n\nWaiting for VI video configuration...");
+    std::uint32_t control = 0;
+    std::uint32_t origin = 0;
+    const bool widthRead = system_.memory().read32(N64MemoryBus::ViWidth, width);
+    system_.memory().read32(N64MemoryBus::ViControl, control);
+    system_.memory().read32(N64MemoryBus::ViOrigin, origin);
+    if (!widthRead || width == 0 || width > 640) {
+        framebufferView_->setMessage(
+            QString("ROM loaded\n\nWaiting for VI video configuration...\n\n"
+                    "VI_WIDTH: 0x%1\nVI_CONTROL: 0x%2\nVI_ORIGIN: 0x%3\n"
+                    "CPU PC: 0x%4")
+                .arg(width, 8, 16, QChar('0'))
+                .arg(control, 8, 16, QChar('0'))
+                .arg(origin, 8, 16, QChar('0'))
+                .arg(system_.cpu().pc(), 16, 16, QChar('0')));
         return;
     }
 
