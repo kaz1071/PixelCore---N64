@@ -83,10 +83,8 @@ bool N64System::startCartridgeDirectBoot(std::string &error)
 {
     reset();
     std::uint32_t entryPoint = 0;
-    if (!memory_.prepareCartridgeDirectBoot(entryPoint)) {
-        error = "The cartridge does not contain a supported N64 entry point and boot-code block.";
+    if (!memory_.prepareCartridgeDirectBoot(entryPoint, error))
         return false;
-    }
 
     // Approximate the standard IPL3 hand-off arguments. This bypasses PIF/CIC
     // initialization and is a development aid, not an authentic hardware boot.
