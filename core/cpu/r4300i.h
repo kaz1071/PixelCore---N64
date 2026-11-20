@@ -49,6 +49,7 @@ public:
     };
 
     void reset();
+    void setPc(std::uint64_t address);
     bool step(N64Memory &memory, std::string &error);
 
     std::uint64_t reg(unsigned int index) const;
