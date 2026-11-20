@@ -425,27 +425,41 @@ void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
     bootRom_ = image;
 }
 
-bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint)
+bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint,
+                                                   std::string &error)
 {
     // The IPL3 stage normally copies the first 0xFC0 bytes of the game image
     // (starting at cartridge offset 0x1000) to RDRAM at physical 0x400.
     constexpr std::size_t CartridgeBootOffset = 0x1000;
     constexpr std::size_t BootCodeSize = 0x0FC0;
     constexpr std::size_t RdramBootOffset = 0x400;
-    if (cartridge_.size() < CartridgeBootOffset + BootCodeSize)
+    if (cartridge_.size() < CartridgeBootOffset + BootCodeSize) {
+        error = "Cartridge image is too small for the initial boot-code block (size: " +
+                std::to_string(cartridge_.size()) + " bytes; need at least 0x1FC0).";
         return false;
+    }
 
-    if (!readImage(cartridge_, 0x08, entryPoint))
+    if (!readImage(cartridge_, 0x08, entryPoint)) {
+        error = "Could not read the cartridge entry point from header offset 0x08.";
         return false;
+    }
+
     const std::uint64_t physicalEntry = toPhysicalAddress(entryPoint);
     if ((entryPoint & 3U) != 0 || physicalEntry < RdramBootOffset ||
         physicalEntry >= RdramBootOffset + BootCodeSize ||
-        physicalEntry >= RdramSize)
+        physicalEntry >= RdramSize) {
+        char details[128]{};
+        std::snprintf(details, sizeof(details),
+                      "Unsupported cartridge entry point: 0x%08X (physical: 0x%llX).",
+                      entryPoint, static_cast<unsigned long long>(physicalEntry));
+        error = details;
         return false;
+    }
 
     std::copy_n(cartridge_.begin() + static_cast<std::ptrdiff_t>(CartridgeBootOffset),
                 BootCodeSize,
                 rdram_.begin() + static_cast<std::ptrdiff_t>(RdramBootOffset));
+    error.clear();
     return true;
 }
 
