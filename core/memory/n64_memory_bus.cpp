@@ -429,11 +429,13 @@ void N64MemoryBus::loadBootRom(const std::vector<std::uint8_t> &image)
 bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint,
                                                    std::string &error)
 {
-    // The IPL3 stage normally copies the first 0xFC0 bytes of the game image
-    // (starting at cartridge offset 0x1000) to RDRAM at physical 0x400.
+    // The cartridge header's boot address identifies where the initial
+    // 0xFC0-byte IPL3 block is to be placed in RDRAM. It is commonly 0x80000400,
+    // but some cartridges (including Pokémon Stadium) use a higher RDRAM
+    // address such as 0x80100400.
     constexpr std::size_t CartridgeBootOffset = 0x1000;
     constexpr std::size_t BootCodeSize = 0x0FC0;
-    constexpr std::size_t RdramBootOffset = 0x400;
+    constexpr std::size_t MinimumRdramBootOffset = 0x400;
     if (cartridge_.size() < CartridgeBootOffset + BootCodeSize) {
         error = "Cartridge image is too small for the initial boot-code block (size: " +
                 std::to_string(cartridge_.size()) + " bytes; need at least 0x1FC0).";
@@ -446,9 +448,8 @@ bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint,
     }
 
     const std::uint64_t physicalEntry = toPhysicalAddress(entryPoint);
-    if ((entryPoint & 3U) != 0 || physicalEntry < RdramBootOffset ||
-        physicalEntry >= RdramBootOffset + BootCodeSize ||
-        physicalEntry >= RdramSize) {
+    if ((entryPoint & 3U) != 0 || physicalEntry < MinimumRdramBootOffset ||
+        physicalEntry > RdramSize - BootCodeSize) {
         char details[128]{};
         std::snprintf(details, sizeof(details),
                       "Unsupported cartridge entry point: 0x%08X (physical: 0x%llX).",
@@ -459,7 +460,7 @@ bool N64MemoryBus::prepareCartridgeDirectBoot(std::uint32_t &entryPoint,
 
     std::copy_n(cartridge_.begin() + static_cast<std::ptrdiff_t>(CartridgeBootOffset),
                 BootCodeSize,
-                rdram_.begin() + static_cast<std::ptrdiff_t>(RdramBootOffset));
+                rdram_.begin() + static_cast<std::ptrdiff_t>(physicalEntry));
     error.clear();
     return true;
 }
