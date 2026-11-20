@@ -1,6 +1,7 @@
 #include "core/memory/n64_memory_bus.h"
 
 #include <algorithm>
+#include <cstdio>
 
 N64MemoryBus::N64MemoryBus()
     : rdram_(RdramSize, 0), pifRam_(PifRamSize, 0),
